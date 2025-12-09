@@ -8,13 +8,21 @@ defineProps({
 
 <template>
   <div class="post-list">
-    <article v-for="post in posts" :key="post.id" class="post-card">
+    <TransitionGroup name="list" tag="div">
+
+      <article v-for="post in posts" :key="post.id" class="post-card">
+
+
+
       <h3 :class="{'hot-title':post.like>10}">{{ post.title }}</h3><!--{CSS属性名：变量或逻辑}-->
+
       <div class="meta">
         <span class="date">{{ post.date }}</span>
         <span class="tag" v-for="tag in post.tags" :key="tag">#{{ tag }}</span>
       </div>
+
       <p class="summary">{{ post.summary }}</p>
+
       <button class="like-btn" @click="post.like++">♥ {{post.like}} </button>
 
       <router-link
@@ -23,7 +31,11 @@ defineProps({
       >
         阅读全文
       </router-link>
+
     </article>
+
+    </TransitionGroup>
+
   </div>
 </template>
 
@@ -131,5 +143,32 @@ h3 {
   border-width: 2px;
   border-style: solid;
   color: #05593c;
+}
+
+/* ✨ 列表动画魔法 ✨ */
+
+/* 1. 元素进入(Enter)和离开(Leave)的激活状态 */
+.list-enter-active,
+.list-leave-active {
+  transition: all 0.5s ease;
+}
+
+/* 2. 开始进入前 / 离开后 */
+.list-enter-from,
+.list-leave-to {
+  opacity: 0;
+  transform: translateX(-30px); /* 从左边滑进来 */
+}
+
+/* 3. 关键魔法：位置移动 (Move) */
+/* 当列表项改变位置（比如新文章挤进来，旧文章往下挪）时的动画 */
+.list-move {
+  transition: transform 0.5s ease;
+}
+
+/* 4. 确保离开的元素脱离文档流，让其他元素能平滑地补位 */
+.list-leave-active {
+  position: absolute;
+  width: 100%; /* 防止宽度塌陷 */
 }
 </style>

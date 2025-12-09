@@ -28,12 +28,39 @@
 <style scoped>
 /* 简单的导航栏样式 */
 .navbar {
+  /* 1. 固定在顶部，这样才能盖住滚动的文章 */
+  position: sticky;
+  top: 0;
+  z-index: 100; /* 保证它在最上面 */
+
+  /* 2. 把背景色改成半透明 */
+  /* 这里的 0.8 是透明度，你可以根据喜好调 */
+  background-color: rgba(255, 255, 255, 0.8);
+
+  /* 3. 核心：背景模糊滤镜 */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px); /* 兼容 Safari */
+
+  /* 4. 加个底边框，增加层次感 */
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  /* ...原来的 padding 等样式保持不变... */
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background-color: #f4f4f4;
   margin-bottom: 20px;
+}
+
+/* 深色模式适配 */
+@media (prefers-color-scheme: dark) {
+  .navbar {
+    /* 深色模式下的半透明黑 */
+    background-color: rgba(51, 51, 51, 0.8);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
 }
 
 .logo {
@@ -74,7 +101,7 @@
 
 /* 深色模式适配 */
 @media (prefers-color-scheme: dark) {
-  .navbar { background-color: #333; }
+
   .menu a { color: #fff; }
 }
 </style>
