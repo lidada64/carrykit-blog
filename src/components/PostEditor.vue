@@ -24,7 +24,7 @@ return;
 
 }
 
-
+//reader类似一个"榨汁机",可以让file里的图片转化为url格式
   const reader = new FileReader();
 
   reader.readAsDataURL(file);
