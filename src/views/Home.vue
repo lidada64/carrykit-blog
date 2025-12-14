@@ -83,6 +83,8 @@ const filterPosts = computed(()=>{
 
   <span :style="{color:'#696969',fontSize:'20px'}">Search </span><input v-model="searchText">
   <postList :posts="filterPosts"></postList>
+
+
   <div class="links">
     <a :href="myNetwork.github" target="_blank">My github</a>
     <a :href="myNetwork.gemini" target="_blank">gemini</a>

@@ -38,7 +38,7 @@ const postHtml=computed(()=>{
   <div class="article-detail">
     <div v-if="post">
       <h1>{{ post.title }}</h1>
-
+      <img v-if="post.image" :src="post.image" class="hero-image" />
       <div class="meta">
         <span class="date">📅 {{ post.date }}</span>
         <span class="likes">👍 {{ post.like }} 赞</span>
@@ -95,6 +95,15 @@ h1 {
   text-decoration: none;
   color: #42b883;
   font-weight: bold;
+}
+/*图片样式*/
+.hero-image {
+  width: 100%;
+  max-height: 400px; /* 详情页可以稍微大一点 */
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
 /*给渲染出来的 Markdown 加点样式 */

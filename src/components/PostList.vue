@@ -15,7 +15,7 @@ defineProps({
 
 
       <h3 :class="{'hot-title':post.like>10}">{{ post.title }}</h3><!--{CSS属性名：变量或逻辑}-->
-
+        <img v-if="post.image" :src="post.image" class="post-thumb" />
       <div class="meta">
         <span class="date">{{ post.date }}</span>
         <span class="tag" v-for="tag in post.tags" :key="tag">#{{ tag }}</span>
@@ -40,6 +40,15 @@ defineProps({
 </template>
 
 <style scoped>
+
+.post-thumb {
+  width: 100%;       /* 宽度填满卡片 */
+  height: 200px;     /* 高度固定，整齐一点 */
+  object-fit: cover; /* 裁剪模式：保持比例，多余的切掉（像朋友圈那样） */
+  border-radius: 8px;
+  margin: 10px 0;
+}
+
 .post-list {
   max-width: 700px;
   margin: 40px auto; /* 居中 */

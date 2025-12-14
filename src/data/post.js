@@ -1,7 +1,7 @@
-import {ref} from "vue";
+import {ref,watch} from "vue";
 
 
-export const blogPosts = ref([
+export const defaultPosts = ref([
     {
         id: 1,
         title: '我的第一篇博客：Vue 学习之旅',
@@ -58,3 +58,30 @@ console.log(count.value);
         like:0
     }
 ])
+
+//初始化数组，如果localStorage不存在，返回默认文章
+const initPosts=()=>{
+
+    const storagePosts=localStorage.getItem('my-blog-posts');//get string
+    if(storagePosts){
+        return JSON.parse(storagePosts);//返回数组
+    }
+    else {
+        return defaultPosts;
+    }
+
+}
+
+export const blogPosts=ref(initPosts());
+
+
+watch(
+    blogPosts,
+    (newPosts)=>{
+        localStorage.setItem('my-blog-posts',JSON.stringify(newPosts));
+    },
+{deep:true}
+
+)
+
+
