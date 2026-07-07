@@ -41,3 +41,5 @@ npm-debug.log*
 
 # recall (local session context)
 .recall/
+
+/src/generated/prisma

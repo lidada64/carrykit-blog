@@ -1,0 +1,49 @@
+// 数据模型见 docs/ARCHITECTURE.md §3;改动本文件必须同步生成 migration(AGENTS 工作流)。
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Post {
+  id          String     @id @default(cuid())
+  slug        String     @unique
+  title       String
+  excerpt     String     @default("")
+  content     String // Markdown
+  status      PostStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  tags        String     @default("") // 逗号分隔;V2 需筛选时迁移为 Tag 关联表
+}
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model Project {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  title      String
+  summary    String   @default("") // 一句话描述
+  content    String // Markdown 详情
+  coverImage String   @default("") // 图片 URL
+  tags       String   @default("") // 技术标签,逗号分隔
+  link       String   @default("") // 演示/仓库外链
+  order      Int      @default(0) // 手动排序,小的在前
+  published  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model User {
+  id           String @id @default(cuid())
+  email        String @unique
+  passwordHash String
+}
