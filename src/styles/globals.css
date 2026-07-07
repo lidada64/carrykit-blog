@@ -1,26 +1,72 @@
 @import "tailwindcss";
 
+/*
+ * 【扩展性接口】色板 token 唯一定义处(ARCHITECTURE §7.2 / DESIGN_SPEC §3)。
+ * 更换主题色只改本块的 token 值;组件一律引用语义类(bg-background 等),
+ * 禁止出现字面量色值。
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #fafaf8;
+  --foreground: #1a1a1a;
+  --muted: #6b6b6b;
+  --border: #e5e5e0;
+  --accent: #2f4ae0;
+  --revealer: #1a1a1a;
 }
+
+/*
+ * 暗色模式预留(V2):取消注释并覆写同名 token 即可,组件零改动。
+ * [data-theme="dark"] {
+ *   --background: #0f0f0e;
+ *   --foreground: #ededed;
+ *   ...
+ * }
+ */
 
 @theme inline {
+  /* 色板映射:生成 bg-background / text-foreground / text-muted / border-border / text-accent 等 */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-revealer: var(--revealer);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* 字体映射:变量由 src/config/fonts.ts 定义并挂在 <html> 上 */
+  --font-display: var(--font-display);
+  --font-body: var(--font-body);
+  --font-mono: var(--font-mono);
+
+  /*
+   * 字号阶梯(DESIGN_SPEC §2):全站公开页只准使用以下 5 档
+   * (text-display / text-heading / text-subheading / text-body / text-caption),
+   * 禁止新增中间档;admin 后台不受此限。
+   */
+  --text-display: clamp(2.5rem, 8vw, 6rem);
+  --text-display--line-height: 1.05;
+  --text-display--font-weight: 600;
+
+  --text-heading: 2rem;
+  --text-heading--line-height: 1.2;
+  --text-heading--font-weight: 600;
+
+  --text-subheading: 1.25rem;
+  --text-subheading--line-height: 1.4;
+  --text-subheading--font-weight: 500;
+
+  --text-body: 1rem;
+  --text-body--line-height: 1.7;
+
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.5;
+  --text-caption--letter-spacing: 0.05em;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-body);
+  /* 与 --text-body 档保持一致(@theme inline 变量不输出到运行时,此处写字面量) */
+  font-size: 1rem;
+  line-height: 1.7;
 }

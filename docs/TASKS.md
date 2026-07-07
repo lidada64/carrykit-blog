@@ -8,8 +8,8 @@
 
 - [x] **M0-1 初始化项目**:`create-next-app`(TypeScript、App Router、Tailwind、src 目录、ESLint);配置 `next.config` `output: "standalone"`;安装 gsap、@gsap/react、Prisma 等锁定依赖
   - 验收:`npm run dev` 与 `npm run build` 均通过 ✅(2026-07-07,Next.js 16.2.10 / Tailwind 4 / gsap 3.15 / Prisma 7.8)
-- [ ] **M0-2 设计 token 与字体接口**:`src/config/fonts.ts`(Geist + Geist Mono + 中文回退,输出 `--font-*` 变量);`globals.css` 写入色板 token 块(含 `[data-theme]` 预留)与 5 档字号阶梯(见 [DESIGN_SPEC.md](DESIGN_SPEC.md) §2-3、§7)
-  - 验收:临时演示页可见 5 档字号、全部色板 token、mono 字体;改 fonts.ts 中一处字体全站生效
+- [x] **M0-2 设计 token 与字体接口**:`src/config/fonts.ts`(Geist + Geist Mono + 中文回退,输出 `--font-*` 变量);`globals.css` 写入色板 token 块(含 `[data-theme]` 预留)与 5 档字号阶梯(见 [DESIGN_SPEC.md](DESIGN_SPEC.md) §2-3、§7)
+  - 验收:临时演示页可见 5 档字号、全部色板 token、mono 字体;改 fonts.ts 中一处字体全站生效 ✅(2026-07-07,演示页 `/styleguide`,上线前移除)
 - [ ] **M0-3 i18n 接口**:`src/i18n/{en.ts,zh.ts,index.ts}`(字典 + LocaleProvider + useT,默认 en,localStorage 持久化),见 [ARCHITECTURE.md](ARCHITECTURE.md) §7.3
   - 验收:演示组件可用 `t()` 取文案并即时切换 EN/中;刷新后语言保持
 - [ ] **M0-4 Prisma + SQLite**:按 ARCHITECTURE §3 建 schema,首次 migration,`lib/db.ts` 单例,`seed.ts` 写入示例数据(3 篇文章、4 个作品、1 个 admin 用户)
