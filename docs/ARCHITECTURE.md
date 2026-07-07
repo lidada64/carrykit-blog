@@ -33,15 +33,18 @@ Carrykit blog2/
 ├── public/                    # 静态资源
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx         # 根布局:导航 + footer
-│   │   ├── page.tsx           # Home
-│   │   ├── about/page.tsx
-│   │   ├── blog/
-│   │   │   ├── page.tsx       # 列表
-│   │   │   └── [slug]/page.tsx
-│   │   ├── work/
-│   │   │   ├── page.tsx
-│   │   │   └── [slug]/page.tsx
+│   │   ├── layout.tsx         # 根布局:字体变量 + LocaleProvider
+│   │   ├── (site)/            # 公开站路由组:共享 Nav + Footer
+│   │   │   ├── layout.tsx     # 公开站布局:导航 + footer(admin 不走此布局)
+│   │   │   ├── page.tsx       # Home
+│   │   │   ├── about/page.tsx
+│   │   │   ├── blog/
+│   │   │   │   ├── page.tsx   # 列表
+│   │   │   │   └── [slug]/page.tsx
+│   │   │   ├── work/
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── [slug]/page.tsx
+│   │   │   └── styleguide/    # 临时演示页(上线前移除)
 │   │   ├── admin/
 │   │   │   ├── login/page.tsx
 │   │   │   ├── layout.tsx     # 鉴权守卫 + 后台布局
@@ -56,7 +59,8 @@ Carrykit blog2/
 │   │   ├── blog/  work/  admin/
 │   │   └── ui/                # 通用小组件
 │   ├── config/
-│   │   └── fonts.ts           # 【扩展性接口】next/font 字体定义单点,见 §7
+│   │   ├── fonts.ts           # 【扩展性接口】next/font 字体定义单点,见 §7
+│   │   └── site.ts            # 站点常量:站名、联系邮箱、社交链接
 │   ├── i18n/
 │   │   ├── en.ts  zh.ts       # 【扩展性接口】UI 文案字典,见 §7
 │   │   └── index.ts           # LocaleProvider + useT() hook

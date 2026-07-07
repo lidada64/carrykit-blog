@@ -13,6 +13,8 @@ export const en = {
   common: {
     language: "Language",
     backToBlog: "Back to blog",
+    comingSoon: "Coming soon.",
+    home: "Home",
   },
   footer: {
     byline: "Carrykit",

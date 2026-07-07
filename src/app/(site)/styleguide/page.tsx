@@ -6,7 +6,7 @@ import { LocaleDemo } from "./locale-demo";
 
 export default function StyleguidePage() {
   return (
-    <main className="mx-auto max-w-[1120px] px-6 py-16 flex flex-col gap-16">
+    <div className="flex flex-col gap-16 py-16">
       <LocaleDemo />
       <section className="flex flex-col gap-4">
         <p className="text-caption font-mono uppercase text-muted">
@@ -66,6 +66,6 @@ export default function StyleguidePage() {
           font-mono — Geist Mono 0123456789
         </p>
       </section>
-    </main>
+    </div>
   );
 }

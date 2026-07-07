@@ -13,6 +13,8 @@ export const zh: Dictionary = {
   common: {
     language: "语言",
     backToBlog: "返回博客列表",
+    comingSoon: "建设中。",
+    home: "首页",
   },
   footer: {
     byline: "Carrykit",

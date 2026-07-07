@@ -14,8 +14,8 @@
   - 验收:演示组件可用 `t()` 取文案并即时切换 EN/中;刷新后语言保持 ✅(2026-07-07,演示见 `/styleguide` 顶部;实现用 useSyncExternalStore,SSR 默认 en、水合后同步持久化语言)
 - [x] **M0-4 Prisma + SQLite**:按 ARCHITECTURE §3 建 schema,首次 migration,`lib/db.ts` 单例,`seed.ts` 写入示例数据(3 篇文章、4 个作品、1 个 admin 用户)
   - 验收:`npx prisma migrate dev` + seed 成功;Prisma Studio 可见数据 ✅(2026-07-07,seed 输出 3 posts / 4 projects / 1 user;Prisma 7:配置在 prisma.config.ts,client 生成到 src/generated/prisma,运行时用 better-sqlite3 adapter)
-- [ ] **M0-5 全局布局与导航**:根 `layout.tsx` + Nav(logo、四项导航、语言切换按钮、active 态)+ Footer;四个页面占位路由
-  - 验收:PRD US-H3/US-I1(切换部分);移动端正常
+- [x] **M0-5 全局布局与导航**:根 `layout.tsx` + Nav(logo、四项导航、语言切换按钮、active 态)+ Footer;四个页面占位路由
+  - 验收:PRD US-H3/US-I1(切换部分);移动端正常 ✅(2026-07-07,公开页收入 `(site)` 路由组共享 Nav/Footer(admin 后续独立布局,ARCHITECTURE §2 已同步);四路由 200、active 态与 mailto 验证通过;站点常量在 src/config/site.ts)
 
 ## M1 公开页面(使用种子数据,静态布局优先,复杂动效留 M3)
 
