@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# production
+build/
+dist/
+
+# env
+.env
+.env.local
+.env.production
+
+# database (SQLite)
+*.db
+*.db-journal
+prisma/dev.db*
+
+# misc
+.DS_Store
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+
+# recall (local session context)
+.recall/
