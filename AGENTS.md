@@ -1,8 +1,8 @@
 
 # AGENTS.md — 全局生成规范 / Global Agent Rules
 
-个人博客/作品集网站:Next.js 15 全栈单体 + GSAP 动效 + Prisma/SQLite,自建 admin 后台,Docker 部署 VPS。布局与动效复刻 lokasasmita.com。
-Personal blog/portfolio: Next.js 15 full-stack monolith + GSAP animations + Prisma/SQLite, custom admin panel, Docker on VPS. Layout & motion replicate lokasasmita.com.
+个人博客/作品集网站:Next.js 16 全栈单体 + GSAP 动效 + Prisma/SQLite,自建 admin 后台,Docker 部署 VPS。布局与动效复刻 lokasasmita.com。
+Personal blog/portfolio: Next.js 16 full-stack monolith + GSAP animations + Prisma/SQLite, custom admin panel, Docker on VPS. Layout & motion replicate lokasasmita.com.
 
 **仓库 / Repo**: `https://github.com/lidada64/carrykit-blog` — 主分支 `main`;`First-version` 为只读历史归档,**禁止**推送、合并或删除。
 Default branch `main`; `First-version` is a read-only archive — never push to, merge, or delete it.
@@ -24,8 +24,8 @@ If docs and code conflict, docs win — flag the conflict. If a doc is wrong, fi
 
 ## 技术栈锁定 / Tech Stack Lock
 
-- 锁定栈:Next.js 15 (App Router) / TypeScript / Tailwind CSS / **GSAP(+ScrollTrigger、@gsap/react)** / Prisma / SQLite。
-  The stack is locked as above.
+- 锁定栈:Next.js 16 (App Router) / TypeScript / Tailwind CSS 4 / **GSAP(+ScrollTrigger、@gsap/react)** / Prisma / SQLite。版本以 `package.json` 为准。
+  The stack is locked as above; `package.json` is the source of truth for versions.
 - **禁止**未经用户确认引入新框架、UI 组件库、状态管理库或任何大型依赖;小工具依赖(< 50KB、无传染性)需在提交说明中注明理由。
   **Never** add new frameworks, UI kits, state libs, or heavy deps without user approval; small utilities need a stated reason.
 - 不升级已锁定依赖的大版本 / No major-version bumps of locked deps.

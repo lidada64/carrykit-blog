@@ -8,7 +8,7 @@
 
 | 层 | 选型 | 理由 |
 |----|------|------|
-| 框架 | **Next.js 15 (App Router) + TypeScript** | 全栈单体,前后端同仓同框架;SSG/ISR 满足 SEO;vibecoding 上下文集中 |
+| 框架 | **Next.js 16 (App Router) + TypeScript** | 全栈单体,前后端同仓同框架;SSG/ISR 满足 SEO;vibecoding 上下文集中(M0 锁定 16.2.10,版本以 package.json 为准) |
 | UI | **React 19 + Tailwind CSS 4** | 原子化样式,设计 token 落地为 CSS 变量,便于遵守设计规范 |
 | 动效 | **GSAP + ScrollTrigger + @gsap/react (useGSAP)** | 参考站自述即用 GSAP;复刻滚动驱动画廊、revealer 过渡、数字翻转等效果的标准工具 |
 | ORM | **Prisma** | 类型安全;SQLite → PostgreSQL 迁移路径平滑 |

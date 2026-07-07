@@ -20,8 +20,18 @@ dist/
 *.db-journal
 prisma/dev.db*
 
+# testing
+coverage/
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
 # misc
 .DS_Store
+*.pem
 *.log
 npm-debug.log*
 
