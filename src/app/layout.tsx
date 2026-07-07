@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { fontVariables } from "@/config/fonts";
+import { LocaleProvider } from "@/i18n";
 import "@/styles/globals.css";
 
 export const metadata: Metadata = {
@@ -14,7 +15,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${fontVariables} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <LocaleProvider>{children}</LocaleProvider>
+      </body>
     </html>
   );
 }

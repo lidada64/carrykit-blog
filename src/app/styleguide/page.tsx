@@ -2,9 +2,12 @@
  * 临时演示页(M0-2 验收用):展示 5 档字号阶梯、全部色板 token 与三个字体变量。
  * 仅供开发期自查,正式上线前可移除。文案为开发工具用途,不走 i18n 字典。
  */
+import { LocaleDemo } from "./locale-demo";
+
 export default function StyleguidePage() {
   return (
     <main className="mx-auto max-w-[1120px] px-6 py-16 flex flex-col gap-16">
+      <LocaleDemo />
       <section className="flex flex-col gap-4">
         <p className="text-caption font-mono uppercase text-muted">
           Type Scale — 5 steps only
