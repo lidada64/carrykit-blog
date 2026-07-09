@@ -25,8 +25,8 @@
   - 验收:PRD US-B3/B4;示例文章标题/图片/代码块渲染正确 ✅(2026-07-09,Markdown 选型锁定 react-markdown+remark-gfm+rehype-highlight,管线在 `lib/markdown.ts` 前后台共用;Post 新增 coverImage 字段(migration `20260709055913`,ARCHITECTURE/PRD 已同步),种子第二篇故意无封面验证头图隐藏;草稿与未知 slug 均 404 验证通过)
 - [x] **M1-3 Related Articles**:详情页底部相关文章卡片网格(≤3,不足 2 篇隐藏)
   - 验收:PRD US-B5(进度条除外)✅(2026-07-09,相关文章 V1 取最新其他已发布文章;临时 DRAFT 一篇验证不足 2 篇整块隐藏后已恢复;无封面卡片用 bg-border/40 占位保持网格对齐)
-- [ ] **M1-4 Work 画廊静态布局**:桌面端画廊版式(大图区 + 序号 + 右侧作品名列表 + 描述,先不接滚动动画);**移动端纵向作品卡片列表**;按 `order` 排序
-  - 验收:PRD US-W1 的布局与移动端降级部分;作品名/大图可点击进详情
+- [x] **M1-4 Work 画廊静态布局**:桌面端画廊版式(大图区 + 序号 + 右侧作品名列表 + 描述,先不接滚动动画);**移动端纵向作品卡片列表**;按 `order` 排序
+  - 验收:PRD US-W1 的布局与移动端降级部分;作品名/大图可点击进详情 ✅(2026-07-09,静态帧以首作品为当前态(序号 01 + `—` 高亮),M3-6 接 ScrollTrigger;组件保持 Server Component(无 UI 文案);只取 published、order 升序验证通过)
 - [ ] **M1-5 Work 详情页**:封面、标签(mono)、外链按钮、Markdown 正文
   - 验收:PRD US-W2;无外链时按钮隐藏
 - [ ] **M1-6 About 页(分节)**:BIO / SKILLS / CONNECT 三节 + 大写 mono label + socials
