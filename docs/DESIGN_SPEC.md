@@ -84,7 +84,7 @@
 |---|------|------|----------|
 | A1 | **页面过渡 revealer** | 全屏遮罩(`--revealer` 色):路由切换时遮罩滑入覆盖 → 新页就绪 → 遮罩滑出揭示;每页顶层挂 revealer 元素 | 全站所有路由切换 |
 | A2 | **Preloader** | 首次访问:全屏 overlay + 数字 counter(mono 字体)从 0 计数到 100 → overlay 揭开进入 hero;sessionStorage 记忆,同会话不重播 | Home 首次加载 |
-| A3 | **文字滚动 hover(text-roll)** | 同一文字堆叠 3 份 span 于 overflow-hidden wrapper 内,hover 时 wrapper translateY 滚动到下一份 | 博客列表行(日期+标题各自滚动)、导航项 |
+| A3 | **文字滚动 hover(text-roll)** | 同一文字堆叠 3 份 span 于 overflow-hidden wrapper 内,hover 时 wrapper translateY 滚动到下一份;**滚入的副本反色**(背景变 `--foreground`、文字变 `--background`),离开时滚到第三份(正常色)后无缝复位 | 博客列表行(日期+标题各自滚动)、导航项 |
 | A4 | **Pixelated 标题** | hero 大标题入场时像素块化 → 逐步清晰的揭示特效(canvas 或分块 div 实现,M3 定方案) | Home hero 标题 |
 | A5 | **Work 滚动画廊** | ScrollTrigger pin 整屏:滚动驱动 ① 作品大图依次切换 ② 序号数字在 overflow mask 内翻转(双 digit wrapper 上移) ③ 右侧作品名列表 indicator(`—` 符号)移动 + 当前名高亮 ④ 底部 progressBar 随总进度增长;前后留 whitespace 滚动缓冲区 | Work 页 |
 | A6 | **阅读进度条 progressBar** | 页面底部(或顶部)细条,宽度 = 滚动进度 | Blog 详情、Work |
