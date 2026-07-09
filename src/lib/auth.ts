@@ -1,5 +1,6 @@
 import { getIronSession, type IronSession, type SessionOptions } from "iron-session";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 /**
  * session 读写(ARCHITECTURE §4):iron-session 加密 cookie,httpOnly、7 天。
@@ -29,4 +30,10 @@ function sessionOptions(): SessionOptions {
 
 export async function getSession(): Promise<IronSession<SessionData>> {
   return getIronSession<SessionData>(await cookies(), sessionOptions());
+}
+
+/** 写操作 Server Action 统一入口校验(AGENTS 代码规范):未登录直接重定向登录页 */
+export async function requireAdmin(): Promise<void> {
+  const session = await getSession();
+  if (!session.userId) redirect("/admin/login");
 }
