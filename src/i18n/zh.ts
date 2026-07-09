@@ -26,6 +26,9 @@ export const zh: Dictionary = {
     tagsLabel: "标签",
     relatedLabel: "相关文章",
   },
+  work: {
+    linkLabel: "访问项目",
+  },
   footer: {
     byline: "Carrykit",
   },

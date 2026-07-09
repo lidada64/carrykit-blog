@@ -27,6 +27,9 @@ export const en = {
     tagsLabel: "Tags",
     relatedLabel: "Related Articles",
   },
+  work: {
+    linkLabel: "Visit project",
+  },
   footer: {
     byline: "Carrykit",
   },
