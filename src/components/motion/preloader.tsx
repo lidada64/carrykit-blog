@@ -31,7 +31,10 @@ export function Preloader() {
 
       const played = window.sessionStorage.getItem(STORAGE_KEY) === "1";
       if (played || prefersReducedMotion()) {
-        overlay.remove();
+        // 隐藏而非 remove():节点归 React 所有,直接删除会在卸载时触发 removeChild 错误。
+        // 同时摘掉 data-preloader 标记,等待方(PixelTitle)按"无 preloader"处理
+        overlay.removeAttribute("data-preloader");
+        gsap.set(overlay, { display: "none" });
         return;
       }
       // 播放开始即标记:中途刷新也不重播
@@ -60,7 +63,9 @@ export function Preloader() {
           duration: motionTokens.duration.slow,
           ease: motionTokens.ease.enter,
           onComplete: () => {
-            overlay.remove();
+            // 隐藏而非 remove():避免 React 卸载时 removeChild 报错
+            overlay.removeAttribute("data-preloader");
+            gsap.set(overlay, { display: "none" });
             window.dispatchEvent(new Event(PRELOADER_DONE_EVENT));
           },
         });

@@ -31,7 +31,8 @@ export function PixelTitle({ text }: { text: string }) {
       if (!grid) return;
 
       if (prefersReducedMotion()) {
-        grid.remove();
+        // 隐藏而非 remove():节点归 React 所有,直接删除会在卸载时触发 removeChild 错误
+        gsap.set(grid, { display: "none" });
         gsap.from(el, { opacity: 0, duration: motionTokens.duration.base });
         return;
       }
@@ -60,7 +61,8 @@ export function PixelTitle({ text }: { text: string }) {
             from: "random",
             grid: [rows, cols],
           },
-          onComplete: () => grid.remove(),
+          // 隐藏 React 所有的网格容器;自建的方块子节点随之不可见
+          onComplete: () => gsap.set(grid, { display: "none" }),
         });
       });
 

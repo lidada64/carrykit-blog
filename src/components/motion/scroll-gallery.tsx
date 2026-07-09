@@ -83,7 +83,8 @@ export function ScrollGallery({ projects }: { projects: GalleryProject[] }) {
             });
             digitColumns.forEach((column) => {
               gsap.to(column, {
-                yPercent: -100 * next,
+                // yPercent 以整列(N 个数字)为基准:翻到第 next 位 = next/N
+                yPercent: -(100 / projects.length) * next,
                 duration,
                 ease: motionTokens.ease.enter,
                 overwrite: "auto",

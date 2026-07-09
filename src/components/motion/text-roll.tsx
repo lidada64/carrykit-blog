@@ -33,9 +33,11 @@ export function TextRoll({
       if (!inner) return;
       const trigger = el.closest("a") ?? el;
 
+      // yPercent 以内层自身(3 行)为基准:滚一行 = 100/3
+      const STEP = 100 / 3;
       const rollIn = contextSafe(() => {
         gsap.to(inner, {
-          yPercent: -100,
+          yPercent: -STEP,
           duration: motionTokens.duration.fast,
           ease: motionTokens.ease.transition,
           overwrite: "auto",
@@ -43,7 +45,7 @@ export function TextRoll({
       });
       const rollOut = contextSafe(() => {
         gsap.to(inner, {
-          yPercent: -200,
+          yPercent: -STEP * 2,
           duration: motionTokens.duration.fast,
           ease: motionTokens.ease.transition,
           overwrite: "auto",
