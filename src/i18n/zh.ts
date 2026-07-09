@@ -35,6 +35,7 @@ export const zh: Dictionary = {
   },
   work: {
     linkLabel: "访问项目",
+    description: "精选作品——Web 体验、动效与工具。",
   },
   about: {
     bioLabel: "简介",

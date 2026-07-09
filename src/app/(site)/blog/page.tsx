@@ -1,6 +1,13 @@
+import type { Metadata } from "next";
 import { BlogList } from "@/components/blog/blog-list";
+import { en } from "@/i18n/en";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  title: en.nav.blog,
+  description: en.blog.description,
+};
 
 /** ISR(ARCHITECTURE §4):发布/修改文章后最多 60s 生效 */
 export const revalidate = 60;

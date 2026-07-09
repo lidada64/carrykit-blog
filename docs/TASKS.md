@@ -61,8 +61,8 @@
   - 验收:PRD US-W1 完整验收;滚动正反向均流畅;移动端不启用 pin ✅(2026-07-09,motion/scroll-gallery.tsx:pin 整屏、每作品一屏滚动量,进度离散驱动大图淡切/双 digit 1lh mask 翻转/— indicator 位移+名字高亮,前后 20vh 缓冲;gsap.matchMedia 限 md+ 且非 reduced-motion;降级走 CSS 变体(hidden motion-safe:md:block / motion-safe:md:hidden),<md 与 reduced-motion 均为静态卡片列表;进度条属 M3-7(A6))
 - [x] **M3-7 ProgressBar(A6)**:滚动/阅读进度条,应用到 Blog 详情与 Work
   - 验收:US-B5 进度条项;进度与滚动位置一致 ✅(2026-07-09,motion/progress-bar.tsx:底部 2px 细条,scaleX=整页滚动进度(ScrollTrigger scrub 直接映射);挂在 Blog 详情与 Work 页,其余页面无;非运动性反馈,reduced-motion 保留)
-- [ ] **M3-8 SEO**:各页 `generateMetadata`、`sitemap.ts`、`robots.ts`、文章/作品 OG 标签
-  - 验收:PRD §4 SEO 行;view-source 可见正确 meta
+- [x] **M3-8 SEO**:各页 `generateMetadata`、`sitemap.ts`、`robots.ts`、文章/作品 OG 标签
+  - 验收:PRD §4 SEO 行;view-source 可见正确 meta ✅(2026-07-09,根 layout metadataBase(SITE_URL)+title 模板,blog/work/about 独立 title+description(文案单源引英文字典),详情页 generateMetadata 输出 OG article/website+封面图;sitemap 11 条(4 静态+3 文章+4 作品),robots 屏蔽 /admin 与 /styleguide;About 拆为 server page + client AboutContent 以导出 metadata)
 - [ ] **M3-9 响应式与视觉走查**:三档断点逐页对照 DESIGN_SPEC §6 线框与参考站修偏差
   - 验收:360px 宽无横向滚动;各页与线框一致
 - [ ] **M3-10 性能**:`next/image` 全覆盖、字体 swap、Lighthouse 检查

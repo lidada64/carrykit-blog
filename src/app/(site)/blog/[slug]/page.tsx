@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { PostMeta } from "@/components/blog/post-meta";
@@ -16,6 +17,30 @@ export async function generateStaticParams() {
     select: { slug: true },
   });
   return posts.map(({ slug }) => ({ slug }));
+}
+
+/** 文章 SEO(M3-8):独立 title/description + OG article 标签,绝对 URL 由 metadataBase 解析 */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const post = await db.post.findUnique({ where: { slug } });
+  if (!post || post.status !== "PUBLISHED") return {};
+
+  return {
+    title: post.title,
+    description: post.excerpt || undefined,
+    openGraph: {
+      title: post.title,
+      description: post.excerpt || undefined,
+      type: "article",
+      url: `/blog/${post.slug}`,
+      publishedTime: post.publishedAt?.toISOString(),
+      images: post.coverImage ? [post.coverImage] : undefined,
+    },
+  };
 }
 
 export default async function BlogPostPage({

@@ -38,6 +38,7 @@ export const en = {
   },
   work: {
     linkLabel: "Visit project",
+    description: "Selected projects — web experiences, motion and tools.",
   },
   about: {
     bioLabel: "Bio",

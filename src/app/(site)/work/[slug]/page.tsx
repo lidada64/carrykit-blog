@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { ProjectLinkButton } from "@/components/work/project-link-button";
@@ -14,6 +15,29 @@ export async function generateStaticParams() {
     select: { slug: true },
   });
   return projects.map(({ slug }) => ({ slug }));
+}
+
+/** 作品 SEO(M3-8):独立 title/description + OG 标签 */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const project = await db.project.findUnique({ where: { slug } });
+  if (!project || !project.published) return {};
+
+  return {
+    title: project.title,
+    description: project.summary || undefined,
+    openGraph: {
+      title: project.title,
+      description: project.summary || undefined,
+      type: "website",
+      url: `/work/${project.slug}`,
+      images: project.coverImage ? [project.coverImage] : undefined,
+    },
+  };
 }
 
 export default async function ProjectPage({
