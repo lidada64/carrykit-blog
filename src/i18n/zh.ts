@@ -29,6 +29,13 @@ export const zh: Dictionary = {
   work: {
     linkLabel: "访问项目",
   },
+  about: {
+    bioLabel: "简介",
+    skillsLabel: "技能",
+    connectLabel: "联系",
+    intro: "为 Web 而做:在意布局、动效与文字。",
+    bio: "Carrykit 是我在互联网上的一个角落:展示作品、记录想法、试验 Web 动效。本站用 Next.js、GSAP 与 SQLite 构建,运行在一台小 VPS 上。",
+  },
   footer: {
     byline: "Carrykit",
   },

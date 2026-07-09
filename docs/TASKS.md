@@ -29,8 +29,8 @@
   - 验收:PRD US-W1 的布局与移动端降级部分;作品名/大图可点击进详情 ✅(2026-07-09,静态帧以首作品为当前态(序号 01 + `—` 高亮),M3-6 接 ScrollTrigger;组件保持 Server Component(无 UI 文案);只取 published、order 升序验证通过)
 - [x] **M1-5 Work 详情页**:封面、标签(mono)、外链按钮、Markdown 正文
   - 验收:PRD US-W2;无外链时按钮隐藏 ✅(2026-07-09,`generateStaticParams` 4 作品 SSG + ISR;外链按钮新标签页打开(label 走 i18n `work.linkLabel`),无外链作品验证按钮隐藏;临时下架作品验证 404 后已恢复;Markdown 复用 M1-2 管线)
-- [ ] **M1-6 About 页(分节)**:BIO / SKILLS / CONNECT 三节 + 大写 mono label + socials
-  - 验收:PRD US-A1~A3;email 为 mailto
+- [x] **M1-6 About 页(分节)**:BIO / SKILLS / CONNECT 三节 + 大写 mono label + socials
+  - 验收:PRD US-A1~A3;email 为 mailto ✅(2026-07-09,BIO 文案走 i18n `about` 组(随 EN/中 切换),技能列表收敛在 site.ts `skills`;mailto 与 GitHub 新标签页验证通过;节间按 DESIGN_SPEC §1 用大间距无分割线)
 - [ ] **M1-7 Home 页**:hero(标语 + 大图 + 双栏 description)+ 精选作品(≤3)+ 最新博客(≤3)
   - 验收:PRD US-H1/H2;区块无内容时隐藏
 
