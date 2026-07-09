@@ -74,6 +74,12 @@ export const en = {
     confirmDelete: "Delete this item? This cannot be undone.",
     invalidError: "Title, slug and content are required.",
     slugTakenError: "Slug is already in use.",
+    newProject: "New project",
+    editProject: "Edit project",
+    summaryLabel: "Summary",
+    linkFieldLabel: "External link URL",
+    orderLabel: "Order",
+    publishedLabel: "Published",
   },
   footer: {
     byline: "Carrykit",

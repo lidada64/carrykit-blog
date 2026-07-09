@@ -1,6 +1,18 @@
-import { PagePlaceholder } from "@/components/ui/page-placeholder";
+import { ProjectsTable } from "@/components/admin/projects-table";
+import { db } from "@/lib/db";
 
-/** 作品管理占位(M2-3 实现 CRUD) */
-export default function AdminProjectsPage() {
-  return <PagePlaceholder titleKey="admin.projectsLink" />;
+/** 后台作品列表(US-M3):按 order 升序 */
+export default async function AdminProjectsPage() {
+  const projects = await db.project.findMany({
+    orderBy: { order: "asc" },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      order: true,
+      published: true,
+    },
+  });
+
+  return <ProjectsTable projects={projects} />;
 }

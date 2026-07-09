@@ -71,6 +71,12 @@ export const zh: Dictionary = {
     confirmDelete: "确定删除?此操作不可撤销。",
     invalidError: "标题、slug 与正文为必填。",
     slugTakenError: "slug 已被占用。",
+    newProject: "新建作品",
+    editProject: "编辑作品",
+    summaryLabel: "一句话描述",
+    linkFieldLabel: "外链 URL",
+    orderLabel: "排序",
+    publishedLabel: "发布",
   },
   footer: {
     byline: "Carrykit",

@@ -40,8 +40,8 @@
   - 验收:PRD US-M1;未登录访问 `/admin/posts` 被重定向;错误密码有提示 ✅(2026-07-09,session 方案锁定 iron-session(7 天 httpOnly cookie),SESSION_SECRET 缺失即抛错;守卫在 `admin/(protected)/layout.tsx` 路由组(登录页在组外避免死循环,ARCHITECTURE 已同步);E2E 验证:未登录 307、错误密码提示、登录 303+cookie、登出清 cookie。注意:无状态 cookie 登出前签发的旧值在 TTL 内重放仍有效,单用户后台可接受)
 - [x] **M2-2 文章 CRUD**:后台文章列表(含状态)、新建/编辑表单(Server Actions)、删除(带确认)、slug 唯一校验
   - 验收:PRD US-M2;发布后前台 ISR 生效可见 ✅(2026-07-09,新建/编辑共用 PostForm(含标签字段,PRD US-M2 已同步);Server Actions 均先 requireAdmin;保存/删除后 revalidatePath 前台即时生效(不等 60s);E2E:创建/编辑/删除/slug 冲突提示/未登录写操作被拒全部验证)
-- [ ] **M2-3 作品 CRUD**:同上,含 order 与 published 控制
-  - 验收:PRD US-M3
+- [x] **M2-3 作品 CRUD**:同上,含 order 与 published 控制
+  - 验收:PRD US-M3 ✅(2026-07-09,结构同 M2-2;E2E:创建 order=0 的作品在 /work 排最前、slug 冲突提示、取消 published 后前台即时隐藏、删除同步移除;保存/删除后 revalidatePath /、/work 与详情路径)
 - [ ] **M2-4 Markdown 编辑器**:textarea + 编辑/预览切换,预览用与前台一致的渲染管线
   - 验收:PRD US-M4;预览效果与前台详情页一致
 
