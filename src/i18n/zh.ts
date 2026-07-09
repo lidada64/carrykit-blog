@@ -16,6 +16,13 @@ export const zh: Dictionary = {
     comingSoon: "建设中。",
     home: "首页",
   },
+  blog: {
+    title: "博客",
+    aboutLabel: "关于",
+    description: "关于设计、代码与动效的记录——每月一篇,月末发布。",
+    dateHeader: "日期",
+    nameHeader: "标题",
+  },
   footer: {
     byline: "Carrykit",
   },

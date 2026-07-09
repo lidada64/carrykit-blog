@@ -6,4 +6,6 @@ export const site = {
   name: "Carrykit",
   contactEmail: "lidada317988@gmail.com",
   socials: [{ label: "GitHub", href: "https://github.com/lidada64" }],
+  /** Blog 列表侧栏缩略图(DESIGN_SPEC §6 线框);V1 图片走外链 URL */
+  blogThumbnail: "https://picsum.photos/seed/carrykit-blog-column/640/800",
 } as const;

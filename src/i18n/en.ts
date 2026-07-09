@@ -16,6 +16,14 @@ export const en = {
     comingSoon: "Coming soon.",
     home: "Home",
   },
+  blog: {
+    title: "Blog",
+    aboutLabel: "About",
+    description:
+      "Notes on design, code and motion — one article a month, released towards the end of the month.",
+    dateHeader: "Date",
+    nameHeader: "Name",
+  },
   footer: {
     byline: "Carrykit",
   },
