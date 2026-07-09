@@ -1,0 +1,41 @@
+# app + caddy(ARCHITECTURE §5):SQLite 与 Caddy 证书挂 named volume
+# 环境变量从同目录 .env 读取(SESSION_SECRET 必填,SITE_URL/SITE_DOMAIN 生产时填真实域名)
+services:
+  app:
+    build:
+      context: .
+      args:
+        # 构建期烘入 SSG 页面的 metadataBase;与运行时 SITE_URL 保持一致
+        SITE_URL: ${SITE_URL:-http://localhost}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: file:/data/blog.db
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET is required}
+      SITE_URL: ${SITE_URL:-http://localhost}
+      # prisma db seed 创建生产 admin 时使用(M4-2)
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    volumes:
+      - db-data:/data
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN:-:80}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

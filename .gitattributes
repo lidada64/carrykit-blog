@@ -1,0 +1,4 @@
+# shell 脚本必须保持 LF,否则容器内 /bin/sh 无法执行(Windows autocrlf 防护)
+*.sh text eol=lf
+Caddyfile text eol=lf
+Dockerfile text eol=lf

@@ -1,6 +1,12 @@
 import type { MetadataRoute } from "next";
 import { db } from "@/lib/db";
 
+/**
+ * 每次请求实时生成(M4-1 发现:构建期空库烘焙的静态 sitemap 会一直陈旧)。
+ * sitemap 只有爬虫访问,频率极低,动态查询成本可忽略。
+ */
+export const dynamic = "force-dynamic";
+
 /** sitemap(M3-8):静态公开页 + 已发布文章/作品;绝对 URL 用 SITE_URL */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = process.env.SITE_URL ?? "http://localhost:3000";

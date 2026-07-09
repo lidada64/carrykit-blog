@@ -70,8 +70,8 @@
 
 ## M4 部署(VPS)
 
-- [ ] **M4-1 容器化**:多阶段 Dockerfile、docker-compose.yml(app + caddy)、Caddyfile、启动时 `prisma migrate deploy`
-  - 验收:本地 `docker compose up` 后功能与 dev 一致
+- [x] **M4-1 容器化**:多阶段 Dockerfile、docker-compose.yml(app + caddy)、Caddyfile、启动时 `prisma migrate deploy`
+  - 验收:本地 `docker compose up` 后功能与 dev 一致 ✅(2026-07-09,deps/builder/proddeps/runner 四阶段(debian slim,standalone+运行时保留 prisma CLI/tsx 供迁移与 seed);构建期 SSG 用空库、上线后 ISR 刷新;Caddyfile 用 SITE_DOMAIN 变量(本地 :80/生产自动 HTTPS);实测:迁移自动应用、seed 后公开页+admin 登录经 Caddy 全通。顺带修复:seed 空串环境变量回退(||)、sitemap 改 force-dynamic(构建期烘焙会永久陈旧))
 - [ ] **M4-2 VPS 上线**:环境变量配置、域名解析、HTTPS、seed 生产 admin
   - 验收:公网域名可访问,HTTPS 正常,admin 可登录发文
 - [ ] **M4-3 备份与运维文档**:SQLite 定时备份脚本 + `docs/OPS.md`(部署/更新/回滚/备份恢复步骤)

@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.recall
+docs
+*.md
+.env*
+!.env.example
+dev.db
+build.db
+*.db-journal
+src/generated
+Dockerfile
+docker-compose.yml
+Caddyfile
+.dockerignore

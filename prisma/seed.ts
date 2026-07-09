@@ -168,8 +168,9 @@ async function main() {
     });
   }
 
-  const email = process.env.ADMIN_EMAIL ?? "admin@example.com";
-  const password = process.env.ADMIN_PASSWORD ?? "carrykit-dev-only";
+  // 用 || 而非 ??:容器环境可能把未配置的变量注入为空字符串
+  const email = process.env.ADMIN_EMAIL || "admin@example.com";
+  const password = process.env.ADMIN_PASSWORD || "carrykit-dev-only";
   await db.user.upsert({
     where: { email },
     create: { email, passwordHash: hashSync(password, 10) },

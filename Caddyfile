@@ -1,0 +1,8 @@
+# Caddy 反代(ARCHITECTURE §5)
+# SITE_DOMAIN 由 compose 环境注入:
+#   本地验证:  SITE_DOMAIN=:80        → http://localhost
+#   生产:      SITE_DOMAIN=example.com → 自动 HTTPS(Let's Encrypt)
+{$SITE_DOMAIN} {
+	encode gzip
+	reverse_proxy app:3000
+}
