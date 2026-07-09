@@ -68,15 +68,18 @@ export function Revealer() {
             onComplete: navigate,
           });
         } else {
-          // 黑线在屏幕中部略低处(origin 55%)浮现,由慢到快放大铺满
+          // 黑线约 2/5 屏宽,浮现于屏幕下 1/4 处(origin 75%);
+          // X/Y 同一 tween 同步放大 → 同时抵达四边,由慢到快的"弹出"感
           gsap.set(overlay, {
+            scaleX: 0.4,
             scaleY: 0.002,
             yPercent: 0,
             opacity: 1,
-            transformOrigin: "50% 55%",
+            transformOrigin: "50% 75%",
             pointerEvents: "auto",
           });
           gsap.to(overlay, {
+            scaleX: 1,
             scaleY: 1,
             duration: motionTokens.duration.slow,
             ease: motionTokens.ease.accelerate,
@@ -116,7 +119,12 @@ export function Revealer() {
           duration: motionTokens.duration.slow,
           ease: motionTokens.ease.accelerate,
           onComplete: () =>
-            gsap.set(overlay, { yPercent: 0, scaleY: 0, pointerEvents: "none" }),
+            gsap.set(overlay, {
+              yPercent: 0,
+              scaleX: 0.4,
+              scaleY: 0,
+              pointerEvents: "none",
+            }),
         });
       }
     },

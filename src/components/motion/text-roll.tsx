@@ -40,7 +40,8 @@ export function TextRoll({
       const rollIn = contextSafe(() => {
         gsap.to(inner, {
           yPercent: -STEP,
-          duration: motionTokens.duration.fast,
+          // base 时长:fast 的滚动手感偏急(用户反馈调慢)
+          duration: motionTokens.duration.base,
           ease: motionTokens.ease.transition,
           overwrite: "auto",
         });
@@ -48,7 +49,7 @@ export function TextRoll({
       const rollOut = contextSafe(() => {
         gsap.to(inner, {
           yPercent: -STEP * 2,
-          duration: motionTokens.duration.fast,
+          duration: motionTokens.duration.base,
           ease: motionTokens.ease.transition,
           overwrite: "auto",
           onComplete: () => gsap.set(inner, { yPercent: 0 }),
