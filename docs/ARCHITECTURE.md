@@ -56,7 +56,7 @@ Carrykit blog2/
 │   ├── components/
 │   │   ├── layout/            # Nav(含语言切换)、Footer
 │   │   ├── motion/            # GSAP 动效封装组件(client):Revealer、Preloader、TextRoll、ScrollGallery、ProgressBar 等
-│   │   ├── blog/  work/  admin/
+│   │   ├── home/  blog/  work/  admin/
 │   │   └── ui/                # 通用小组件
 │   ├── config/
 │   │   ├── fonts.ts           # 【扩展性接口】next/font 字体定义单点,见 §7

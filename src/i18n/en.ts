@@ -10,6 +10,15 @@ export const en = {
     about: "About",
     contact: "Contact",
   },
+  home: {
+    slogan: "Design-minded developer building web experiences.",
+    descriptionLeft:
+      "I care about the small things: type scales, spacing, easing curves and the words in between.",
+    descriptionRight:
+      "This site collects my projects and monthly notes on design, code and motion.",
+    selectedWorkLabel: "Selected Work",
+    latestWritingLabel: "Latest Writing",
+  },
   common: {
     language: "Language",
     backToBlog: "Back to blog",

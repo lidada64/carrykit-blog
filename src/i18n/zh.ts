@@ -10,6 +10,13 @@ export const zh: Dictionary = {
     about: "关于",
     contact: "联系",
   },
+  home: {
+    slogan: "以设计视角构建 Web 体验。",
+    descriptionLeft: "我在意那些小事:字号阶梯、间距、缓动曲线,以及其间的文字。",
+    descriptionRight: "这里收录我的作品,以及每月一篇关于设计、代码与动效的记录。",
+    selectedWorkLabel: "精选作品",
+    latestWritingLabel: "最新博客",
+  },
   common: {
     language: "语言",
     backToBlog: "返回博客列表",
