@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { FadeUp } from "@/components/motion/fade-up";
 import { HoverCard } from "@/components/motion/hover-card";
+import { PixelTitle } from "@/components/motion/pixel-title";
 import { TextRoll } from "@/components/motion/text-roll";
 import { site } from "@/config/site";
 import { useT } from "@/i18n";
@@ -39,15 +40,12 @@ export function HomeSections({
 
   return (
     <>
-      <FadeUp
-        as="section"
-        stagger
-        className="flex flex-col justify-center gap-10 py-16 lg:min-h-svh lg:py-24"
-      >
+      <section className="flex flex-col justify-center gap-10 py-16 lg:min-h-svh lg:py-24">
+        {/* hero 标题走 A4 像素揭示,不参与 A7 stagger,避免双动画叠加 */}
         <h1 className="max-w-[16ch] text-display font-display">
-          {t("home.slogan")}
+          <PixelTitle text={t("home.slogan")} />
         </h1>
-        <div className="relative aspect-[16/9] w-full overflow-hidden bg-border/40">
+        <FadeUp className="relative aspect-[16/9] w-full overflow-hidden bg-border/40">
           <Image
             src={site.heroImage}
             alt=""
@@ -56,16 +54,16 @@ export function HomeSections({
             sizes="(min-width: 1120px) 1024px, 100vw"
             className="object-cover"
           />
-        </div>
-        <div className="grid gap-8 md:grid-cols-2">
+        </FadeUp>
+        <FadeUp stagger className="grid gap-8 md:grid-cols-2">
           <p className="max-w-[48ch] text-body text-muted">
             {t("home.descriptionLeft")}
           </p>
           <p className="max-w-[48ch] text-body text-muted">
             {t("home.descriptionRight")}
           </p>
-        </div>
-      </FadeUp>
+        </FadeUp>
+      </section>
 
       {projects.length > 0 && (
         <section className="py-16 lg:py-24">

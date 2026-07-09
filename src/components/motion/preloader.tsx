@@ -10,6 +10,9 @@ gsap.registerPlugin(useGSAP);
 
 const STORAGE_KEY = "carrykit.preloader-played";
 
+/** preloader 揭示完成事件:等待它的入场动效(如 A4 像素标题)监听此事件再开播 */
+export const PRELOADER_DONE_EVENT = "carrykit:preloader-done";
+
 /**
  * Preloader(DESIGN_SPEC A2 / PRD US-H4):仅 Home 挂载。
  * 首次访问:全屏 overlay + mono counter 000→100 → overlay 向上揭开进入 hero。
@@ -56,7 +59,10 @@ export function Preloader() {
           yPercent: -100,
           duration: motionTokens.duration.slow,
           ease: motionTokens.ease.enter,
-          onComplete: () => overlay.remove(),
+          onComplete: () => {
+            overlay.remove();
+            window.dispatchEvent(new Event(PRELOADER_DONE_EVENT));
+          },
         });
     },
     { scope: overlayRef },
@@ -65,6 +71,7 @@ export function Preloader() {
   return (
     <div
       ref={overlayRef}
+      data-preloader
       aria-hidden
       // z-[60] 盖过 revealer(z-50);counter 用底色 token 反白
       className="fixed inset-0 z-[60] flex items-end justify-end bg-revealer p-6 lg:p-12"

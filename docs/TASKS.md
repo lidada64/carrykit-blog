@@ -55,8 +55,8 @@
   - 验收:PRD US-H4;同会话不重播;reduced-motion 跳过 ✅(2026-07-09,motion/preloader.tsx 仅 Home 挂载:mono counter 000→100→counter 淡出→overlay 向上揭开并移除;overlay 随 SSR 输出避免首屏内容闪现,已播/reduced-motion 在水合后立即移除;播放开始即写 sessionStorage,中途刷新不重播)
 - [x] **M3-4 Text-roll hover(A3)**:三层 span 文字滚动组件,应用到博客列表行(日期+标题)与导航项
   - 验收:US-B1 hover 验收项;键盘 focus 同样触发 ✅(2026-07-09,motion/text-roll.tsx:3 份 span 堆叠于 1lh overflow-hidden wrapper,hover 上滚一份、离开滚到第三份后无缝复位;触发器取最近 <a> 祖先(整行 hover 日期+标题同滚),focusin/focusout 同触发;已应用于导航项/contact、blog 列表行、Home 最新博客行;reduced-motion 不绑事件)
-- [ ] **M3-5 Pixelated 标题(A4)**:Home hero 标题像素化入场特效(实现方案本任务内定:canvas 或分块 div)
-  - 验收:入场一次性播放;reduced-motion 降级为 fade
+- [x] **M3-5 Pixelated 标题(A4)**:Home hero 标题像素化入场特效(实现方案本任务内定:canvas 或分块 div)
+  - 验收:入场一次性播放;reduced-motion 降级为 fade ✅(2026-07-09,方案定为分块 div(真实 DOM 文字,SEO/无障碍友好,否决 canvas):底色方块网格盖住标题,随机顺序消失揭示;首访等 preloader 完成事件再播;hero h1 移出 A7 stagger 避免叠加;reduced-motion 降级整体 fade)
 - [ ] **M3-6 Work 滚动画廊动效(A5)**:ScrollTrigger pin + 大图切换 + 序号数字 mask 翻转 + 作品名 indicator 高亮 + whitespace 缓冲
   - 验收:PRD US-W1 完整验收;滚动正反向均流畅;移动端不启用 pin
 - [ ] **M3-7 ProgressBar(A6)**:滚动/阅读进度条,应用到 Blog 详情与 Work
