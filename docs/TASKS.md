@@ -51,8 +51,8 @@
   - 验收:动效 token 统一引用;`prefers-reduced-motion` 全局降级生效 ✅(2026-07-09,motion/{tokens,reduced-motion,fade-up,hover-card};FadeUp=ScrollTrigger once 入场(支持子元素 stagger),HoverCard=封面 scale+卡片上浮;已接入 Home/Blog 列表/About/Related;reduced-motion 时不创建动画直接静态展示;动效数值全部引用 motionTokens)
 - [x] **M3-2 Revealer 页面过渡(A1)**:路由切换遮罩滑入/滑出
   - 验收:PRD US-N1;admin 不启用;降级为 fade ✅(2026-07-09,motion/revealer.tsx:捕获站内链接点击→遮罩自下而上滑入→router.push→pathname 变化后滑出;挂在 (site) 布局(admin 无),/admin 链接与外链/新标签/修饰键点击放行;reduced-motion 降级遮罩 fade;无 JS 时原生跳转;浏览器前进/后退不播滑出(covering 标志))
-- [ ] **M3-3 Preloader(A2)**:Home 首次加载 counter 计数 + overlay 揭示,sessionStorage 记忆
-  - 验收:PRD US-H4;同会话不重播;reduced-motion 跳过
+- [x] **M3-3 Preloader(A2)**:Home 首次加载 counter 计数 + overlay 揭示,sessionStorage 记忆
+  - 验收:PRD US-H4;同会话不重播;reduced-motion 跳过 ✅(2026-07-09,motion/preloader.tsx 仅 Home 挂载:mono counter 000→100→counter 淡出→overlay 向上揭开并移除;overlay 随 SSR 输出避免首屏内容闪现,已播/reduced-motion 在水合后立即移除;播放开始即写 sessionStorage,中途刷新不重播)
 - [ ] **M3-4 Text-roll hover(A3)**:三层 span 文字滚动组件,应用到博客列表行(日期+标题)与导航项
   - 验收:US-B1 hover 验收项;键盘 focus 同样触发
 - [ ] **M3-5 Pixelated 标题(A4)**:Home hero 标题像素化入场特效(实现方案本任务内定:canvas 或分块 div)

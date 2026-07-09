@@ -1,4 +1,5 @@
 import { HomeSections } from "@/components/home/home-sections";
+import { Preloader } from "@/components/motion/preloader";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
 
@@ -22,13 +23,16 @@ export default async function HomePage() {
   ]);
 
   return (
-    <HomeSections
-      projects={projects}
-      posts={posts.map(({ slug, title, publishedAt, createdAt }) => ({
-        slug,
-        title,
-        date: formatDate(publishedAt ?? createdAt),
-      }))}
-    />
+    <>
+      <Preloader />
+      <HomeSections
+        projects={projects}
+        posts={posts.map(({ slug, title, publishedAt, createdAt }) => ({
+          slug,
+          title,
+          date: formatDate(publishedAt ?? createdAt),
+        }))}
+      />
+    </>
   );
 }
