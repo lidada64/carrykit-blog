@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { FadeUp } from "@/components/motion/fade-up";
+import { TextRoll } from "@/components/motion/text-roll";
 import { site } from "@/config/site";
 import { useT } from "@/i18n";
 
@@ -59,12 +60,13 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
             <li key={post.slug}>
               <Link
                 href={`/blog/${post.slug}`}
-                className="grid grid-cols-[6.5rem_1fr] items-baseline border-b border-border py-5"
+                className="grid grid-cols-[6.5rem_1fr] items-center border-b border-border py-5"
               >
-                <span className="text-caption font-mono text-muted">
-                  {post.date}
-                </span>
-                <span className="text-subheading">{post.title}</span>
+                <TextRoll
+                  text={post.date}
+                  className="text-caption font-mono text-muted"
+                />
+                <TextRoll text={post.title} className="text-subheading" />
               </Link>
             </li>
           ))}

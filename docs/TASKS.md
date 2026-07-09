@@ -53,8 +53,8 @@
   - 验收:PRD US-N1;admin 不启用;降级为 fade ✅(2026-07-09,motion/revealer.tsx:捕获站内链接点击→遮罩自下而上滑入→router.push→pathname 变化后滑出;挂在 (site) 布局(admin 无),/admin 链接与外链/新标签/修饰键点击放行;reduced-motion 降级遮罩 fade;无 JS 时原生跳转;浏览器前进/后退不播滑出(covering 标志))
 - [x] **M3-3 Preloader(A2)**:Home 首次加载 counter 计数 + overlay 揭示,sessionStorage 记忆
   - 验收:PRD US-H4;同会话不重播;reduced-motion 跳过 ✅(2026-07-09,motion/preloader.tsx 仅 Home 挂载:mono counter 000→100→counter 淡出→overlay 向上揭开并移除;overlay 随 SSR 输出避免首屏内容闪现,已播/reduced-motion 在水合后立即移除;播放开始即写 sessionStorage,中途刷新不重播)
-- [ ] **M3-4 Text-roll hover(A3)**:三层 span 文字滚动组件,应用到博客列表行(日期+标题)与导航项
-  - 验收:US-B1 hover 验收项;键盘 focus 同样触发
+- [x] **M3-4 Text-roll hover(A3)**:三层 span 文字滚动组件,应用到博客列表行(日期+标题)与导航项
+  - 验收:US-B1 hover 验收项;键盘 focus 同样触发 ✅(2026-07-09,motion/text-roll.tsx:3 份 span 堆叠于 1lh overflow-hidden wrapper,hover 上滚一份、离开滚到第三份后无缝复位;触发器取最近 <a> 祖先(整行 hover 日期+标题同滚),focusin/focusout 同触发;已应用于导航项/contact、blog 列表行、Home 最新博客行;reduced-motion 不绑事件)
 - [ ] **M3-5 Pixelated 标题(A4)**:Home hero 标题像素化入场特效(实现方案本任务内定:canvas 或分块 div)
   - 验收:入场一次性播放;reduced-motion 降级为 fade
 - [ ] **M3-6 Work 滚动画廊动效(A5)**:ScrollTrigger pin + 大图切换 + 序号数字 mask 翻转 + 作品名 indicator 高亮 + whitespace 缓冲

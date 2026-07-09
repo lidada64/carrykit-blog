@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { TextRoll } from "@/components/motion/text-roll";
 import { site } from "@/config/site";
 import { useLocale, useT, type TKey } from "@/i18n";
 
@@ -33,7 +34,7 @@ export function Nav() {
                 aria-current={active ? "page" : undefined}
                 className={active ? "text-foreground" : "text-muted hover:text-foreground"}
               >
-                {t(key)}
+                <TextRoll text={t(key)} />
               </Link>
             );
           })}
@@ -41,7 +42,7 @@ export function Nav() {
             href={`mailto:${site.contactEmail}`}
             className="text-muted hover:text-foreground"
           >
-            {t("nav.contact")}
+            <TextRoll text={t("nav.contact")} />
           </a>
           <button
             type="button"
