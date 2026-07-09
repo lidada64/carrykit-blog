@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { FadeUp } from "@/components/motion/fade-up";
 import { site } from "@/config/site";
 import { useT } from "@/i18n";
 
@@ -67,11 +68,14 @@ export default function AboutPage() {
 
 function Section({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] lg:gap-16">
+    <FadeUp
+      as="section"
+      className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,3fr)] lg:gap-16"
+    >
       <span className="text-caption font-mono uppercase text-muted">
         {label}
       </span>
       <div>{children}</div>
-    </section>
+    </FadeUp>
   );
 }

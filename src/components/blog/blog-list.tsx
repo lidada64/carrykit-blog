@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { FadeUp } from "@/components/motion/fade-up";
 import { site } from "@/config/site";
 import { useT } from "@/i18n";
 
@@ -22,7 +23,11 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
 
   return (
     <section className="py-16 lg:grid lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:gap-16 lg:py-24">
-      <aside className="flex flex-col gap-8 lg:sticky lg:top-24 lg:self-start">
+      <FadeUp
+        as="aside"
+        stagger
+        className="flex flex-col gap-8 lg:sticky lg:top-24 lg:self-start"
+      >
         <h1 className="text-display font-display">
           {t("blog.title")}({posts.length})
         </h1>
@@ -42,14 +47,14 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
           sizes="(min-width: 1024px) 320px, 60vw"
           className="w-full max-w-[320px] object-cover"
         />
-      </aside>
+      </FadeUp>
 
       <div className="mt-12 lg:mt-0">
-        <div className="grid grid-cols-[6.5rem_1fr] border-b border-border pb-3 text-caption font-mono uppercase text-muted">
+        <FadeUp className="grid grid-cols-[6.5rem_1fr] border-b border-border pb-3 text-caption font-mono uppercase text-muted">
           <span>{t("blog.dateHeader")}</span>
           <span>{t("blog.nameHeader")}</span>
-        </div>
-        <ul>
+        </FadeUp>
+        <FadeUp as="ul" stagger>
           {posts.map((post) => (
             <li key={post.slug}>
               <Link
@@ -63,7 +68,7 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
               </Link>
             </li>
           ))}
-        </ul>
+        </FadeUp>
       </div>
     </section>
   );

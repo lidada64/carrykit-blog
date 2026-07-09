@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { FadeUp } from "@/components/motion/fade-up";
+import { HoverCard } from "@/components/motion/hover-card";
 import { site } from "@/config/site";
 import { useT } from "@/i18n";
 
@@ -36,7 +38,11 @@ export function HomeSections({
 
   return (
     <>
-      <section className="flex flex-col justify-center gap-10 py-16 lg:min-h-svh lg:py-24">
+      <FadeUp
+        as="section"
+        stagger
+        className="flex flex-col justify-center gap-10 py-16 lg:min-h-svh lg:py-24"
+      >
         <h1 className="max-w-[16ch] text-display font-display">
           {t("home.slogan")}
         </h1>
@@ -58,48 +64,58 @@ export function HomeSections({
             {t("home.descriptionRight")}
           </p>
         </div>
-      </section>
+      </FadeUp>
 
       {projects.length > 0 && (
         <section className="py-16 lg:py-24">
-          <h2 className="text-caption font-mono uppercase text-muted">
-            {t("home.selectedWorkLabel")}
-          </h2>
-          <ul className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <FadeUp>
+            <h2 className="text-caption font-mono uppercase text-muted">
+              {t("home.selectedWorkLabel")}
+            </h2>
+          </FadeUp>
+          <FadeUp
+            as="ul"
+            stagger
+            className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
+          >
             {projects.map((project) => (
               <li key={project.slug}>
-                <Link
-                  href={`/work/${project.slug}`}
-                  className="flex flex-col gap-3"
-                >
-                  <div className="relative aspect-[4/3] w-full overflow-hidden bg-border/40">
-                    {project.coverImage && (
-                      <Image
-                        src={project.coverImage}
-                        alt={project.title}
-                        fill
-                        sizes="(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw"
-                        className="object-cover"
-                      />
+                <HoverCard>
+                  <Link
+                    href={`/work/${project.slug}`}
+                    className="flex flex-col gap-3"
+                  >
+                    <div className="relative aspect-[4/3] w-full overflow-hidden bg-border/40">
+                      {project.coverImage && (
+                        <Image
+                          src={project.coverImage}
+                          alt={project.title}
+                          fill
+                          sizes="(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw"
+                          className="object-cover"
+                        />
+                      )}
+                    </div>
+                    <h3 className="text-subheading">{project.title}</h3>
+                    {project.summary && (
+                      <p className="text-body text-muted">{project.summary}</p>
                     )}
-                  </div>
-                  <h3 className="text-subheading">{project.title}</h3>
-                  {project.summary && (
-                    <p className="text-body text-muted">{project.summary}</p>
-                  )}
-                </Link>
+                  </Link>
+                </HoverCard>
               </li>
             ))}
-          </ul>
+          </FadeUp>
         </section>
       )}
 
       {posts.length > 0 && (
         <section className="py-16 lg:py-24">
-          <h2 className="text-caption font-mono uppercase text-muted">
-            {t("home.latestWritingLabel")}
-          </h2>
-          <ul className="mt-8">
+          <FadeUp>
+            <h2 className="text-caption font-mono uppercase text-muted">
+              {t("home.latestWritingLabel")}
+            </h2>
+          </FadeUp>
+          <FadeUp as="ul" stagger className="mt-8">
             {posts.map((post) => (
               <li key={post.slug}>
                 <Link
@@ -113,7 +129,7 @@ export function HomeSections({
                 </Link>
               </li>
             ))}
-          </ul>
+          </FadeUp>
         </section>
       )}
     </>

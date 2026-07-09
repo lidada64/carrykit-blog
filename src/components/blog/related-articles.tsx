@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { FadeUp } from "@/components/motion/fade-up";
+import { HoverCard } from "@/components/motion/hover-card";
 import { useT } from "@/i18n";
 
 export interface RelatedArticle {
@@ -25,29 +27,38 @@ export function RelatedArticles({ posts }: { posts: RelatedArticle[] }) {
       <h2 className="text-caption font-mono uppercase text-muted">
         {t("blog.relatedLabel")}
       </h2>
-      <ul className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+      <FadeUp
+        as="ul"
+        stagger
+        className="mt-8 grid gap-8 sm:grid-cols-2 lg:grid-cols-3"
+      >
         {posts.map((post) => (
           <li key={post.slug}>
-            <Link href={`/blog/${post.slug}`} className="flex flex-col gap-3">
-              <div className="relative aspect-[4/3] w-full overflow-hidden bg-border/40">
-                {post.coverImage && (
-                  <Image
-                    src={post.coverImage}
-                    alt={post.title}
-                    fill
-                    sizes="(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw"
-                    className="object-cover"
-                  />
+            <HoverCard>
+              <Link
+                href={`/blog/${post.slug}`}
+                className="flex flex-col gap-3"
+              >
+                <div className="relative aspect-[4/3] w-full overflow-hidden bg-border/40">
+                  {post.coverImage && (
+                    <Image
+                      src={post.coverImage}
+                      alt={post.title}
+                      fill
+                      sizes="(min-width: 1024px) 340px, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover"
+                    />
+                  )}
+                </div>
+                <h3 className="text-subheading">{post.title}</h3>
+                {post.excerpt && (
+                  <p className="text-body text-muted">{post.excerpt}</p>
                 )}
-              </div>
-              <h3 className="text-subheading">{post.title}</h3>
-              {post.excerpt && (
-                <p className="text-body text-muted">{post.excerpt}</p>
-              )}
-            </Link>
+              </Link>
+            </HoverCard>
           </li>
         ))}
-      </ul>
+      </FadeUp>
     </section>
   );
 }
