@@ -59,8 +59,8 @@
   - 验收:入场一次性播放;reduced-motion 降级为 fade ✅(2026-07-09,方案定为分块 div(真实 DOM 文字,SEO/无障碍友好,否决 canvas):底色方块网格盖住标题,随机顺序消失揭示;首访等 preloader 完成事件再播;hero h1 移出 A7 stagger 避免叠加;reduced-motion 降级整体 fade)
 - [x] **M3-6 Work 滚动画廊动效(A5)**:ScrollTrigger pin + 大图切换 + 序号数字 mask 翻转 + 作品名 indicator 高亮 + whitespace 缓冲
   - 验收:PRD US-W1 完整验收;滚动正反向均流畅;移动端不启用 pin ✅(2026-07-09,motion/scroll-gallery.tsx:pin 整屏、每作品一屏滚动量,进度离散驱动大图淡切/双 digit 1lh mask 翻转/— indicator 位移+名字高亮,前后 20vh 缓冲;gsap.matchMedia 限 md+ 且非 reduced-motion;降级走 CSS 变体(hidden motion-safe:md:block / motion-safe:md:hidden),<md 与 reduced-motion 均为静态卡片列表;进度条属 M3-7(A6))
-- [ ] **M3-7 ProgressBar(A6)**:滚动/阅读进度条,应用到 Blog 详情与 Work
-  - 验收:US-B5 进度条项;进度与滚动位置一致
+- [x] **M3-7 ProgressBar(A6)**:滚动/阅读进度条,应用到 Blog 详情与 Work
+  - 验收:US-B5 进度条项;进度与滚动位置一致 ✅(2026-07-09,motion/progress-bar.tsx:底部 2px 细条,scaleX=整页滚动进度(ScrollTrigger scrub 直接映射);挂在 Blog 详情与 Work 页,其余页面无;非运动性反馈,reduced-motion 保留)
 - [ ] **M3-8 SEO**:各页 `generateMetadata`、`sitemap.ts`、`robots.ts`、文章/作品 OG 标签
   - 验收:PRD §4 SEO 行;view-source 可见正确 meta
 - [ ] **M3-9 响应式与视觉走查**:三档断点逐页对照 DESIGN_SPEC §6 线框与参考站修偏差

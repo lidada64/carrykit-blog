@@ -1,3 +1,4 @@
+import { ProgressBar } from "@/components/motion/progress-bar";
 import { WorkGallery } from "@/components/work/work-gallery";
 import { db } from "@/lib/db";
 import { parseTags } from "@/lib/utils";
@@ -19,11 +20,14 @@ export default async function WorkPage() {
   });
 
   return (
-    <WorkGallery
-      projects={projects.map((project) => ({
-        ...project,
-        tags: parseTags(project.tags),
-      }))}
-    />
+    <>
+      <WorkGallery
+        projects={projects.map((project) => ({
+          ...project,
+          tags: parseTags(project.tags),
+        }))}
+      />
+      <ProgressBar />
+    </>
   );
 }

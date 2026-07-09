@@ -2,6 +2,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { PostMeta } from "@/components/blog/post-meta";
 import { RelatedArticles } from "@/components/blog/related-articles";
+import { ProgressBar } from "@/components/motion/progress-bar";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { db } from "@/lib/db";
 import { formatDate, parseTags } from "@/lib/utils";
@@ -62,6 +63,7 @@ export default async function BlogPostPage({
         </div>
       </div>
       <RelatedArticles posts={related} />
+      <ProgressBar />
     </article>
   );
 }
