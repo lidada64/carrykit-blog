@@ -80,6 +80,8 @@ export const en = {
     linkFieldLabel: "External link URL",
     orderLabel: "Order",
     publishedLabel: "Published",
+    editTab: "Edit",
+    previewTab: "Preview",
   },
   footer: {
     byline: "Carrykit",

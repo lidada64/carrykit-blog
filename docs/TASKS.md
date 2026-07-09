@@ -42,8 +42,8 @@
   - 验收:PRD US-M2;发布后前台 ISR 生效可见 ✅(2026-07-09,新建/编辑共用 PostForm(含标签字段,PRD US-M2 已同步);Server Actions 均先 requireAdmin;保存/删除后 revalidatePath 前台即时生效(不等 60s);E2E:创建/编辑/删除/slug 冲突提示/未登录写操作被拒全部验证)
 - [x] **M2-3 作品 CRUD**:同上,含 order 与 published 控制
   - 验收:PRD US-M3 ✅(2026-07-09,结构同 M2-2;E2E:创建 order=0 的作品在 /work 排最前、slug 冲突提示、取消 published 后前台即时隐藏、删除同步移除;保存/删除后 revalidatePath /、/work 与详情路径)
-- [ ] **M2-4 Markdown 编辑器**:textarea + 编辑/预览切换,预览用与前台一致的渲染管线
-  - 验收:PRD US-M4;预览效果与前台详情页一致
+- [x] **M2-4 Markdown 编辑器**:textarea + 编辑/预览切换,预览用与前台一致的渲染管线
+  - 验收:PRD US-M4;预览效果与前台详情页一致 ✅(2026-07-09,MarkdownEditor 预览直接复用前台 MarkdownContent + lib/markdown.ts 管线(结构上保证一致);预览时 textarea 隐藏但值照常提交,required 仅可见时生效;文章/作品表单均接入;提交回归验证通过。M2 里程碑 4/4 完成)
 
 ## M3 动效与打磨(复刻参考站,编号对应 DESIGN_SPEC §5 动效清单)
 

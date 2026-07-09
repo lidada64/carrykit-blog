@@ -5,6 +5,7 @@ import {
   saveProject,
   type ProjectFormState,
 } from "@/app/admin/(protected)/projects/actions";
+import { MarkdownEditor } from "@/components/admin/markdown-editor";
 import { useT } from "@/i18n";
 
 export interface ProjectFormValues {
@@ -113,16 +114,15 @@ export function ProjectForm({ project }: { project?: ProjectFormValues }) {
             {t("admin.publishedLabel")}
           </label>
         </div>
-        <label className={labelClass}>
+        <div className={labelClass}>
           {t("admin.contentLabel")}
-          <textarea
+          <MarkdownEditor
             name="content"
-            required
             rows={12}
             defaultValue={project?.content}
             className={inputClass}
           />
-        </label>
+        </div>
         {state.error && (
           <p role="alert" className="text-caption text-accent">
             {state.error === "slugTaken"

@@ -77,6 +77,8 @@ export const zh: Dictionary = {
     linkFieldLabel: "外链 URL",
     orderLabel: "排序",
     publishedLabel: "发布",
+    editTab: "编辑",
+    previewTab: "预览",
   },
   footer: {
     byline: "Carrykit",

@@ -5,6 +5,7 @@ import {
   savePost,
   type PostFormState,
 } from "@/app/admin/(protected)/posts/actions";
+import { MarkdownEditor } from "@/components/admin/markdown-editor";
 import { useT } from "@/i18n";
 
 export interface PostFormValues {
@@ -100,16 +101,15 @@ export function PostForm({ post }: { post?: PostFormValues }) {
             />
           </label>
         </div>
-        <label className={labelClass}>
+        <div className={labelClass}>
           {t("admin.contentLabel")}
-          <textarea
+          <MarkdownEditor
             name="content"
-            required
             rows={16}
             defaultValue={post?.content}
             className={inputClass}
           />
-        </label>
+        </div>
         {state.error && (
           <p role="alert" className="text-caption text-accent">
             {state.error === "slugTaken"
