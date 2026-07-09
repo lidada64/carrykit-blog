@@ -23,6 +23,8 @@ export const en = {
       "Notes on design, code and motion — one article a month, released towards the end of the month.",
     dateHeader: "Date",
     nameHeader: "Name",
+    dateLabel: "Date",
+    tagsLabel: "Tags",
   },
   footer: {
     byline: "Carrykit",

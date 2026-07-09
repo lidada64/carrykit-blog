@@ -7,3 +7,11 @@
 export function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10).replaceAll("-", ".");
 }
+
+/** 解析逗号分隔的 tags 字段(ARCHITECTURE §3):Post/Project 共用 */
+export function parseTags(tags: string): string[] {
+  return tags
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+}

@@ -21,8 +21,8 @@
 
 - [x] **M1-1 Blog 列表页(双栏)**:左侧 sticky 侧栏(Blog(N)、栏目描述、缩略图)+ 右侧列表(DATE/NAME 表头、日期+标题行),只取 PUBLISHED,ISR;移动端降级单栏
   - 验收:PRD US-B1/B2(hover 动效除外);草稿不可见 ✅(2026-07-09,`revalidate 60`;临时插入 DRAFT 验证不可见后已删;侧栏缩略图常量在 site.ts,next/image 放行 picsum.photos;日期格式化 `lib/utils.ts` 按 UTC)
-- [ ] **M1-2 Blog 详情页**:顶部大缩略图 + 标题 → metadata 侧栏(描述/日期/标签)+ Markdown 正文(GFM + 代码高亮);`generateStaticParams`、草稿 404
-  - 验收:PRD US-B3/B4;示例文章标题/图片/代码块渲染正确
+- [x] **M1-2 Blog 详情页**:顶部大缩略图 + 标题 → metadata 侧栏(描述/日期/标签)+ Markdown 正文(GFM + 代码高亮);`generateStaticParams`、草稿 404
+  - 验收:PRD US-B3/B4;示例文章标题/图片/代码块渲染正确 ✅(2026-07-09,Markdown 选型锁定 react-markdown+remark-gfm+rehype-highlight,管线在 `lib/markdown.ts` 前后台共用;Post 新增 coverImage 字段(migration `20260709055913`,ARCHITECTURE/PRD 已同步),种子第二篇故意无封面验证头图隐藏;草稿与未知 slug 均 404 验证通过)
 - [ ] **M1-3 Related Articles**:详情页底部相关文章卡片网格(≤3,不足 2 篇隐藏)
   - 验收:PRD US-B5(进度条除外)
 - [ ] **M1-4 Work 画廊静态布局**:桌面端画廊版式(大图区 + 序号 + 右侧作品名列表 + 描述,先不接滚动动画);**移动端纵向作品卡片列表**;按 `order` 排序

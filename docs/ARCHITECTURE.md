@@ -13,7 +13,7 @@
 | 动效 | **GSAP + ScrollTrigger + @gsap/react (useGSAP)** | 参考站自述即用 GSAP;复刻滚动驱动画廊、revealer 过渡、数字翻转等效果的标准工具 |
 | ORM | **Prisma** | 类型安全;SQLite → PostgreSQL 迁移路径平滑 |
 | 数据库 | **SQLite** | 单文件零运维,个人博客流量足够;备份即拷贝文件 |
-| Markdown | **react-markdown + remark-gfm + rehype-highlight**(或 MDX,实施时二选一并锁定) | 博客/作品正文渲染,代码高亮 |
+| Markdown | **react-markdown + remark-gfm + rehype-highlight**(M1-2 已锁定,不用 MDX) | 博客/作品正文渲染,代码高亮 |
 | 鉴权 | **自实现 session cookie**(iron-session 或等价轻量方案) | 单用户后台,NextAuth 过重 |
 | 部署 | **Docker(standalone 输出)+ Caddy 反代 → VPS** | Caddy 自动 HTTPS;单容器 + 反代,运维面最小 |
 
@@ -85,6 +85,7 @@ model Post {
   title       String
   excerpt     String     @default("")
   content     String     // Markdown
+  coverImage  String     @default("") // 头图/缩略图 URL,空则详情页头图区隐藏(US-B4)
   status      PostStatus @default(DRAFT)
   publishedAt DateTime?
   createdAt   DateTime   @default(now())

@@ -22,6 +22,8 @@ export const zh: Dictionary = {
     description: "关于设计、代码与动效的记录——每月一篇,月末发布。",
     dateHeader: "日期",
     nameHeader: "标题",
+    dateLabel: "日期",
+    tagsLabel: "标签",
   },
   footer: {
     byline: "Carrykit",

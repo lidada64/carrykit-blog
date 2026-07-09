@@ -21,6 +21,7 @@ const posts = [
     title: "Hello, Carrykit",
     excerpt: "Why I am rebuilding my corner of the internet from scratch.",
     tags: "meta,writing",
+    coverImage: "https://picsum.photos/seed/carrykit-hello-cover/1600/900",
     publishedAt: new Date("2026-05-11"),
     content: `# Hello, Carrykit
 
@@ -53,6 +54,7 @@ console.log(site.pages.length); // 4
     title: "Designing with Type Scales",
     excerpt: "Five sizes, big steps: how a strict type scale keeps design honest.",
     tags: "design,typography",
+    coverImage: "", // 故意无封面:验证详情页头图区优雅隐藏(US-B4)
     publishedAt: new Date("2026-06-07"),
     content: `# Designing with Type Scales
 
@@ -74,6 +76,7 @@ Grids are guidelines, not rules.
     title: "Scroll-driven Galleries with GSAP",
     excerpt: "Notes on pinning, scrubbing and digit-roll counters.",
     tags: "dev,animation,gsap",
+    coverImage: "https://picsum.photos/seed/scroll-gallery-cover/1600/900",
     publishedAt: new Date("2026-07-01"),
     content: `# Scroll-driven Galleries with GSAP
 

@@ -15,6 +15,7 @@ model Post {
   title       String
   excerpt     String     @default("")
   content     String // Markdown
+  coverImage  String     @default("") // 头图/缩略图 URL,空则详情页头图区隐藏(US-B4)
   status      PostStatus @default(DRAFT)
   publishedAt DateTime?
   createdAt   DateTime   @default(now())
