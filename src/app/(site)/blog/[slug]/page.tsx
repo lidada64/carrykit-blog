@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { PostMeta } from "@/components/blog/post-meta";
+import { RelatedArticles } from "@/components/blog/related-articles";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { db } from "@/lib/db";
 import { formatDate, parseTags } from "@/lib/utils";
@@ -24,6 +25,14 @@ export default async function BlogPostPage({
   const { slug } = await params;
   const post = await db.post.findUnique({ where: { slug } });
   if (!post || post.status !== "PUBLISHED") notFound();
+
+  // 相关文章:V1 取最新的其他已发布文章(≤3);不足 2 篇时组件整块隐藏(US-B5)
+  const related = await db.post.findMany({
+    where: { status: "PUBLISHED", slug: { not: slug } },
+    orderBy: { publishedAt: "desc" },
+    take: 3,
+    select: { slug: true, title: true, excerpt: true, coverImage: true },
+  });
 
   return (
     <article className="py-16 lg:py-24">
@@ -52,6 +61,7 @@ export default async function BlogPostPage({
           <MarkdownContent content={post.content} />
         </div>
       </div>
+      <RelatedArticles posts={related} />
     </article>
   );
 }

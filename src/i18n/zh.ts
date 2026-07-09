@@ -24,6 +24,7 @@ export const zh: Dictionary = {
     nameHeader: "标题",
     dateLabel: "日期",
     tagsLabel: "标签",
+    relatedLabel: "相关文章",
   },
   footer: {
     byline: "Carrykit",

@@ -25,6 +25,7 @@ export const en = {
     nameHeader: "Name",
     dateLabel: "Date",
     tagsLabel: "Tags",
+    relatedLabel: "Related Articles",
   },
   footer: {
     byline: "Carrykit",
