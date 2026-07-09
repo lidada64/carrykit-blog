@@ -61,7 +61,8 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
             <li key={post.slug}>
               <Link
                 href={`/blog/${post.slug}`}
-                className="grid grid-cols-[6.5rem_1fr] items-center border-b border-border py-5"
+                // 整行反色(A3):px/-mx 让色条比文字略宽,对齐不变
+                className="-mx-3 grid grid-cols-[6.5rem_1fr] items-center border-b border-border px-3 py-5 transition-colors duration-200 hover:bg-foreground focus-visible:bg-foreground"
               >
                 <TextRoll
                   text={post.date}

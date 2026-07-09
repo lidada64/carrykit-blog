@@ -10,9 +10,10 @@ import { prefersReducedMotion } from "./reduced-motion";
 gsap.registerPlugin(useGSAP);
 
 /**
- * 页面过渡 revealer(DESIGN_SPEC A1 / PRD US-N1):
- * 捕获站内链接点击 → 遮罩自下而上滑入覆盖 → router.push →
- * 新页就绪(pathname 变化)→ 遮罩继续向上滑出揭示。
+ * 页面过渡 revealer(DESIGN_SPEC A1 / PRD US-N1,对齐参考站):
+ * 捕获站内链接点击 → 屏幕中部略低处浮现一条横向黑线,由慢到快
+ * 纵向放大铺满全屏(scaleY,origin 55%)→ router.push →
+ * 新页就绪(pathname 变化)→ 遮罩自底向上由慢到快上刷揭示内容。
  * 只挂在 (site) 布局,admin 不启用;指向 /admin 的链接直接放行。
  * reduced-motion 降级为遮罩 fade;无 JS 时链接原生跳转不受影响。
  */
@@ -55,29 +56,40 @@ export function Revealer() {
         const navigate = () => router.push(href);
 
         if (prefersReducedMotion()) {
-          gsap.set(overlay, { yPercent: 0, opacity: 0, pointerEvents: "auto" });
+          gsap.set(overlay, {
+            scaleY: 1,
+            yPercent: 0,
+            opacity: 0,
+            pointerEvents: "auto",
+          });
           gsap.to(overlay, {
             opacity: 1,
             duration: motionTokens.duration.fast,
             onComplete: navigate,
           });
         } else {
+          // 黑线在屏幕中部略低处(origin 55%)浮现,由慢到快放大铺满
           gsap.set(overlay, {
-            yPercent: 100,
+            scaleY: 0.002,
+            yPercent: 0,
             opacity: 1,
+            transformOrigin: "50% 55%",
             pointerEvents: "auto",
           });
           gsap.to(overlay, {
-            yPercent: 0,
-            duration: motionTokens.duration.base,
-            ease: motionTokens.ease.transition,
+            scaleY: 1,
+            duration: motionTokens.duration.slow,
+            ease: motionTokens.ease.accelerate,
             onComplete: navigate,
           });
         }
       });
 
-      document.addEventListener("click", onClick);
-      return () => document.removeEventListener("click", onClick);
+      // 捕获阶段拦截:next/link 的 React onClick 在冒泡阶段会先 preventDefault
+      // 并自行导航,冒泡阶段的监听永远轮不到;capture 先行 preventDefault 后
+      // Link 会尊重 defaultPrevented 放弃自身导航
+      document.addEventListener("click", onClick, true);
+      return () => document.removeEventListener("click", onClick, true);
     },
     { scope: overlayRef },
   );
@@ -94,15 +106,17 @@ export function Revealer() {
         gsap.to(overlay, {
           opacity: 0,
           duration: motionTokens.duration.fast,
-          onComplete: () => gsap.set(overlay, { pointerEvents: "none" }),
+          onComplete: () =>
+            gsap.set(overlay, { scaleY: 0, pointerEvents: "none" }),
         });
       } else {
+        // 自底向上由慢到快上刷,露出新页内容
         gsap.to(overlay, {
           yPercent: -100,
-          duration: motionTokens.duration.base,
-          ease: motionTokens.ease.transition,
+          duration: motionTokens.duration.slow,
+          ease: motionTokens.ease.accelerate,
           onComplete: () =>
-            gsap.set(overlay, { yPercent: 100, pointerEvents: "none" }),
+            gsap.set(overlay, { yPercent: 0, scaleY: 0, pointerEvents: "none" }),
         });
       }
     },
@@ -112,10 +126,11 @@ export function Revealer() {
   return (
     <div
       ref={overlayRef}
+      data-revealer
       aria-hidden
       className="fixed inset-0 z-50 bg-revealer"
-      // 初始停在视口下方,不响应指针;由 GSAP 接管后续状态
-      style={{ transform: "translateY(100%)", pointerEvents: "none" }}
+      // 初始压扁为不可见的线,不响应指针;由 GSAP 接管后续状态
+      style={{ transform: "scaleY(0)", pointerEvents: "none" }}
     />
   );
 }
