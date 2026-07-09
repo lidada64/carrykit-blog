@@ -74,7 +74,7 @@
 | Token | 值 |
 |-------|-----|
 | 时长 `fast / base / slow` | `0.2s / 0.5s / 0.8s` |
-| 缓动 | `power4.out`(入场/揭示)、`power2.inOut`(过渡)、`power2.in`(由慢到快:revealer 覆盖/上刷) |
+| 缓动 | `power4.out`(入场/揭示)、`power2.inOut`(过渡)、`power3.in`(由慢到快、尾端急加速:revealer 覆盖/上刷) |
 | 入场位移 | `y: 24px → 0` |
 | stagger 间隔 | `0.08s` |
 
