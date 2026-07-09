@@ -45,6 +45,7 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
           alt=""
           width={640}
           height={800}
+          priority
           sizes="(min-width: 1024px) 320px, 60vw"
           className="w-full max-w-[320px] object-cover"
         />

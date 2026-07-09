@@ -20,11 +20,16 @@ export function Nav() {
 
   return (
     <header className="mx-auto w-full max-w-[1120px] px-6 lg:px-12">
-      <nav className="flex items-center justify-between py-6 text-caption font-mono uppercase">
-        <Link href="/" className="font-display normal-case text-subheading">
+      <nav className="flex items-center justify-between gap-4 py-6 text-caption font-mono uppercase">
+        {/* 360px 窄屏 logo 降一档,避免与右侧导航贴死(M3-9) */}
+        <Link
+          href="/"
+          className="font-display normal-case text-body sm:text-subheading"
+        >
           {site.name}
         </Link>
-        <div className="flex items-center gap-4 sm:gap-8">
+        {/* 360px 窄屏下 gap-4 会顶满可用宽度,收紧到 gap-3(M3-9) */}
+        <div className="flex items-center gap-3 sm:gap-8">
           {navItems.map(({ key, href }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (

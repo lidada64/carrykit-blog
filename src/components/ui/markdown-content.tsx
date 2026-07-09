@@ -1,3 +1,4 @@
+import Image from "next/image";
 import ReactMarkdown, { type Components } from "react-markdown";
 import { rehypePlugins, remarkPlugins } from "@/lib/markdown";
 import "highlight.js/styles/github.css";
@@ -49,19 +50,26 @@ const components: Components = {
       // 行内代码
       <code className="bg-border/40 px-1 font-mono">{children}</code>
     ),
-  img: ({ src, alt }) => (
-    // 正文图片尺寸未知,V1 先用原生 img;next/image 全覆盖在 M3-10 统一处理
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={typeof src === "string" ? src : undefined}
-      alt={alt ?? ""}
-      loading="lazy"
-      className="w-full"
-    />
-  ),
+  img: ({ src, alt }) =>
+    typeof src === "string" ? (
+      // next/image 全覆盖(M3-10)。内容图片来自任意域名且尺寸未知:
+      // unoptimized 绕过优化器域名白名单,仍保留懒加载与布局预留;
+      // 名义宽高 16:9 + h-auto,实际比例由图片自身决定
+      <Image
+        src={src}
+        alt={alt ?? ""}
+        width={1200}
+        height={675}
+        unoptimized
+        className="h-auto w-full"
+      />
+    ) : null,
   hr: () => <hr className="border-border" />,
   table: ({ children }) => (
-    <table className="w-full border-collapse text-body">{children}</table>
+    // 宽表格在窄屏(360px)内滚动,不撑破页面(M3-9)
+    <div className="overflow-x-auto">
+      <table className="w-full border-collapse text-body">{children}</table>
+    </div>
   ),
   th: ({ children }) => (
     <th className="border-b border-border py-2 text-left text-caption font-mono uppercase text-muted">

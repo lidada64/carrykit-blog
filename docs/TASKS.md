@@ -63,10 +63,10 @@
   - 验收:US-B5 进度条项;进度与滚动位置一致 ✅(2026-07-09,motion/progress-bar.tsx:底部 2px 细条,scaleX=整页滚动进度(ScrollTrigger scrub 直接映射);挂在 Blog 详情与 Work 页,其余页面无;非运动性反馈,reduced-motion 保留)
 - [x] **M3-8 SEO**:各页 `generateMetadata`、`sitemap.ts`、`robots.ts`、文章/作品 OG 标签
   - 验收:PRD §4 SEO 行;view-source 可见正确 meta ✅(2026-07-09,根 layout metadataBase(SITE_URL)+title 模板,blog/work/about 独立 title+description(文案单源引英文字典),详情页 generateMetadata 输出 OG article/website+封面图;sitemap 11 条(4 静态+3 文章+4 作品),robots 屏蔽 /admin 与 /styleguide;About 拆为 server page + client AboutContent 以导出 metadata)
-- [ ] **M3-9 响应式与视觉走查**:三档断点逐页对照 DESIGN_SPEC §6 线框与参考站修偏差
-  - 验收:360px 宽无横向滚动;各页与线框一致
-- [ ] **M3-10 性能**:`next/image` 全覆盖、字体 swap、Lighthouse 检查
-  - 验收:本地 Lighthouse Performance ≥ 90(动效页允许 ≥ 85)
+- [x] **M3-9 响应式与视觉走查**:三档断点逐页对照 DESIGN_SPEC §6 线框与参考站修偏差
+  - 验收:360px 宽无横向滚动;各页与线框一致 ✅(2026-07-09,headless Chrome 实测 6 个公开页 360px scrollWidth=360 无横滚;桌面/移动截图对照线框逐页核过;修复:窄屏导航 logo 降档+组间 gap(原与链接贴死)、Markdown 宽表格包 overflow 容器、移动导航 gap 收紧)
+- [x] **M3-10 性能**:`next/image` 全覆盖、字体 swap、Lighthouse 检查
+  - 验收:本地 Lighthouse Performance ≥ 90(动效页允许 ≥ 85)✅(2026-07-09,本地生产模式实测:home 94 / blog 95 / 文章 98 / about 96 / work 96,CLS 全 0;Markdown 正文图片改 next/image(unoptimized,内容图可来自任意域名);blog 侧栏首屏图补 priority;字体 swap M0-2 已配。注:LCP 受 picsum 远程占位图拖累,换真实图片后更优)
 
 ## M4 部署(VPS)
 
