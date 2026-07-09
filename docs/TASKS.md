@@ -74,8 +74,8 @@
   - 验收:本地 `docker compose up` 后功能与 dev 一致 ✅(2026-07-09,deps/builder/proddeps/runner 四阶段(debian slim,standalone+运行时保留 prisma CLI/tsx 供迁移与 seed);构建期 SSG 用空库、上线后 ISR 刷新;Caddyfile 用 SITE_DOMAIN 变量(本地 :80/生产自动 HTTPS);实测:迁移自动应用、seed 后公开页+admin 登录经 Caddy 全通。顺带修复:seed 空串环境变量回退(||)、sitemap 改 force-dynamic(构建期烘焙会永久陈旧))
 - [ ] **M4-2 VPS 上线**:环境变量配置、域名解析、HTTPS、seed 生产 admin
   - 验收:公网域名可访问,HTTPS 正常,admin 可登录发文
-- [ ] **M4-3 备份与运维文档**:SQLite 定时备份脚本 + `docs/OPS.md`(部署/更新/回滚/备份恢复步骤)
-  - 验收:手动执行备份并完成一次恢复演练
+- [x] **M4-3 备份与运维文档**:SQLite 定时备份脚本 + `docs/OPS.md`(部署/更新/回滚/备份恢复步骤)
+  - 验收:手动执行备份并完成一次恢复演练 ✅(2026-07-09,scripts/backup.sh 用 better-sqlite3 在线备份 API 出一致性快照+gzip+保留 30 份;OPS.md 覆盖首次部署/更新/回滚/备份/恢复/常用命令;本地 Docker 完成演练:备份→删一篇文章→临时容器挂 volume 恢复→数据回到备份时点(注意:恢复不能对停止容器 docker cp,volume 未挂载,已写入文档))
 
 ## V2 候选池(不排期)
 
