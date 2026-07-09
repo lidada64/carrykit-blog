@@ -43,6 +43,17 @@ export const zh: Dictionary = {
     intro: "为 Web 而做:在意布局、动效与文字。",
     bio: "Carrykit 是我在互联网上的一个角落:展示作品、记录想法、试验 Web 动效。本站用 Next.js、GSAP 与 SQLite 构建,运行在一台小 VPS 上。",
   },
+  admin: {
+    title: "管理后台",
+    loginTitle: "登录",
+    emailLabel: "邮箱",
+    passwordLabel: "密码",
+    loginButton: "登录",
+    loginError: "邮箱或密码错误。",
+    logout: "登出",
+    postsLink: "文章",
+    projectsLink: "作品",
+  },
   footer: {
     byline: "Carrykit",
   },

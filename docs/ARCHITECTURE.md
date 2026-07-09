@@ -14,7 +14,7 @@
 | ORM | **Prisma** | 类型安全;SQLite → PostgreSQL 迁移路径平滑 |
 | 数据库 | **SQLite** | 单文件零运维,个人博客流量足够;备份即拷贝文件 |
 | Markdown | **react-markdown + remark-gfm + rehype-highlight**(M1-2 已锁定,不用 MDX) | 博客/作品正文渲染,代码高亮 |
-| 鉴权 | **自实现 session cookie**(iron-session 或等价轻量方案) | 单用户后台,NextAuth 过重 |
+| 鉴权 | **iron-session 加密 session cookie**(M2-1 已锁定) | 单用户后台,NextAuth 过重 |
 | 部署 | **Docker(standalone 输出)+ Caddy 反代 → VPS** | Caddy 自动 HTTPS;单容器 + 反代,运维面最小 |
 
 **版本策略**:实施 M0 时以 `create-next-app` 当时的最新稳定版为准,锁定在 `package.json` 中;此后不随意升级大版本。
@@ -46,10 +46,12 @@ Carrykit blog2/
 │   │   │   │   └── [slug]/page.tsx
 │   │   │   └── styleguide/    # 临时演示页(上线前移除)
 │   │   ├── admin/
-│   │   │   ├── login/page.tsx
-│   │   │   ├── layout.tsx     # 鉴权守卫 + 后台布局
-│   │   │   ├── posts/...      # 列表/新建/编辑
-│   │   │   └── projects/...
+│   │   │   ├── login/         # 登录页 + 登录/登出 Server Actions(不受守卫,否则重定向死循环)
+│   │   │   └── (protected)/   # 鉴权路由组:layout 统一校验 session
+│   │   │       ├── layout.tsx # 守卫 + 后台布局(header/导航/登出)
+│   │   │       ├── page.tsx   # /admin → 重定向到 posts
+│   │   │       ├── posts/...  # 列表/新建/编辑
+│   │   │       └── projects/...
 │   │   ├── api/               # 仅当 Server Actions 不适用时才建 API route
 │   │   ├── sitemap.ts
 │   │   └── robots.ts
@@ -128,7 +130,7 @@ model User {
 |------|------|
 | `/`、`/about`、`/blog`、`/work` | SSG + ISR(`revalidate` 60s),内容更新后自动生效 |
 | `/blog/[slug]`、`/work/[slug]` | `generateStaticParams` + ISR;草稿返回 404 |
-| `/admin/**` | 动态渲染(SSR);`admin/layout.tsx` 统一校验 session,未登录重定向 `/admin/login` |
+| `/admin/**` | 动态渲染(SSR);`admin/(protected)/layout.tsx` 统一校验 session,未登录重定向 `/admin/login` |
 | 写操作 | 优先 Server Actions(表单提交),内部先校验 session;避免暴露裸 API |
 
 **鉴权流程**:登录表单 → Server Action 校验 email + bcrypt 比对 passwordHash → 签发加密 session cookie(httpOnly、secure、7 天)→ admin layout 每次请求校验。admin 用户由 `prisma/seed.ts` 从环境变量创建。

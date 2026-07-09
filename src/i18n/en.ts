@@ -46,6 +46,17 @@ export const en = {
     intro: "I build things for the web, with care for layout, motion and words.",
     bio: "Carrykit is my corner of the internet: a place to show work, share notes and experiment with web motion. This site is built with Next.js, GSAP and SQLite, and runs on a small VPS.",
   },
+  admin: {
+    title: "Admin",
+    loginTitle: "Sign in",
+    emailLabel: "Email",
+    passwordLabel: "Password",
+    loginButton: "Sign in",
+    loginError: "Invalid email or password.",
+    logout: "Log out",
+    postsLink: "Posts",
+    projectsLink: "Projects",
+  },
   footer: {
     byline: "Carrykit",
   },
