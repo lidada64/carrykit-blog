@@ -62,33 +62,38 @@ export default async function BlogPostPage({
   });
 
   return (
-    <article className="py-16 lg:py-24">
-      {post.coverImage && (
-        <div className="relative aspect-[16/9] w-full overflow-hidden">
-          <Image
-            src={post.coverImage}
-            alt={post.title}
-            fill
-            priority
-            sizes="(min-width: 1120px) 1024px, 100vw"
-            className="object-cover"
+    // 负 margin 破格突破 main 的 1120px,容器加宽到 1440px(DESIGN_SPEC §4);
+    // 站点页原生滚动条已隐藏,100vw = clientWidth,不会出横向滚动
+    <article className="mx-[calc(50%-50vw)] px-6 py-16 lg:px-12 lg:py-24">
+      <div className="mx-auto max-w-[1440px]">
+        {post.coverImage && (
+          <div className="relative aspect-[16/9] w-full overflow-hidden">
+            <Image
+              src={post.coverImage}
+              alt={post.title}
+              fill
+              priority
+              sizes="(min-width: 1440px) 1344px, 100vw"
+              className="object-cover"
+            />
+          </div>
+        )}
+        <PostTitle title={post.title} />
+        {/* 两栏比例 1:1.618(黄金分割,左信息栏短、右正文长) */}
+        <div className="mt-12 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.618fr)] lg:gap-16">
+          <PostMeta
+            title={post.title}
+            excerpt={post.excerpt}
+            date={formatDate(post.publishedAt ?? post.createdAt)}
+            tags={parseTags(post.tags)}
           />
+          <div className="mt-10 lg:mt-0">
+            <MarkdownContent content={post.content} />
+          </div>
         </div>
-      )}
-      <PostTitle title={post.title} />
-      <div className="mt-12 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-16">
-        <PostMeta
-          title={post.title}
-          excerpt={post.excerpt}
-          date={formatDate(post.publishedAt ?? post.createdAt)}
-          tags={parseTags(post.tags)}
-        />
-        <div className="mt-10 lg:mt-0">
-          <MarkdownContent content={post.content} />
-        </div>
+        <RelatedArticles posts={related} />
+        <ProgressBar />
       </div>
-      <RelatedArticles posts={related} />
-      <ProgressBar />
     </article>
   );
 }
