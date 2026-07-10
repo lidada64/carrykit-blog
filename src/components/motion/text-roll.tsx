@@ -37,21 +37,45 @@ export function TextRoll({
 
       // yPercent 以内层自身(3 行)为基准:滚一行 = 100/3
       const STEP = 100 / 3;
+      const currentY = () => Number(gsap.getProperty(inner, "yPercent"));
       const rollIn = contextSafe(() => {
+        const y = currentY();
+        gsap.killTweensOf(inner);
+        if (y < -STEP) {
+          // rollOut 后半程被重新 hover:直接 tween 回 -STEP 会向下倒滚,
+          // 破坏"持续上滚"错觉 → 顺势滚完整圈瞬时归零后再滚入,始终向上
+          gsap
+            .timeline()
+            .to(inner, {
+              yPercent: -STEP * 2,
+              // 剩余距离按正常滚速折算时长(y ∈ (-2*STEP, -STEP),结果 ∈ (0, base))
+              duration: (motionTokens.duration.base * (STEP * 2 + y)) / STEP,
+              ease: "none",
+            })
+            .set(inner, { yPercent: 0 })
+            .to(inner, {
+              yPercent: -STEP,
+              // base 时长:fast 的滚动手感偏急(用户反馈调慢)
+              duration: motionTokens.duration.base,
+              ease: motionTokens.ease.transition,
+            });
+          return;
+        }
         gsap.to(inner, {
           yPercent: -STEP,
-          // base 时长:fast 的滚动手感偏急(用户反馈调慢)
           duration: motionTokens.duration.base,
           ease: motionTokens.ease.transition,
-          overwrite: "auto",
         });
       });
       const rollOut = contextSafe(() => {
+        // 已在复位态(如 mouseleave 复位后又收到 focusout)则不滚:
+        // 否则会无故滚一整圈,中途闪过反色副本
+        if (currentY() === 0) return;
+        gsap.killTweensOf(inner);
         gsap.to(inner, {
           yPercent: -STEP * 2,
           duration: motionTokens.duration.base,
           ease: motionTokens.ease.transition,
-          overwrite: "auto",
           onComplete: () => gsap.set(inner, { yPercent: 0 }),
         });
       });

@@ -37,7 +37,8 @@ export function Nav() {
                 key={href}
                 href={href}
                 aria-current={active ? "page" : undefined}
-                className={`-mx-1 px-1 transition-colors duration-200 hover:bg-foreground focus-visible:bg-foreground ${active ? "text-foreground" : "text-muted"}`}
+                // duration-500 与 text-roll 滚动时长(duration.base)同步,避免黑底黑字空窗
+                className={`-mx-1 px-1 transition-colors duration-500 hover:bg-foreground focus-visible:bg-foreground ${active ? "text-foreground" : "text-muted"}`}
               >
                 <TextRoll text={t(key)} />
               </Link>
@@ -45,7 +46,7 @@ export function Nav() {
           })}
           <a
             href={`mailto:${site.contactEmail}`}
-            className="-mx-1 px-1 text-muted transition-colors duration-200 hover:bg-foreground focus-visible:bg-foreground"
+            className="-mx-1 px-1 text-muted transition-colors duration-500 hover:bg-foreground focus-visible:bg-foreground"
           >
             <TextRoll text={t("nav.contact")} />
           </a>
