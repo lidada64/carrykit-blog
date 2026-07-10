@@ -1,6 +1,7 @@
 import { Footer } from "@/components/layout/footer";
 import { Nav } from "@/components/layout/nav";
 import { Revealer } from "@/components/motion/revealer";
+import { ScrollIndicator } from "@/components/motion/scroll-indicator";
 
 /** 公开站布局:共享导航与 Footer;admin 不走此布局(ARCHITECTURE §2) */
 export default function SiteLayout({
@@ -17,6 +18,8 @@ export default function SiteLayout({
       <Footer />
       {/* 页面过渡遮罩(A1):仅公开站启用 */}
       <Revealer />
+      {/* 右侧滚动进度矩形:替代原生滚动条,仅公开站启用 */}
+      <ScrollIndicator />
     </>
   );
 }
