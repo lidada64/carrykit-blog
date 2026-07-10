@@ -52,7 +52,7 @@ export function ScrollIndicator() {
       ref={ref}
       data-scroll-indicator
       aria-hidden
-      className="fixed right-0 top-0 z-40 h-svh w-1.5 origin-top bg-foreground"
+      className="fixed right-0 top-0 z-40 h-svh w-2 origin-top bg-foreground"
       style={{ transform: "scaleY(0)" }}
     />
   );

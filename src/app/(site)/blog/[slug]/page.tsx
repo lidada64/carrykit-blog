@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { PostMeta } from "@/components/blog/post-meta";
+import { PostTitle } from "@/components/blog/post-title";
 import { RelatedArticles } from "@/components/blog/related-articles";
 import { ProgressBar } from "@/components/motion/progress-bar";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -74,11 +75,10 @@ export default async function BlogPostPage({
           />
         </div>
       )}
-      <h1 className="mt-10 max-w-[20ch] text-display font-display">
-        {post.title}
-      </h1>
+      <PostTitle title={post.title} />
       <div className="mt-12 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] lg:gap-16">
         <PostMeta
+          title={post.title}
           excerpt={post.excerpt}
           date={formatDate(post.publishedAt ?? post.createdAt)}
           tags={parseTags(post.tags)}
