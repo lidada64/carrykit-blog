@@ -27,7 +27,8 @@ export function PostMeta({
         <span
           data-post-meta-title
           aria-hidden
-          className="block text-subheading font-display"
+          // heading 档:大标题消失后由它接棒,比 subheading 更有存在感(字号阶梯内取值)
+          className="block text-heading font-display"
           style={{ transform: "translateY(-110%)" }}
         >
           {title}
