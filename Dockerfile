@@ -59,7 +59,7 @@ COPY prisma ./prisma
 COPY --from=proddeps /app/src/generated ./src/generated
 COPY docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh \
-    && mkdir -p /data && chown -R nextjs:nodejs /data /app
+    && mkdir -p /data/uploads && chown -R nextjs:nodejs /data /app
 
 USER nextjs
 EXPOSE 3000

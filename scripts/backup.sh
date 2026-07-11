@@ -18,7 +18,15 @@ docker compose exec -T app rm /data/backup.tmp.db
 
 gzip "$BACKUP_DIR/blog-$STAMP.db"
 
-# 只保留最近 30 份
+# 备份上传图片目录(M5:与数据库备份配对)
+docker compose exec -T app sh -c "if [ -d /data/uploads ] && [ \"\$(ls -A /data/uploads 2>/dev/null)\" ]; then tar cf /data/uploads-backup.tar -C /data/uploads .; else echo 'no uploads to backup'; exit 0; fi"
+if docker compose cp app:/data/uploads-backup.tar "$BACKUP_DIR/uploads-$STAMP.tar" 2>/dev/null; then
+  gzip "$BACKUP_DIR/uploads-$STAMP.tar"
+  docker compose exec -T app rm -f /data/uploads-backup.tar
+fi
+
+# 只保留最近 30 份(数据库 + 上传)
 ls -1t "$BACKUP_DIR"/blog-*.db.gz 2>/dev/null | tail -n +31 | xargs -r rm --
+ls -1t "$BACKUP_DIR"/uploads-*.tar.gz 2>/dev/null | tail -n +31 | xargs -r rm --
 
 echo "backup done: $BACKUP_DIR/blog-$STAMP.db.gz"

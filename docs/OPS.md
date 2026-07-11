@@ -33,6 +33,7 @@ docker compose exec app npx prisma db seed
 注意:
 - 公开页构建期用空库预渲染,seed/发文后由 ISR 在 60s 内刷新,属正常现象
 - `DATABASE_URL` 由 compose 固定为 `file:/data/blog.db`(named volume `db-data`),不需要写进 .env
+- 上传图片存储在 `/data/uploads`,与数据库共用 `db-data` volume 自动持久化
 
 ## 2. 更新(发布新版本)
 
@@ -63,6 +64,7 @@ docker compose build app && docker compose up -d app
 
 脚本:[`scripts/backup.sh`](../scripts/backup.sh)——对运行中的库做一致性在线快照
 (better-sqlite3 backup API,不是裸 cp),gzip 后保留最近 30 份。
+同时备份 `/data/uploads` 目录(tar + gzip),与数据库快照配对。
 
 ```bash
 # 手动执行
@@ -94,6 +96,17 @@ docker run --rm \
   alpine sh -c "cp /backup/blog-<时间戳>.db /data/blog.db"
 
 docker compose start app                       # 4. 重启
+```
+
+若同时需要恢复上传图片:
+
+```bash
+# 解压 uploads 备份(与数据库恢复一同操作)
+gunzip -k /var/backups/carrykit/uploads-<时间戳>.tar.gz
+docker run --rm \
+  -v carrykit-blog_db-data:/data \
+  -v /var/backups/carrykit:/backup:ro \
+  alpine sh -c "rm -rf /data/uploads/* && tar xf /backup/uploads-<时间戳>.tar -C /data/uploads"
 ```
 
 验证:前台内容回到备份时点;admin 可登录。
