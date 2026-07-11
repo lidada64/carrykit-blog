@@ -6,6 +6,7 @@ import {
   type PostFormState,
 } from "@/app/admin/(protected)/posts/actions";
 import { MarkdownEditor } from "@/components/admin/markdown-editor";
+import { ImageUploader } from "@/components/admin/image-uploader";
 import { useT } from "@/i18n";
 
 export interface PostFormValues {
@@ -66,15 +67,13 @@ export function PostForm({ post }: { post?: PostFormValues }) {
             className={inputClass}
           />
         </label>
-        <label className={labelClass}>
+        <div className={labelClass}>
           {t("admin.coverImageLabel")}
-          <input
+          <ImageUploader
             name="coverImage"
-            type="url"
             defaultValue={post?.coverImage}
-            className={inputClass}
           />
-        </label>
+        </div>
         <label className={labelClass}>
           {t("admin.tagsFieldLabel")}
           <input name="tags" defaultValue={post?.tags} className={inputClass} />

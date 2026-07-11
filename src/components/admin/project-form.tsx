@@ -6,6 +6,7 @@ import {
   type ProjectFormState,
 } from "@/app/admin/(protected)/projects/actions";
 import { MarkdownEditor } from "@/components/admin/markdown-editor";
+import { ImageUploader } from "@/components/admin/image-uploader";
 import { useT } from "@/i18n";
 
 export interface ProjectFormValues {
@@ -69,15 +70,13 @@ export function ProjectForm({ project }: { project?: ProjectFormValues }) {
             className={inputClass}
           />
         </label>
-        <label className={labelClass}>
+        <div className={labelClass}>
           {t("admin.coverImageLabel")}
-          <input
+          <ImageUploader
             name="coverImage"
-            type="url"
             defaultValue={project?.coverImage}
-            className={inputClass}
           />
-        </label>
+        </div>
         <label className={labelClass}>
           {t("admin.tagsFieldLabel")}
           <input
