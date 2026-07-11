@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import { join } from "path";
 import sharp from "sharp";
-import { mkdir, writeFile } from "fs/promises";
+import { mkdir } from "fs/promises";
 
 /** 上传图片最大尺寸(字节):5MB */
 export const MAX_FILE_SIZE = 5 * 1024 * 1024;
