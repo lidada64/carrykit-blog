@@ -77,6 +77,19 @@
 - [x] **M4-3 备份与运维文档**:SQLite 定时备份脚本 + `docs/OPS.md`(部署/更新/回滚/备份恢复步骤)
   - 验收:手动执行备份并完成一次恢复演练 ✅(2026-07-09,scripts/backup.sh 用 better-sqlite3 在线备份 API 出一致性快照+gzip+保留 30 份;OPS.md 覆盖首次部署/更新/回滚/备份/恢复/常用命令;本地 Docker 完成演练:备份→删一篇文章→临时容器挂 volume 恢复→数据回到备份时点(注意:恢复不能对停止容器 docker cp,volume 未挂载,已写入文档))
 
+## M5 图片上传
+
+- [ ] **M5-1 上传 API + 存储层**:`src/app/api/upload/route.ts`(POST 鉴权 + sharp 转 WebP)、`src/app/uploads/[...path]/route.ts`(GET 静态服务)、`src/lib/upload.ts`(工具函数)、`.env` 加 `UPLOAD_DIR`
+  - 验收:上传返回 `{ url }`;未登录 401;超 5MB/非图片 400;GET 返回图片
+- [ ] **M5-2 封面图上传组件**:`src/components/admin/image-uploader.tsx`(拖拽/点击上传 + 预览 + URL 回退 tab);接入 PostForm、ProjectForm 替换原 `type="url"` 字段
+  - 验收:拖拽上传 → 预览 → 保存后前台封面图正确;URL 模式仍可用;编辑回显
+- [ ] **M5-3 Markdown 编辑器插图**:`markdown-editor.tsx` 工具栏加「插入图片」按钮,上传后在光标位置插入 `![](url)`
+  - 验收:插入图片后预览可见;前台详情页渲染正确
+- [ ] **M5-4 Docker 与部署适配**:Dockerfile 创建 `/data/uploads` 并赋权;docker-compose 加 `UPLOAD_DIR`;备份脚本增加 uploads 目录
+  - 验收:`docker compose up` 后上传功能正常;备份恢复后图片完整
+- [ ] **M5-5 验证走查**:`npm run lint && npm run build` 通过;完整上传流程 e2e 验证;边界测试
+  - 验收:lint + build 通过;本地 dev 与 Docker 均可正常上传和展示
+
 ## V2 候选池(不排期)
 
-内容双语(Post/Project 双语字段)· 暗色模式(token 结构已预留,加 `[data-theme="dark"]` 块即可)· 文章目录 TOC · RSS 订阅 · 标签筛选(迁移 Tag 关联表)· 图片上传 · 全文搜索 · 评论
+内容双语(Post/Project 双语字段)· 暗色模式(token 结构已预留,加 `[data-theme="dark"]` 块即可)· 文章目录 TOC · RSS 订阅 · 标签筛选(迁移 Tag 关联表)· 全文搜索 · 评论 · 图片管理页面(查看/删除已上传图片)

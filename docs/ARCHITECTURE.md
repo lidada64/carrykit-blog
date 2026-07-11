@@ -53,6 +53,8 @@ Carrykit blog2/
 │   │   │       ├── posts/...  # 列表/新建/编辑
 │   │   │       └── projects/...
 │   │   ├── api/               # 仅当 Server Actions 不适用时才建 API route
+│   │   │   └── upload/route.ts # 图片上传接口(POST,鉴权+sharp 转 WebP)
+│   │   │── uploads/[...path]/route.ts # 上传图片静态服务(GET)
 │   │   ├── sitemap.ts
 │   │   └── robots.ts
 │   ├── components/
@@ -70,6 +72,7 @@ Carrykit blog2/
 │   │   ├── db.ts              # Prisma client 单例
 │   │   ├── auth.ts            # session 读写、密码校验
 │   │   ├── markdown.ts        # Markdown 渲染配置
+│   │   ├── upload.ts           # 图片上传工具:路径/文件名/sharp 转换
 │   │   └── utils.ts
 │   └── styles/globals.css     # 【扩展性接口】设计 token(CSS 变量),见 §7
 ├── Dockerfile
@@ -147,6 +150,19 @@ Internet → Caddy (80/443, 自动 HTTPS) → next-app 容器 (:3000)
 - **迁移**:容器启动命令先执行 `prisma migrate deploy` 再启动 server
 - **备份**:cron 定时将 `blog.db` 拷贝/压缩到备份目录(文档化在部署说明中即可)
 
+### 5.1 图片上传存储
+
+```
+上传流程: admin 表单 → POST /api/upload → sharp 转 WebP(≤1920px, q80) → 写入 UPLOAD_DIR
+读取路径: GET /uploads/xxx.webp → API Route 从 UPLOAD_DIR 读取并返回(带缓存头)
+```
+
+- **本地开发**:`UPLOAD_DIR=./uploads`(项目根目录下,已加入 `.gitignore`)
+- **Docker 生产**:`UPLOAD_DIR=/data/uploads`,与 SQLite 共用 `/data` volume 持久化
+- 文件名格式 `{timestamp}-{random}.webp`,不暴露原名
+- 单文件限制 ≤ 5MB(原始),转换后通常 < 500KB
+- 安全:上传接口要求 admin session,仅接受 `image/*` MIME 类型
+
 ## 6. 环境变量
 
 | 变量 | 用途 | 示例 |
@@ -156,6 +172,7 @@ Internet → Caddy (80/443, 自动 HTTPS) → next-app 容器 (:3000)
 | `ADMIN_EMAIL` | seed 创建的管理员邮箱 | — |
 | `ADMIN_PASSWORD` | seed 初始密码(仅 seed 时使用) | — |
 | `SITE_URL` | 站点公开地址,用于 sitemap/OG | `https://example.com` |
+| `UPLOAD_DIR` | 上传图片存储目录 | `./uploads`(本地)/ `/data/uploads`(Docker) |
 
 `.env.example` 列出全部变量;`.env` 进 `.gitignore`,真实值绝不入库。
 
