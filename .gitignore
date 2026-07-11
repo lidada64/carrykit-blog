@@ -43,3 +43,6 @@ npm-debug.log*
 .recall/
 
 /src/generated/prisma
+
+# uploads (user-uploaded images, M5)
+/uploads/
