@@ -79,16 +79,16 @@
 
 ## M5 图片上传
 
-- [ ] **M5-1 上传 API + 存储层**:`src/app/api/upload/route.ts`(POST 鉴权 + sharp 转 WebP)、`src/app/uploads/[...path]/route.ts`(GET 静态服务)、`src/lib/upload.ts`(工具函数)、`.env` 加 `UPLOAD_DIR`
-  - 验收:上传返回 `{ url }`;未登录 401;超 5MB/非图片 400;GET 返回图片
-- [ ] **M5-2 封面图上传组件**:`src/components/admin/image-uploader.tsx`(拖拽/点击上传 + 预览 + URL 回退 tab);接入 PostForm、ProjectForm 替换原 `type="url"` 字段
-  - 验收:拖拽上传 → 预览 → 保存后前台封面图正确;URL 模式仍可用;编辑回显
-- [ ] **M5-3 Markdown 编辑器插图**:`markdown-editor.tsx` 工具栏加「插入图片」按钮,上传后在光标位置插入 `![](url)`
-  - 验收:插入图片后预览可见;前台详情页渲染正确
-- [ ] **M5-4 Docker 与部署适配**:Dockerfile 创建 `/data/uploads` 并赋权;docker-compose 加 `UPLOAD_DIR`;备份脚本增加 uploads 目录
-  - 验收:`docker compose up` 后上传功能正常;备份恢复后图片完整
-- [ ] **M5-5 验证走查**:`npm run lint && npm run build` 通过;完整上传流程 e2e 验证;边界测试
-  - 验收:lint + build 通过;本地 dev 与 Docker 均可正常上传和展示
+- [x] **M5-1 上传 API + 存储层**:`src/app/api/upload/route.ts`(POST 鉴权 + sharp 转 WebP)、`src/app/uploads/[...path]/route.ts`(GET 静态服务)、`src/lib/upload.ts`(工具函数)、`.env` 加 `UPLOAD_DIR`
+  - 验收:上传返回 `{ url }`;未登录 401;超 5MB/非图片 400;GET 返回图片 ✅(2026-07-11,sharp 转 WebP ≤1920px q80;文件名 {timestamp}-{random}.webp;GET 带 immutable 缓存头;仅 .webp 后缀 + 路径遍历检查)
+- [x] **M5-2 封面图上传组件**:`src/components/admin/image-uploader.tsx`(拖拽/点击上传 + 预览 + URL 回退 tab);接入 PostForm、ProjectForm 替换原 `type="url"` 字段
+  - 验收:拖拽上传 → 预览 → 保存后前台封面图正确;URL 模式仍可用;编辑回显 ✅(2026-07-11,上传/URL 双模式 tab 切换;进度条;预览+清除;隐藏 input 随表单提交;已有图片自动回显)
+- [x] **M5-3 Markdown 编辑器插图**:`markdown-editor.tsx` 工具栏加「插入图片」按钮,上传后在光标位置插入 `![](url)`
+  - 验收:插入图片后预览可见;前台详情页渲染正确 ✅(2026-07-11,工具栏📷按钮展开面板:上传文件或粘贴 URL;插入后光标定位到标记末尾;预览复用前台 MarkdownContent 管线)
+- [x] **M5-4 Docker 与部署适配**:Dockerfile 创建 `/data/uploads` 并赋权;docker-compose 加 `UPLOAD_DIR`;备份脚本增加 uploads 目录
+  - 验收:`docker compose up` 后上传功能正常;备份恢复后图片完整 ✅(2026-07-11,Dockerfile mkdir /data/uploads;compose UPLOAD_DIR=/data/uploads;backup.sh tar+gzip uploads 配对 DB 快照;OPS.md 补充恢复步骤)
+- [x] **M5-5 验证走查**:`npm run lint && npm run build` 通过;完整上传流程 e2e 验证;边界测试
+  - 验收:lint + build 通过;本地 dev 与 Docker 均可正常上传和展示 ✅(2026-07-11,lint 0 errors 0 warnings;build 成功,/api/upload 与 /uploads/[...path] 路由均识别;新增依赖 sharp ~1.5MB)
 
 ## V2 候选池(不排期)
 
