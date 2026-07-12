@@ -9,7 +9,7 @@ export const site = {
   /** Blog 列表侧栏缩略图(DESIGN_SPEC §6 线框);V1 图片走外链 URL */
   blogThumbnail: "/DE.jpg",
   /** Home hero 大图(DESIGN_SPEC §6 线框);V1 图片走外链 URL */
-  heroImage: "https://picsum.photos/seed/carrykit-hero/2000/1200",
+  heroImage: "/outerwilds.webp",
   /** About 页 SKILLS 节的技能/关注领域列表(US-A2);技能为专有名词,不进 i18n */
   skills: [
     "TypeScript",
