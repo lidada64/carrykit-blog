@@ -28,8 +28,7 @@ export const en = {
   blog: {
     title: "Blog",
     aboutLabel: "About",
-    description:
-      "Notes on design, code and motion — one article a month, released towards the end of the month.",
+    description: "Sharing thoughts, updated anytime.",
     dateHeader: "Date",
     nameHeader: "Name",
     dateLabel: "Date",

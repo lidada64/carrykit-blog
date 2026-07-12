@@ -26,7 +26,7 @@ export const zh: Dictionary = {
   blog: {
     title: "博客",
     aboutLabel: "关于",
-    description: "关于设计、代码与动效的记录——每月一篇,月末发布。",
+    description: "分享感想，随时更新。",
     dateHeader: "日期",
     nameHeader: "标题",
     dateLabel: "日期",
