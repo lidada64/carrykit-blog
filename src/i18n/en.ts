@@ -11,11 +11,11 @@ export const en = {
     contact: "Contact",
   },
   home: {
-    slogan: "Design-minded developer building web experiences.",
+    slogan: "Welcome to CarryKit",
     descriptionLeft:
-      "I care about the small things: type scales, spacing, easing curves and the words in between.",
+      "This is my blog, for recording and sharing",
     descriptionRight:
-      "This site collects my projects and monthly notes on design, code and motion.",
+      "This site collects my projects, posts and design",
     selectedWorkLabel: "Selected Work",
     latestWritingLabel: "Latest Writing",
   },

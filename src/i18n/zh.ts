@@ -11,9 +11,9 @@ export const zh: Dictionary = {
     contact: "联系",
   },
   home: {
-    slogan: "以设计视角构建 Web 体验。",
-    descriptionLeft: "我在意那些小事:字号阶梯、间距、缓动曲线,以及其间的文字。",
-    descriptionRight: "这里收录我的作品,以及每月一篇关于设计、代码与动效的记录。",
+    slogan: "欢迎来到CarryKit",
+    descriptionLeft: "这是我的个人博客,用于记录分享",
+    descriptionRight: "这个网站用于收集我的项目,文章和设计",
     selectedWorkLabel: "精选作品",
     latestWritingLabel: "最新博客",
   },
