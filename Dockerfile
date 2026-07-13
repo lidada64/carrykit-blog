@@ -13,6 +13,7 @@
 FROM node:22-bookworm-slim AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 # ---- deps:全量依赖(构建用),postinstall 触发 prisma generate ----
 FROM base AS deps
