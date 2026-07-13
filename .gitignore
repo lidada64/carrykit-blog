@@ -46,3 +46,6 @@ npm-debug.log*
 
 # uploads (user-uploaded images, M5)
 /uploads/
+
+# idea brainstorms (local reference, not tracked)
+/idea/

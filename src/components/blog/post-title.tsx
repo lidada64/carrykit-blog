@@ -46,26 +46,26 @@ export function PostTitle({ title }: { title: string }) {
           });
 
           // 交接:大标题底边越过 sticky 线 → 侧栏标题滑入;滚回则滑出
-          const slot = document.querySelector<HTMLElement>(
+          const slots = document.querySelectorAll<HTMLElement>(
             "[data-post-meta-title]",
           );
-          if (!slot) return;
+          if (slots.length === 0) return;
           // 无 JS 兜底的内联 translateY(-110%) 是像素轨道,
           // 归一到 yPercent 轨道后交给 tween 驱动
-          gsap.set(slot, { y: 0, yPercent: -110 });
+          gsap.set(slots, { y: 0, yPercent: -110 });
           // 注意:这里不能用外层 useGSAP 的 contextSafe 包裹——
           // matchMedia 子 context 与外层 context 会相互引用,断点切换
           // revert 时 getTweens 无限递归栈溢出;裸 tween 最长只活 0.5s,
           // 卸载后在游离节点上跑完即被回收,无需纳入 context
           const slideIn = () =>
-            gsap.to(slot, {
+            gsap.to(slots, {
               yPercent: 0,
               duration: motionTokens.duration.base,
               ease: motionTokens.ease.enter,
               overwrite: "auto",
             });
           const slideOut = () =>
-            gsap.to(slot, {
+            gsap.to(slots, {
               yPercent: -110,
               duration: motionTokens.duration.base,
               ease: motionTokens.ease.enter,
