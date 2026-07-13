@@ -24,6 +24,8 @@ export const en = {
     backToBlog: "Back to blog",
     comingSoon: "Coming soon.",
     home: "Home",
+    themeDark: "Dark",
+    themeLight: "Light",
   },
   blog: {
     title: "Blog",

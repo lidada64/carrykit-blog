@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 import { TextRoll } from "@/components/motion/text-roll";
 import { site } from "@/config/site";
 import { useLocale, useT, type TKey } from "@/i18n";
@@ -17,6 +19,13 @@ export function Nav() {
   const pathname = usePathname();
   const { locale, setLocale } = useLocale();
   const t = useT();
+  const { setTheme, resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <header className="mx-auto w-full max-w-[1120px] px-6 lg:px-12">
@@ -57,6 +66,22 @@ export function Nav() {
             className="cursor-pointer border-b border-border text-muted hover:text-foreground"
           >
             {locale === "en" ? "中" : "EN"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+            aria-label="Toggle theme"
+            className="cursor-pointer text-muted hover:text-foreground flex items-center justify-center"
+          >
+            {mounted ? (
+              resolvedTheme === "dark" ? (
+                <svg className="w-[18px] h-[18px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+              ) : (
+                <svg className="w-[18px] h-[18px]" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+              )
+            ) : (
+              <div className="w-[18px] h-[18px]" />
+            )}
           </button>
         </div>
       </nav>

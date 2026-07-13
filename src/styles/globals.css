@@ -16,12 +16,15 @@
 
 /*
  * 暗色模式预留(V2):取消注释并覆写同名 token 即可,组件零改动。
- * [data-theme="dark"] {
- *   --background: #0f0f0e;
- *   --foreground: #ededed;
- *   ...
- * }
  */
+[data-theme="dark"] {
+  --background: #0f0f0e;
+  --foreground: #ededed;
+  --muted: #a3a3a3;
+  --border: #333333;
+  --accent: #4f6bff;
+  --revealer: oklch(0.7689 0.004 247.87);
+}
 
 @theme inline {
   /* 色板映射:生成 bg-background / text-foreground / text-muted / border-border / text-accent 等 */
@@ -80,4 +83,5 @@ body {
   /* 与 --text-body 档保持一致(@theme inline 变量不输出到运行时,此处写字面量) */
   font-size: 1rem;
   line-height: 1.7;
+  transition: background-color 0.4s ease, color 0.4s ease;
 }

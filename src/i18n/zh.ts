@@ -22,6 +22,8 @@ export const zh: Dictionary = {
     backToBlog: "返回博客列表",
     comingSoon: "建设中。",
     home: "首页",
+    themeDark: "暗",
+    themeLight: "明",
   },
   blog: {
     title: "博客",
