@@ -16,7 +16,8 @@ jobs:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          timeout: 30m
+          timeout: 60m
+          command_timeout: 120m
           script: |
             cd /opt/carrykit-blog
             git pull
