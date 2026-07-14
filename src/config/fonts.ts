@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono } from "next/font/google";
+import { Girassol, Noto_Sans_SC, Geist_Mono } from "next/font/google";
 
 /**
  * 【扩展性接口】字体唯一定义处(ARCHITECTURE §7.1 / DESIGN_SPEC §2)。
@@ -7,18 +7,21 @@ import { Geist, Geist_Mono } from "next/font/google";
  * 注意:next/font 要求配置为字面量,不能提取共享变量。
  */
 
-export const fontDisplay = Geist({
+export const fontDisplay = Girassol({
+  weight: "400",
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
   fallback: ["Noto Sans SC", "PingFang SC", "Microsoft YaHei", "sans-serif"],
 });
 
-export const fontBody = Geist({
+export const fontBody = Noto_Sans_SC({
+  weight: ["400", "500", "700"],
   subsets: ["latin"],
+  preload: false,
   variable: "--font-body",
   display: "swap",
-  fallback: ["Noto Sans SC", "PingFang SC", "Microsoft YaHei", "sans-serif"],
+  fallback: ["PingFang SC", "Microsoft YaHei", "sans-serif"],
 });
 
 export const fontMono = Geist_Mono({

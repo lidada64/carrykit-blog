@@ -53,12 +53,6 @@ export function Nav() {
               </Link>
             );
           })}
-          <a
-            href={`mailto:${site.contactEmail}`}
-            className="-mx-1 px-1 text-muted transition-colors duration-500 hover:bg-foreground focus-visible:bg-foreground"
-          >
-            <TextRoll text={t("nav.contact")} />
-          </a>
           <button
             type="button"
             onClick={() => setLocale(locale === "en" ? "zh" : "en")}

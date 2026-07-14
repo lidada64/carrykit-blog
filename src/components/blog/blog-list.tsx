@@ -34,7 +34,7 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
           className="flex flex-col gap-8 lg:sticky lg:top-24 lg:self-start"
         >
           <h1 className="text-display font-display">
-            {t("blog.title")}({posts.length})
+            {t("blog.title")}
           </h1>
           <div className="flex flex-col gap-2">
             <span className="text-caption font-mono uppercase text-muted">
