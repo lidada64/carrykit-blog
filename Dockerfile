@@ -30,6 +30,8 @@ ENV DATABASE_URL=file:./build.db
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # src/generated 被 .dockerignore 排除,构建前重新生成 client
+# 限制 Node 内存，防止在小内存 VPS (1GB) 上由于 Next.js 构建导致 OOM 卡死
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN npx prisma generate && npx prisma migrate deploy && npm run build
 
 # ---- proddeps:仅运行时依赖 + 迁移/seed 工具链 ----
