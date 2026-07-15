@@ -36,9 +36,9 @@
   --color-revealer: var(--revealer);
 
   /* 字体映射:变量由 src/config/fonts.ts 定义并挂在 <html> 上 */
-  --font-display: var(--font-display);
-  --font-body: var(--font-body);
-  --font-mono: var(--font-mono);
+  --font-display: var(--font-display), var(--font-zh), "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-body: var(--font-body), var(--font-zh), "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: var(--font-mono), var(--font-zh), "PingFang SC", "Microsoft YaHei", monospace;
 
   /*
    * 字号阶梯(DESIGN_SPEC §2):全站公开页只准使用以下 5 档

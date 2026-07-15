@@ -20,21 +20,18 @@ export const fontDisplay = Girassol({
   subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
-  fallback: ["var(--font-zh)", "PingFang SC", "Microsoft YaHei", "sans-serif"],
 });
 
 export const fontBody = Geist({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
-  fallback: ["var(--font-zh)", "PingFang SC", "Microsoft YaHei", "sans-serif"],
 });
 
 export const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
   display: "swap",
-  fallback: ["var(--font-zh)", "PingFang SC", "Microsoft YaHei", "monospace"],
 });
 
 /** 挂到 <html> 上的变量类名集合,根 layout 使用 */

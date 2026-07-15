@@ -3,7 +3,8 @@
 import { useRef, type ReactNode } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { ScrollSmoother } from "gsap/ScrollSmoother";
+// @ts-expect-error GSAP club plugin types are ambient
+import { ScrollSmoother } from "@/lib/gsap/ScrollSmoother";
 import { useGSAP } from "@gsap/react";
 import { motionTokens } from "./tokens";
 import { prefersReducedMotion } from "./reduced-motion";
