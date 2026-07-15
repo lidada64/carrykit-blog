@@ -5,6 +5,7 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { motionTokens } from "@/components/motion/tokens";
+import { Bilingual } from "@/components/ui/bilingual";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
@@ -19,7 +20,7 @@ const STICKY_TOP = 96;
  * 仅 lg+ 且未开启减弱动态时生效(lg 以下无左右栏,效果无意义);
  * 其余情况大标题保持静态,侧栏槽被 CSS 隐藏(post-meta)。
  */
-export function PostTitle({ title }: { title: string }) {
+export function PostTitle({ titleZh, titleEn }: { titleZh: string; titleEn?: string }) {
   const ref = useRef<HTMLHeadingElement>(null);
 
   useGSAP(
@@ -85,7 +86,7 @@ export function PostTitle({ title }: { title: string }) {
 
   return (
     <h1 ref={ref} className="mt-10 max-w-[20ch] text-display font-display">
-      {title}
+      <Bilingual zh={titleZh} en={titleEn} asBlock />
     </h1>
   );
 }

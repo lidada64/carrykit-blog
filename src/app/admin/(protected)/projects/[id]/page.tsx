@@ -16,12 +16,15 @@ export default async function EditProjectPage({
       project={{
         id: project.id,
         title: project.title,
+        titleEn: project.titleEn,
         slug: project.slug,
         summary: project.summary,
+        summaryEn: project.summaryEn,
         coverImage: project.coverImage,
         tags: project.tags,
         link: project.link,
         content: project.content,
+        contentEn: project.contentEn,
         order: project.order,
         published: project.published,
       }}

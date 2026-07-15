@@ -5,11 +5,14 @@ import Link from "next/link";
 import { FadeUp } from "@/components/motion/fade-up";
 import { HoverCard } from "@/components/motion/hover-card";
 import { useT } from "@/i18n";
+import { Bilingual } from "@/components/ui/bilingual";
 
 export interface RelatedArticle {
   slug: string;
   title: string;
+  titleEn: string | null;
   excerpt: string;
+  excerptEn: string | null;
   coverImage: string;
 }
 
@@ -50,9 +53,13 @@ export function RelatedArticles({ posts }: { posts: RelatedArticle[] }) {
                     />
                   )}
                 </div>
-                <h3 className="text-subheading">{post.title}</h3>
+                <h3 className="text-subheading">
+                  <Bilingual zh={post.title} en={post.titleEn} asBlock />
+                </h3>
                 {post.excerpt && (
-                  <p className="text-body text-muted">{post.excerpt}</p>
+                  <p className="text-body text-muted">
+                    <Bilingual zh={post.excerpt} en={post.excerptEn} asBlock />
+                  </p>
                 )}
               </Link>
             </HoverCard>

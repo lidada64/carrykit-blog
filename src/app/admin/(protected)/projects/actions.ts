@@ -25,12 +25,15 @@ export async function saveProject(
 
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
+  const titleEn = String(formData.get("titleEn") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim();
   const summary = String(formData.get("summary") ?? "").trim();
+  const summaryEn = String(formData.get("summaryEn") ?? "").trim();
   const coverImage = String(formData.get("coverImage") ?? "").trim();
   const tags = String(formData.get("tags") ?? "").trim();
   const link = String(formData.get("link") ?? "").trim();
   const content = String(formData.get("content") ?? "");
+  const contentEn = String(formData.get("contentEn") ?? "");
   const orderRaw = Number(formData.get("order"));
   const order = Number.isFinite(orderRaw) ? Math.trunc(orderRaw) : 0;
   const published = formData.get("published") === "on";
@@ -43,7 +46,20 @@ export async function saveProject(
   });
   if (existing && existing.id !== id) return { error: "slugTaken" };
 
-  const data = { title, slug, summary, coverImage, tags, link, content, order, published };
+  const data = {
+    title,
+    titleEn,
+    slug,
+    summary,
+    summaryEn,
+    coverImage,
+    tags,
+    link,
+    content,
+    contentEn,
+    order,
+    published,
+  };
   if (id) {
     // 先取旧 slug:若本次修改了 slug,旧详情路径也需要重验证
     const before = await db.project.findUnique({

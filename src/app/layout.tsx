@@ -21,6 +21,19 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${fontVariables} h-full antialiased`} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var loc = localStorage.getItem('carrykit.locale');
+                if (loc === 'zh' || loc === 'en') document.documentElement.dataset.locale = loc;
+                else document.documentElement.dataset.locale = 'en';
+              } catch(e) {}
+            `,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
           <LocaleProvider>{children}</LocaleProvider>

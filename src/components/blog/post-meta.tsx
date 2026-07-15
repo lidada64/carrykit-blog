@@ -5,20 +5,25 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { useT } from "@/i18n";
+import { Bilingual } from "@/components/ui/bilingual";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 function PostMetaContent({
-  title,
-  excerpt,
+  titleZh,
+  titleEn,
+  excerptZh,
+  excerptEn,
   date,
   tags,
   dateLabel,
   tagsLabel,
   isDark,
 }: {
-  title: string;
-  excerpt: string;
+  titleZh: string;
+  titleEn?: string;
+  excerptZh: string;
+  excerptEn?: string;
   date: string;
   tags: string[];
   dateLabel: string;
@@ -29,23 +34,18 @@ function PostMetaContent({
     <div className={`flex flex-col gap-8 lg:p-8 ${isDark ? "text-background" : ""}`}>
       {/* 标题滑入槽:仅 lg+ 且未减弱动态时占位;初始移出裁剪区,无 JS 时不可见 */}
       <span className="hidden overflow-hidden motion-safe:lg:block">
-        <span
-          data-post-meta-title
-          aria-hidden
-          // heading 档:大标题消失后由它接棒,比 subheading 更有存在感(字号阶梯内取值)
-          className="block text-heading font-display"
-          style={{ transform: "translateY(-110%)" }}
-        >
-          {title}
+        {/* heading 档:大标题消失后由它接棒,比 subheading 更有存在感(字号阶梯内取值) */}
+        <span className="block text-heading font-display" style={{ transform: "translateY(-110%)" }} data-post-meta-title aria-hidden>
+          <Bilingual zh={titleZh} en={titleEn} asBlock />
         </span>
       </span>
-      {excerpt && (
+      {excerptZh && (
         <p
           className={`max-w-[40ch] text-body ${
             isDark ? "text-background/70" : "text-muted"
           }`}
         >
-          {excerpt}
+          <Bilingual zh={excerptZh} en={excerptEn} asBlock />
         </p>
       )}
       <div className="flex flex-col gap-1">
@@ -81,13 +81,17 @@ function PostMetaContent({
  * 添加了滑动遮罩反色效果，跟随文章滚动实现暗色背景覆盖和文字反色。
  */
 export function PostMeta({
-  title,
-  excerpt,
+  titleZh,
+  titleEn,
+  excerptZh,
+  excerptEn,
   date,
   tags,
 }: {
-  title: string;
-  excerpt: string;
+  titleZh: string;
+  titleEn?: string;
+  excerptZh: string;
+  excerptEn?: string;
   date: string;
   tags: string[];
 }) {
@@ -184,8 +188,10 @@ export function PostMeta({
     >
       {/* 底层正常模式 */}
       <PostMetaContent
-        title={title}
-        excerpt={excerpt}
+        titleZh={titleZh}
+        titleEn={titleEn}
+        excerptZh={excerptZh}
+        excerptEn={excerptEn}
         date={date}
         tags={tags}
         dateLabel={t("blog.dateLabel")}
@@ -200,8 +206,10 @@ export function PostMeta({
         style={{ clipPath: "inset(100% 0% 0% 0%)" }}
       >
         <PostMetaContent
-          title={title}
-          excerpt={excerpt}
+          titleZh={titleZh}
+          titleEn={titleEn}
+          excerptZh={excerptZh}
+          excerptEn={excerptEn}
           date={date}
           tags={tags}
           dateLabel={t("blog.dateLabel")}

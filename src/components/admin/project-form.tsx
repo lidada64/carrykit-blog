@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef, useState } from "react";
 import {
   saveProject,
   type ProjectFormState,
@@ -8,16 +8,20 @@ import {
 import { MarkdownEditor } from "@/components/admin/markdown-editor";
 import { ImageUploader } from "@/components/admin/image-uploader";
 import { useT } from "@/i18n";
+import { translateContent } from "@/app/admin/(protected)/translate/actions";
 
 export interface ProjectFormValues {
   id: string;
   title: string;
+  titleEn: string;
   slug: string;
   summary: string;
+  summaryEn: string;
   coverImage: string;
   tags: string;
   link: string;
   content: string;
+  contentEn: string;
   order: number;
   published: boolean;
 }
@@ -36,23 +40,78 @@ export function ProjectForm({ project }: { project?: ProjectFormValues }) {
     saveProject,
     initialState,
   );
+  const [isTranslating, setIsTranslating] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  const handleTranslate = async () => {
+    if (!formRef.current) return;
+    const form = formRef.current;
+    const title = (form.elements.namedItem("title") as HTMLInputElement).value;
+    const excerpt = (form.elements.namedItem("summary") as HTMLInputElement).value;
+    const content = (form.elements.namedItem("content") as HTMLTextAreaElement).value;
+    if (!title && !content) return;
+
+    try {
+      setIsTranslating(true);
+      const res = await translateContent({ title, excerpt, content });
+      
+      const setReactValue = (name: string, value: string, isTextarea = false) => {
+        const el = form.elements.namedItem(name);
+        if (el) {
+          const proto = isTextarea ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype;
+          const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+          setter?.call(el, value);
+          (el as HTMLInputElement | HTMLTextAreaElement).dispatchEvent(new Event("input", { bubbles: true }));
+        }
+      };
+
+      setReactValue("titleEn", res.title || "");
+      setReactValue("summaryEn", res.excerpt || "");
+      setReactValue("contentEn", res.content || "", true);
+    } catch (e) {
+      alert("Translation failed");
+      console.error(e);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-heading font-display">
-        {project ? t("admin.editProject") : t("admin.newProject")}
-      </h1>
-      <form action={formAction} className="mt-8 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h1 className="text-heading font-display">
+          {project ? t("admin.editProject") : t("admin.newProject")}
+        </h1>
+        <button
+          type="button"
+          onClick={handleTranslate}
+          disabled={isTranslating}
+          className="cursor-pointer border border-foreground px-4 py-2 text-caption font-mono uppercase disabled:opacity-50"
+        >
+          {isTranslating ? t("admin.translatingText") : t("admin.translateButton")}
+        </button>
+      </div>
+      <form ref={formRef} action={formAction} className="mt-8 flex flex-col gap-4">
         {project && <input type="hidden" name="id" value={project.id} />}
-        <label className={labelClass}>
-          {t("admin.titleLabel")}
-          <input
-            name="title"
-            required
-            defaultValue={project?.title}
-            className={inputClass}
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-4">
+          <label className={labelClass}>
+            {t("admin.titleLabel")}
+            <input
+              name="title"
+              required
+              defaultValue={project?.title}
+              className={inputClass}
+            />
+          </label>
+          <label className={labelClass}>
+            {t("admin.titleEnLabel")}
+            <input
+              name="titleEn"
+              defaultValue={project?.titleEn}
+              className={inputClass}
+            />
+          </label>
+        </div>
         <label className={labelClass}>
           {t("admin.slugLabel")}
           <input
@@ -62,14 +121,24 @@ export function ProjectForm({ project }: { project?: ProjectFormValues }) {
             className={inputClass}
           />
         </label>
-        <label className={labelClass}>
-          {t("admin.summaryLabel")}
-          <input
-            name="summary"
-            defaultValue={project?.summary}
-            className={inputClass}
-          />
-        </label>
+        <div className="grid grid-cols-2 gap-4">
+          <label className={labelClass}>
+            {t("admin.summaryLabel")}
+            <input
+              name="summary"
+              defaultValue={project?.summary}
+              className={inputClass}
+            />
+          </label>
+          <label className={labelClass}>
+            {t("admin.summaryEnLabel")}
+            <input
+              name="summaryEn"
+              defaultValue={project?.summaryEn}
+              className={inputClass}
+            />
+          </label>
+        </div>
         <div className={labelClass}>
           {t("admin.coverImageLabel")}
           <ImageUploader
@@ -119,6 +188,15 @@ export function ProjectForm({ project }: { project?: ProjectFormValues }) {
             name="content"
             rows={12}
             defaultValue={project?.content}
+            className={inputClass}
+          />
+        </div>
+        <div className={labelClass}>
+          {t("admin.contentEnLabel")}
+          <MarkdownEditor
+            name="contentEn"
+            rows={12}
+            defaultValue={project?.contentEn}
             className={inputClass}
           />
         </div>

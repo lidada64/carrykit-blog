@@ -13,8 +13,11 @@ model Post {
   id          String     @id @default(cuid())
   slug        String     @unique
   title       String
+  titleEn     String     @default("")
   excerpt     String     @default("")
+  excerptEn   String     @default("")
   content     String // Markdown
+  contentEn   String     @default("")
   coverImage  String     @default("") // 头图/缩略图 URL,空则详情页头图区隐藏(US-B4)
   status      PostStatus @default(DRAFT)
   publishedAt DateTime?
@@ -32,8 +35,11 @@ model Project {
   id         String   @id @default(cuid())
   slug       String   @unique
   title      String
+  titleEn    String   @default("")
   summary    String   @default("") // 一句话描述
+  summaryEn  String   @default("")
   content    String // Markdown 详情
+  contentEn  String   @default("")
   coverImage String   @default("") // 图片 URL
   tags       String   @default("") // 技术标签,逗号分隔
   link       String   @default("") // 演示/仓库外链

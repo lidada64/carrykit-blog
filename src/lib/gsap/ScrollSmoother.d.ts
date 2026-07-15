@@ -328,6 +328,7 @@ declare class ScrollSmoother {
 
 }
 
+/* eslint-disable */
 declare namespace ScrollSmoother {
 
   type Callback = (self: ScrollSmoother) => any;

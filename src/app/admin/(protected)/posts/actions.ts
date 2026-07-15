@@ -25,11 +25,14 @@ export async function savePost(
 
   const id = String(formData.get("id") ?? "");
   const title = String(formData.get("title") ?? "").trim();
+  const titleEn = String(formData.get("titleEn") ?? "").trim();
   const slug = String(formData.get("slug") ?? "").trim();
   const excerpt = String(formData.get("excerpt") ?? "").trim();
+  const excerptEn = String(formData.get("excerptEn") ?? "").trim();
   const coverImage = String(formData.get("coverImage") ?? "").trim();
   const tags = String(formData.get("tags") ?? "").trim();
   const content = String(formData.get("content") ?? "");
+  const contentEn = String(formData.get("contentEn") ?? "");
   const status =
     formData.get("status") === "PUBLISHED"
       ? ("PUBLISHED" as const)
@@ -51,7 +54,7 @@ export async function savePost(
       ? new Date()
       : null;
 
-  const data = { title, slug, excerpt, coverImage, tags, content, status, publishedAt };
+  const data = { title, titleEn, slug, excerpt, excerptEn, coverImage, tags, content, contentEn, status, publishedAt };
   if (id) {
     // 先取旧 slug:若本次修改了 slug,旧详情路径也需要重验证
     const before = await db.post.findUnique({

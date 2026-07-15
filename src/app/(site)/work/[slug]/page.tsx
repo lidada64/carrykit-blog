@@ -5,6 +5,7 @@ import { ProjectLinkButton } from "@/components/work/project-link-button";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { db } from "@/lib/db";
 import { parseTags } from "@/lib/utils";
+import { Bilingual } from "@/components/ui/bilingual";
 
 /** ISR(ARCHITECTURE §4):generateStaticParams 预渲染已发布作品,未发布与未知 slug 404 */
 export const revalidate = 60;
@@ -66,7 +67,7 @@ export default async function ProjectPage({
         </div>
       )}
       <h1 className="mt-10 max-w-[20ch] text-display font-display">
-        {project.title}
+        <Bilingual zh={project.title} en={project.titleEn} asBlock />
       </h1>
       <div className="mt-6 flex flex-wrap items-center gap-6">
         {tags.length > 0 && (
@@ -77,7 +78,18 @@ export default async function ProjectPage({
         {project.link && <ProjectLinkButton href={project.link} />}
       </div>
       <div className="mt-12">
-        <MarkdownContent content={project.content} />
+        {!project.contentEn ? (
+          <MarkdownContent content={project.content} />
+        ) : (
+          <>
+            <div className="[[data-locale='en']_&]:hidden">
+              <MarkdownContent content={project.content} />
+            </div>
+            <div className="hidden [[data-locale='en']_&]:block">
+              <MarkdownContent content={project.contentEn} />
+            </div>
+          </>
+        )}
       </div>
     </article>
   );
