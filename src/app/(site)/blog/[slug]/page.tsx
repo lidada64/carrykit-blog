@@ -79,15 +79,15 @@ export default async function BlogPostPage({
           </div>
         )}
         <PostTitle title={post.title} />
-        {/* 两栏比例 1:1.618(黄金分割,左信息栏短、右正文长) */}
-        <div className="mt-12 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.618fr)] lg:gap-16">
+        {/* 两栏布局:左侧固定较窄，右侧正文较宽 */}
+        <div className="mt-12 lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-16 xl:gap-24">
           <PostMeta
             title={post.title}
             excerpt={post.excerpt}
             date={formatDate(post.publishedAt ?? post.createdAt)}
             tags={parseTags(post.tags)}
           />
-          <div className="mt-10 lg:mt-0">
+          <div className="right-content mt-10 lg:mt-0">
             <MarkdownContent content={post.content} />
           </div>
         </div>

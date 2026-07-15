@@ -83,7 +83,7 @@ const components: Components = {
 
 export function MarkdownContent({ content }: { content: string }) {
   return (
-    <div className="flex max-w-[65ch] flex-col gap-5 text-body">
+    <div className="flex max-w-[85ch] flex-col gap-5 text-body">
       <ReactMarkdown
         remarkPlugins={remarkPlugins}
         rehypePlugins={rehypePlugins}
