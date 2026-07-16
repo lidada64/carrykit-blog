@@ -103,27 +103,61 @@ export function PostMeta({
     () => {
       const container = containerRef.current;
       const darkLayer = darkLayerRef.current;
-      const parent = container?.parentElement;
-      if (!container || !darkLayer || !parent) return;
+      const scrollContainer = container?.closest('.blog-scroll-container');
+      if (!container || !darkLayer || !scrollContainer) return;
 
       const mm = gsap.matchMedia();
       mm.add(
         "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
         () => {
-          gsap.fromTo(
-            darkLayer,
-            { clipPath: "inset(100% 0% 0% 0%)" },
-            {
-              clipPath: "inset(0% 0% 0% 0%)",
-              ease: "none",
+          const rightContent = scrollContainer.querySelector('.right-content') as HTMLElement;
+          const relatedArticles = scrollContainer.querySelector('.related-articles-wrapper') as HTMLElement;
+          if (!rightContent || !relatedArticles) return;
+
+          const maxLeftY = rightContent.offsetHeight - container.offsetHeight;
+
+          if (maxLeftY > 0) {
+            const tl = gsap.timeline({
               scrollTrigger: {
-                trigger: parent,
+                trigger: scrollContainer,
                 start: "top top+=96",
-                end: "bottom bottom",
+                end: `+=${maxLeftY}`,
+                pin: true,
                 scrub: true,
-              },
-            }
-          );
+                invalidateOnRefresh: true,
+              }
+            });
+
+            // Translate Right Content and Related Articles up together
+            tl.to([rightContent, relatedArticles], {
+              y: -maxLeftY,
+              ease: "none"
+            }, 0);
+
+            // Sync dark layer animation
+            tl.fromTo(
+              darkLayer,
+              { clipPath: "inset(100% 0% 0% 0%)" },
+              { clipPath: "inset(0% 0% 0% 0%)", ease: "none" },
+              0
+            );
+          } else {
+            // 如果内容很短不需要滑动，只需简单执行反色遮罩
+            gsap.fromTo(
+              darkLayer,
+              { clipPath: "inset(100% 0% 0% 0%)" },
+              {
+                clipPath: "inset(0% 0% 0% 0%)",
+                ease: "none",
+                scrollTrigger: {
+                  trigger: scrollContainer,
+                  start: "top top+=96",
+                  end: "bottom bottom",
+                  scrub: true,
+                },
+              }
+            );
+          }
         },
       );
     },
@@ -133,7 +167,7 @@ export function PostMeta({
   return (
     <aside
       ref={containerRef}
-      className="relative lg:sticky lg:top-24 lg:self-start lg:overflow-hidden"
+      className="relative lg:self-start lg:overflow-hidden"
     >
       {/* 底层正常模式 */}
       <PostMetaContent

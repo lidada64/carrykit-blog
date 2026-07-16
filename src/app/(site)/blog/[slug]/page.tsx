@@ -80,31 +80,35 @@ export default async function BlogPostPage({
         )}
         <PostTitle titleZh={post.title} titleEn={post.titleEn} />
         {/* 两栏布局:左侧固定较窄，右侧正文较宽 */}
-        <div className="mt-12 lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-16 xl:gap-24">
-          <PostMeta
-            titleZh={post.title}
-            titleEn={post.titleEn}
-            excerptZh={post.excerpt}
-            excerptEn={post.excerptEn}
-            date={formatDate(post.publishedAt ?? post.createdAt)}
-            tags={parseTags(post.tags)}
-          />
-          <div className="right-content mt-10 lg:mt-0">
-            {!post.contentEn ? (
-              <MarkdownContent content={post.content} />
-            ) : (
-              <>
-                <div className="[[data-locale='en']_&]:hidden">
-                  <MarkdownContent content={post.content} />
-                </div>
-                <div className="hidden [[data-locale='en']_&]:block">
-                  <MarkdownContent content={post.contentEn} />
-                </div>
-              </>
-            )}
+        <div className="blog-scroll-container">
+          <div className="mt-12 lg:grid lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-16 xl:gap-24">
+            <PostMeta
+              titleZh={post.title}
+              titleEn={post.titleEn}
+              excerptZh={post.excerpt}
+              excerptEn={post.excerptEn}
+              date={formatDate(post.publishedAt ?? post.createdAt)}
+              tags={parseTags(post.tags)}
+            />
+            <div className="right-content mt-10 lg:mt-0">
+              {!post.contentEn ? (
+                <MarkdownContent content={post.content} />
+              ) : (
+                <>
+                  <div className="[[data-locale='en']_&]:hidden">
+                    <MarkdownContent content={post.content} />
+                  </div>
+                  <div className="hidden [[data-locale='en']_&]:block">
+                    <MarkdownContent content={post.contentEn} />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="related-articles-wrapper">
+            <RelatedArticles posts={related} />
           </div>
         </div>
-        <RelatedArticles posts={related} />
         <ProgressBar />
       </div>
     </article>
