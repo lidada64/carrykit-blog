@@ -117,7 +117,7 @@ export function Revealer() {
         gsap.to(overlay, {
           yPercent: -100,
           duration: motionTokens.duration.slow,
-          ease: motionTokens.ease.accelerate,
+          ease: motionTokens.ease.swipe,
           onComplete: () =>
             gsap.set(overlay, {
               yPercent: 0,
