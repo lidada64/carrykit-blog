@@ -6,10 +6,12 @@ import { FadeUp } from "@/components/motion/fade-up";
 import { TextRoll } from "@/components/motion/text-roll";
 import { site } from "@/config/site";
 import { useT } from "@/i18n";
+import { Bilingual } from "@/components/ui/bilingual";
 
 export interface BlogListItem {
   slug: string;
   title: string;
+  titleEn?: string | null;
   /** 已格式化日期(YYYY.MM.DD),服务端生成 */
   date: string;
 }
@@ -73,7 +75,10 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
                     text={post.date}
                     className="text-caption font-mono text-muted"
                   />
-                  <TextRoll text={post.title} className="text-subheading" />
+                  <TextRoll
+                    text={<Bilingual zh={post.title} en={post.titleEn} asBlock />}
+                    className="text-subheading"
+                  />
                 </Link>
               </li>
             ))}

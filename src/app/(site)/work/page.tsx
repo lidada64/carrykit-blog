@@ -20,7 +20,9 @@ export default async function WorkPage() {
     select: {
       slug: true,
       title: true,
+      titleEn: true,
       summary: true,
+      summaryEn: true,
       coverImage: true,
       tags: true,
     },

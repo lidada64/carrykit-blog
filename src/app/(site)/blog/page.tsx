@@ -16,14 +16,15 @@ export default async function BlogPage() {
   const posts = await db.post.findMany({
     where: { status: "PUBLISHED" },
     orderBy: { publishedAt: "desc" },
-    select: { slug: true, title: true, publishedAt: true, createdAt: true },
+    select: { slug: true, title: true, titleEn: true, publishedAt: true, createdAt: true },
   });
 
   return (
     <BlogList
-      posts={posts.map(({ slug, title, publishedAt, createdAt }) => ({
+      posts={posts.map(({ slug, title, titleEn, publishedAt, createdAt }) => ({
         slug,
         title,
+        titleEn,
         date: formatDate(publishedAt ?? createdAt),
       }))}
     />

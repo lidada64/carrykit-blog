@@ -7,13 +7,16 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
 import { motionTokens } from "./tokens";
+import { Bilingual } from "@/components/ui/bilingual";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
 export interface GalleryProject {
   slug: string;
   title: string;
+  titleEn?: string | null;
   summary: string;
+  summaryEn?: string | null;
   coverImage: string;
 }
 
@@ -201,7 +204,7 @@ export function ScrollGallery({ projects }: { projects: GalleryProject[] }) {
                       : { opacity: 0, visibility: "hidden" }
                   }
                 >
-                  {project.summary}
+                  <Bilingual zh={project.summary} en={project.summaryEn} />
                 </span>
               ))}
             </span>
@@ -227,7 +230,7 @@ export function ScrollGallery({ projects }: { projects: GalleryProject[] }) {
                 href={`/work/${project.slug}`}
                 className="text-subheading hover:text-foreground"
               >
-                {project.title}
+                <Bilingual zh={project.title} en={project.titleEn} />
               </Link>
             </li>
           ))}

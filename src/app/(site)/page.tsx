@@ -12,13 +12,13 @@ export default async function HomePage() {
       where: { published: true },
       orderBy: { order: "asc" },
       take: 3,
-      select: { slug: true, title: true, summary: true, coverImage: true },
+      select: { slug: true, title: true, titleEn: true, summary: true, summaryEn: true, coverImage: true },
     }),
     db.post.findMany({
       where: { status: "PUBLISHED" },
       orderBy: { publishedAt: "desc" },
       take: 3,
-      select: { slug: true, title: true, publishedAt: true, createdAt: true },
+      select: { slug: true, title: true, titleEn: true, publishedAt: true, createdAt: true },
     }),
   ]);
 
@@ -27,9 +27,10 @@ export default async function HomePage() {
       <Preloader />
       <HomeSections
         projects={projects}
-        posts={posts.map(({ slug, title, publishedAt, createdAt }) => ({
+        posts={posts.map(({ slug, title, titleEn, publishedAt, createdAt }) => ({
           slug,
           title,
+          titleEn,
           date: formatDate(publishedAt ?? createdAt),
         }))}
       />

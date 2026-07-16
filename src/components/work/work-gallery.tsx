@@ -1,11 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ScrollGallery } from "@/components/motion/scroll-gallery";
+import { Bilingual } from "@/components/ui/bilingual";
 
 export interface WorkGalleryProject {
   slug: string;
   title: string;
+  titleEn?: string | null;
   summary: string;
+  summaryEn?: string | null;
   coverImage: string;
   tags: string[];
 }
@@ -21,10 +24,12 @@ export function WorkGallery({ projects }: { projects: WorkGalleryProject[] }) {
   return (
     <>
       <ScrollGallery
-        projects={projects.map(({ slug, title, summary, coverImage }) => ({
+        projects={projects.map(({ slug, title, titleEn, summary, summaryEn, coverImage }) => ({
           slug,
           title,
+          titleEn,
           summary,
+          summaryEn,
           coverImage,
         }))}
       />
@@ -49,9 +54,13 @@ export function WorkGallery({ projects }: { projects: WorkGalleryProject[] }) {
                     />
                   )}
                 </div>
-                <h2 className="text-subheading">{project.title}</h2>
+                <h2 className="text-subheading">
+                  <Bilingual zh={project.title} en={project.titleEn} asBlock />
+                </h2>
                 {project.summary && (
-                  <p className="text-body text-muted">{project.summary}</p>
+                  <p className="text-body text-muted">
+                    <Bilingual zh={project.summary} en={project.summaryEn} asBlock />
+                  </p>
                 )}
                 {project.tags.length > 0 && (
                   <p className="text-caption font-mono uppercase text-muted">

@@ -21,7 +21,7 @@ export function TextRoll({
   text,
   className,
 }: {
-  text: string;
+  text: React.ReactNode;
   className?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
