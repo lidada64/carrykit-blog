@@ -117,6 +117,14 @@ export function PostMeta({
           const maxLeftY = rightContent.offsetHeight - container.offsetHeight;
 
           if (maxLeftY > 0) {
+            // 核心修复：缩小固定容器的高度，并截断溢出
+            // 使得加上 GSAP pin-spacer 的高度后，完美契合内容原高度，彻底消除底部的巨大空白
+            gsap.set(scrollContainer, { clearProps: "height,overflow" });
+            gsap.set(scrollContainer, {
+              height: container.offsetHeight + relatedArticles.offsetHeight,
+              overflow: "hidden"
+            });
+
             const tl = gsap.timeline({
               scrollTrigger: {
                 trigger: scrollContainer,

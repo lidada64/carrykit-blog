@@ -105,7 +105,7 @@ export default async function BlogPostPage({
               )}
             </div>
           </div>
-          <div className="related-articles-wrapper">
+          <div className="related-articles-wrapper pt-16 lg:pt-24">
             <RelatedArticles posts={related} />
           </div>
         </div>
