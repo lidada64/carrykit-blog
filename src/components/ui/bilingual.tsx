@@ -15,7 +15,6 @@ export function Bilingual({
 }) {
   if (!en) return <>{zh}</>;
 
-  const displayClass = asBlock ? "block" : "inline";
   return (
     <>
       <span
@@ -23,7 +22,7 @@ export function Bilingual({
       >
         {zh}
       </span>
-      <span className={`hidden [[data-locale='en']_&]:!${displayClass}`}>
+      <span className={`hidden ${asBlock ? "[[data-locale='en']_&]:!block" : "[[data-locale='en']_&]:!inline"}`}>
         {en}
       </span>
     </>

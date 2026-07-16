@@ -4,6 +4,7 @@ import {
   createContext,
   createElement,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
@@ -98,6 +99,10 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     }),
     [locale],
   );
+
+  useEffect(() => {
+    document.documentElement.dataset.locale = locale;
+  }, [locale]);
 
   return createElement(LocaleContext.Provider, { value }, children);
 }

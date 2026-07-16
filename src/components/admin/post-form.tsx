@@ -52,6 +52,14 @@ export function PostForm({ post }: { post?: PostFormValues }) {
       setIsTranslating(true);
       const res = await translateContent({ title, excerpt, content });
       
+      if (res.error) {
+        alert("Translation failed: " + res.error);
+        console.error(res.error);
+        return;
+      }
+      
+      const data = res.data;
+      
       const setReactValue = (name: string, value: string, isTextarea = false) => {
         const el = form.elements.namedItem(name);
         if (el) {
@@ -62,9 +70,9 @@ export function PostForm({ post }: { post?: PostFormValues }) {
         }
       };
 
-      setReactValue("titleEn", res.title || "");
-      setReactValue("excerptEn", res.excerpt || "");
-      setReactValue("contentEn", res.content || "", true);
+      setReactValue("titleEn", data?.title || "");
+      setReactValue("excerptEn", data?.excerpt || "");
+      setReactValue("contentEn", data?.content || "", true);
     } catch (e) {
       alert("Translation failed");
       console.error(e);

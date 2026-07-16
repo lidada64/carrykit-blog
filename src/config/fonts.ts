@@ -10,7 +10,7 @@ import localFont from "next/font/local";
  */
 
 export const newFont = localFont({
-  src: "../assets/fonts/FengYaShiSong-2.ttf",
+  src: "../assets/fonts/FengYaShiSong-2.woff",
   variable: "--font-zh",
   display: "swap",
 });
