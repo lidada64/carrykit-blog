@@ -22,11 +22,13 @@ const STICKY_TOP = 96;
  */
 export function PostTitle({ titleZh, titleEn }: { titleZh: string; titleEn?: string }) {
   const ref = useRef<HTMLHeadingElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
       const heading = ref.current;
-      if (!heading) return;
+      const container = containerRef.current;
+      if (!heading || !container) return;
 
       const mm = gsap.matchMedia();
       // 1024px = Tailwind lg 断点;reduced-motion 由 media query 排除
@@ -40,7 +42,7 @@ export function PostTitle({ titleZh, titleEn }: { titleZh: string; titleEn?: str
             transformOrigin: "61.8% 50%",
             ease: "power2.in",
             scrollTrigger: {
-              trigger: heading,
+              trigger: container,
               start: `top ${STICKY_TOP}px`,
               end: `bottom ${STICKY_TOP}px`,
               scrub: true,
@@ -74,7 +76,7 @@ export function PostTitle({ titleZh, titleEn }: { titleZh: string; titleEn?: str
               overwrite: "auto",
             });
           ScrollTrigger.create({
-            trigger: heading,
+            trigger: container,
             start: `bottom ${STICKY_TOP}px`,
             onEnter: slideIn,
             onLeaveBack: slideOut,
@@ -94,7 +96,8 @@ export function PostTitle({ titleZh, titleEn }: { titleZh: string; titleEn?: str
 
   return (
     <div 
-      className="mt-10 flex h-[clamp(4.8rem,14.4vw,12rem)] w-full max-w-[20ch] items-end text-[clamp(4rem,12vw,10rem)]"
+      ref={containerRef}
+      className="mt-10 flex min-h-[clamp(4.8rem,14.4vw,12rem)] w-full max-w-[36ch] items-end text-[clamp(4rem,12vw,10rem)]"
       style={{ '--title-scale': scale } as React.CSSProperties}
     >
       <h1 
