@@ -110,71 +110,20 @@ export function PostMeta({
       mm.add(
         "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
         () => {
-          // 获取右侧正文容器
-          const rightContent = parent.querySelector('.right-content');
-          if (!rightContent) return;
-
-          // 计算需要滑动的距离:右侧内容总高度 - 视口可用高度(100vh - 96px)
-          const getScrollAmount = () => {
-            const amount = rightContent.scrollHeight - (window.innerHeight - 96);
-            return Math.max(0, amount);
-          };
-
-          const amount = getScrollAmount();
-
-          if (amount > 0) {
-            // 核心修复: 限制父容器高度为视口可用高度并隐藏溢出，
-            // 这样加上 GSAP pin-spacer 的高度后，总高度正好等于内容原高度，彻底消除底部的巨大空白！
-            gsap.set(parent, {
-              maxHeight: "calc(100vh - 96px)",
-              overflow: "hidden"
-            });
-
-            // 钉住(pin)整个父网格，翻译(translate)右侧内容模拟其独立滑动
-            const tl = gsap.timeline({
+          gsap.fromTo(
+            darkLayer,
+            { clipPath: "inset(100% 0% 0% 0%)" },
+            {
+              clipPath: "inset(0% 0% 0% 0%)",
+              ease: "none",
               scrollTrigger: {
                 trigger: parent,
                 start: "top top+=96",
-                end: () => `+=${getScrollAmount()}`,
-                pin: true,
+                end: "bottom bottom",
                 scrub: true,
-                invalidateOnRefresh: true,
-              }
-            });
-
-            // 1. 右侧正文向上滑动
-            tl.to(rightContent, {
-              y: () => -getScrollAmount(),
-              ease: "none"
-            }, 0);
-
-            // 2. 左侧反色遮罩动画同步执行
-            tl.fromTo(
-              darkLayer,
-              { clipPath: "inset(100% 0% 0% 0%)" },
-              {
-                clipPath: "inset(0% 0% 0% 0%)",
-                ease: "none"
               },
-              0
-            );
-          } else {
-            // 如果内容很短不需要滑动，只需简单执行反色遮罩
-            gsap.fromTo(
-              darkLayer,
-              { clipPath: "inset(100% 0% 0% 0%)" },
-              {
-                clipPath: "inset(0% 0% 0% 0%)",
-                ease: "none",
-                scrollTrigger: {
-                  trigger: parent,
-                  start: "top top+=96",
-                  end: "bottom bottom",
-                  scrub: true,
-                },
-              }
-            );
-          }
+            }
+          );
         },
       );
     },
@@ -184,7 +133,7 @@ export function PostMeta({
   return (
     <aside
       ref={containerRef}
-      className="relative lg:self-start lg:overflow-hidden"
+      className="relative lg:sticky lg:top-24 lg:self-start lg:overflow-hidden"
     >
       {/* 底层正常模式 */}
       <PostMetaContent
