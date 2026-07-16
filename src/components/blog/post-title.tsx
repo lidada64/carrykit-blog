@@ -85,9 +85,24 @@ export function PostTitle({ titleZh, titleEn }: { titleZh: string; titleEn?: str
     { scope: ref },
   );
 
+  const fullText = titleZh + (titleEn ? ` ${titleEn}` : "");
+  let visualLen = 0;
+  for (let i = 0; i < fullText.length; i++) {
+    visualLen += fullText.charCodeAt(i) > 255 ? 2 : 1;
+  }
+  const scale = Math.min(1, 16 / visualLen);
+
   return (
-    <h1 ref={ref} className="mt-10 max-w-[20ch] text-[clamp(4rem,12vw,10rem)] font-display leading-[1.1] font-semibold">
-      <Bilingual zh={titleZh} en={titleEn} asBlock />
-    </h1>
+    <div 
+      className="mt-10 flex h-[clamp(4.8rem,14.4vw,12rem)] w-full max-w-[20ch] items-end text-[clamp(4rem,12vw,10rem)]"
+      style={{ '--title-scale': scale } as React.CSSProperties}
+    >
+      <h1 
+        ref={ref} 
+        className="text-[calc(1em*var(--title-scale))] font-display leading-[1.1] font-semibold origin-bottom-left"
+      >
+        <Bilingual zh={titleZh} en={titleEn} asBlock />
+      </h1>
+    </div>
   );
 }
