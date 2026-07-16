@@ -2,10 +2,17 @@
 
 import { site } from "@/config/site";
 import { useT } from "@/i18n";
+import { usePathname } from "next/navigation";
 
 /** 全站 Footer(DESIGN_SPEC §4):极简一行,署名 + 社交链接 */
 export function Footer() {
   const t = useT();
+  const pathname = usePathname();
+
+  // Hide footer on all blog pages
+  if (pathname.startsWith("/blog")) {
+    return null;
+  }
 
   return (
     <footer className="mx-auto mt-auto w-full max-w-[1120px] px-6 lg:px-12">

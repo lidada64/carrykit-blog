@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PostMeta } from "@/components/blog/post-meta";
 import { PostTitle } from "@/components/blog/post-title";
 import { RelatedArticles } from "@/components/blog/related-articles";
+import { BackToTop } from "@/components/blog/back-to-top";
 import { ProgressBar } from "@/components/motion/progress-bar";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { db } from "@/lib/db";
@@ -63,8 +64,7 @@ export default async function BlogPostPage({
 
   return (
     // 负 margin 破格突破 main 的 1120px,容器加宽到 1440px(DESIGN_SPEC §4);
-    // 站点页原生滚动条已隐藏,100vw = clientWidth,不会出横向滚动
-    <article className="mx-[calc(50%-50vw)] px-6 py-16 lg:px-12 lg:py-24">
+    <article className="mx-[calc(50%-50vw)] px-6 pt-16 pb-8 lg:px-12 lg:pt-24 lg:pb-12">
       <div className="mx-auto max-w-[1440px]">
         {post.coverImage && (
           <div className="relative aspect-[16/9] w-full overflow-hidden">
@@ -107,6 +107,9 @@ export default async function BlogPostPage({
           </div>
           <div className="related-articles-wrapper pt-16 lg:pt-24">
             <RelatedArticles posts={related} />
+          </div>
+          <div className="back-to-top-wrapper">
+            <BackToTop />
           </div>
         </div>
         <ProgressBar />

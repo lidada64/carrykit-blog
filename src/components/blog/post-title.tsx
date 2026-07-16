@@ -33,11 +33,12 @@ export function PostTitle({ titleZh, titleEn }: { titleZh: string; titleEn?: str
       mm.add(
         "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
         () => {
-          // 大标题消失:随自身滚出视口的过程淡出并上移
+          // 大标题消失:以黄金分割点(左侧61.8%、垂直居中)为中心放缩淡出
           gsap.to(heading, {
             autoAlpha: 0,
-            y: -motionTokens.enterY,
-            ease: "none",
+            scale: 0.75,
+            transformOrigin: "61.8% 50%",
+            ease: "power2.in",
             scrollTrigger: {
               trigger: heading,
               start: `top ${STICKY_TOP}px`,
@@ -85,7 +86,7 @@ export function PostTitle({ titleZh, titleEn }: { titleZh: string; titleEn?: str
   );
 
   return (
-    <h1 ref={ref} className="mt-10 max-w-[20ch] text-display font-display">
+    <h1 ref={ref} className="mt-10 max-w-[20ch] text-[clamp(4rem,12vw,10rem)] font-display leading-[1.1] font-semibold">
       <Bilingual zh={titleZh} en={titleEn} asBlock />
     </h1>
   );

@@ -24,7 +24,7 @@ export const motionTokens = {
   /** 时长(秒):fast=hover 类、base=常规入场、slow=大区块入场 */
   duration: { fast: 0.2, base: 0.5, slow: 0.8 },
   /** 惯性滚动(ScrollSmoother):内容追赶原生滚动位置的时长(秒),越大惯性越明显 */
-  inertia: 0.8,
+  inertia: 1.1,
   /** 缓动:enter=入场/揭示,transition=过渡/hover,accelerate=冲刺后急刹的"弹出"感(revealer 覆盖/上刷),swipe=慢快慢上刷效果 */
   ease: { enter: "power4.out", transition: "power2.inOut", accelerate: popSettle, swipe: "power4.inOut" },
   /** 入场位移:y 24px → 0 */

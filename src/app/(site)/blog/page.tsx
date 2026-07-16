@@ -3,6 +3,7 @@ import { BlogList } from "@/components/blog/blog-list";
 import { en } from "@/i18n/en";
 import { db } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
+import { BackToTop } from "@/components/blog/back-to-top";
 
 export const metadata: Metadata = {
   title: en.nav.blog,
@@ -20,13 +21,18 @@ export default async function BlogPage() {
   });
 
   return (
-    <BlogList
-      posts={posts.map(({ slug, title, titleEn, publishedAt, createdAt }) => ({
-        slug,
-        title,
-        titleEn,
-        date: formatDate(publishedAt ?? createdAt),
-      }))}
-    />
+    <div className="flex flex-col min-h-full">
+      <BlogList
+        posts={posts.map(({ slug, title, titleEn, publishedAt, createdAt }) => ({
+          slug,
+          title,
+          titleEn,
+          date: formatDate(publishedAt ?? createdAt),
+        }))}
+      />
+      <div className="mt-16">
+        <BackToTop />
+      </div>
+    </div>
   );
 }

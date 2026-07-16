@@ -112,7 +112,8 @@ export function PostMeta({
         () => {
           const rightContent = scrollContainer.querySelector('.right-content') as HTMLElement;
           const relatedArticles = scrollContainer.querySelector('.related-articles-wrapper') as HTMLElement;
-          if (!rightContent || !relatedArticles) return;
+          const backToTop = scrollContainer.querySelector('.back-to-top-wrapper') as HTMLElement;
+          if (!rightContent) return;
 
           const maxLeftY = rightContent.offsetHeight - container.offsetHeight;
 
@@ -120,8 +121,9 @@ export function PostMeta({
             // 核心修复：缩小固定容器的高度，并截断溢出
             // 使得加上 GSAP pin-spacer 的高度后，完美契合内容原高度，彻底消除底部的巨大空白
             gsap.set(scrollContainer, { clearProps: "height,overflow" });
+            const originalHeight = scrollContainer.offsetHeight;
             gsap.set(scrollContainer, {
-              height: container.offsetHeight + relatedArticles.offsetHeight,
+              height: originalHeight - maxLeftY,
               overflow: "hidden"
             });
 
@@ -136,8 +138,12 @@ export function PostMeta({
               }
             });
 
-            // Translate Right Content and Related Articles up together
-            tl.to([rightContent, relatedArticles], {
+            // Translate Right Content and below elements up together
+            const elementsToMove = [rightContent];
+            if (relatedArticles) elementsToMove.push(relatedArticles);
+            if (backToTop) elementsToMove.push(backToTop);
+
+            tl.to(elementsToMove, {
               y: -maxLeftY,
               ease: "none"
             }, 0);
