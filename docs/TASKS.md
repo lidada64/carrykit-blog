@@ -1,6 +1,6 @@
 # TASKS — 任务分解与路线图
 
-> 版本:v2.0 | 日期:2026-07-07
+> 版本:v2.1 | 日期:2026-07-17
 > 使用方式:每次 vibecoding 会话认领一条任务;完成并通过验收后勾选。任务顺序即依赖顺序。
 > v2 变更:布局/动效任务按参考站调研修订;新增扩展性接口脚手架;动效任务拆细(GSAP)。
 
@@ -72,8 +72,8 @@
 
 - [x] **M4-1 容器化**:多阶段 Dockerfile、docker-compose.yml(app + caddy)、Caddyfile、启动时 `prisma migrate deploy`
   - 验收:本地 `docker compose up` 后功能与 dev 一致 ✅(2026-07-09,deps/builder/proddeps/runner 四阶段(debian slim,standalone+运行时保留 prisma CLI/tsx 供迁移与 seed);构建期 SSG 用空库、上线后 ISR 刷新;Caddyfile 用 SITE_DOMAIN 变量(本地 :80/生产自动 HTTPS);实测:迁移自动应用、seed 后公开页+admin 登录经 Caddy 全通。顺带修复:seed 空串环境变量回退(||)、sitemap 改 force-dynamic(构建期烘焙会永久陈旧))
-- [ ] **M4-2 VPS 上线**:环境变量配置、域名解析、HTTPS、seed 生产 admin
-  - 验收:公网域名可访问,HTTPS 正常,admin 可登录发文
+- [x] **M4-2 VPS 上线**:环境变量配置、域名解析、HTTPS、seed 生产 admin
+  - 验收:公网域名可访问,HTTPS 正常,admin 可登录发文 ✅(2026-07-17,站主确认生产站已上线)
 - [x] **M4-3 备份与运维文档**:SQLite 定时备份脚本 + `docs/OPS.md`(部署/更新/回滚/备份恢复步骤)
   - 验收:手动执行备份并完成一次恢复演练 ✅(2026-07-09,scripts/backup.sh 用 better-sqlite3 在线备份 API 出一致性快照+gzip+保留 30 份;OPS.md 覆盖首次部署/更新/回滚/备份/恢复/常用命令;本地 Docker 完成演练:备份→删一篇文章→临时容器挂 volume 恢复→数据回到备份时点(注意:恢复不能对停止容器 docker cp,volume 未挂载,已写入文档))
 
@@ -90,6 +90,17 @@
 - [x] **M5-5 验证走查**:`npm run lint && npm run build` 通过;完整上传流程 e2e 验证;边界测试
   - 验收:lint + build 通过;本地 dev 与 Docker 均可正常上传和展示 ✅(2026-07-11,lint 0 errors 0 warnings;build 成功,/api/upload 与 /uploads/[...path] 路由均识别;新增依赖 sharp ~1.5MB)
 
+## M6 主页迪斯科灯球高级动效 (Epic: Homepage Disco Animation)
+
+> 详见 [homepage-animation-plan.md](homepage-animation-plan.md) 了解完整的六阶段实施计划。
+
+- [ ] **M6-1 Phase 1**: Initial Glitch Animation (初始闪烁发光动画)
+- [ ] **M6-2 Phase 2**: Typography Shift (排版重构与字形融合)
+- [ ] **M6-3 Phase 3**: Star Ring & Acceleration (3D星环与ScrollTrigger加速)
+- [ ] **M6-4 Phase 4**: Pretext Text Wrap (平移与 Pretext 文字动态环绕)
+- [ ] **M6-5 Phase 5**: Groove & Final Reveal (凹槽咬合与终局展示)
+- [ ] **M6-6 Phase 6**: Responsive & A11y (移动端降级与无障碍处理)
+
 ## V2 候选池(不排期)
 
-内容双语(Post/Project 双语字段)· 暗色模式(token 结构已预留,加 `[data-theme="dark"]` 块即可)· 文章目录 TOC · RSS 订阅 · 标签筛选(迁移 Tag 关联表)· 全文搜索 · 评论 · 图片管理页面(查看/删除已上传图片)
+暗色模式切换 UI · 文章目录 TOC · RSS 订阅 · 标签筛选(迁移 Tag 关联表)· 全文搜索 · 评论 · 图片管理页面(查看/删除已上传图片)
