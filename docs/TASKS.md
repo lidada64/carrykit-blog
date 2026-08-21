@@ -31,6 +31,7 @@
   - 验收:PRD US-W2;无外链时按钮隐藏 ✅(2026-07-09,`generateStaticParams` 4 作品 SSG + ISR;外链按钮新标签页打开(label 走 i18n `work.linkLabel`),无外链作品验证按钮隐藏;临时下架作品验证 404 后已恢复;Markdown 复用 M1-2 管线)
 - [x] **M1-6 About 页(分节)**:BIO / SKILLS / CONNECT 三节 + 大写 mono label + socials
   - 验收:PRD US-A1~A3;email 为 mailto ✅(2026-07-09,BIO 文案走 i18n `about` 组(随 EN/中 切换),技能列表收敛在 site.ts `skills`;mailto 与 GitHub 新标签页验证通过;节间按 DESIGN_SPEC §1 用大间距无分割线)
+  - ⚠️ **2026-08-21:About 页计划移除**(导航第三项改为 radar,见 change_8_21.md)。本条为历史建造记录,保留不删;移除本身待后续任务落地。
 - [x] **M1-7 Home 页**:hero(标语 + 大图 + 双栏 description)+ 精选作品(≤3)+ 最新博客(≤3)
   - 验收:PRD US-H1/H2;区块无内容时隐藏 ✅(2026-07-09,标语/描述/区块 label 走 i18n `home` 组,hero 大图常量在 site.ts;精选取 order 前 3、博客取最新 3;临时下架全部作品验证精选区隐藏后已恢复;入场动效(A4/A7)属 M3。M1 里程碑 7/7 完成)
 
@@ -57,6 +58,7 @@
   - 验收:US-B1 hover 验收项;键盘 focus 同样触发 ✅(2026-07-09,motion/text-roll.tsx:3 份 span 堆叠于 1lh overflow-hidden wrapper,hover 上滚一份、离开滚到第三份后无缝复位;触发器取最近 <a> 祖先(整行 hover 日期+标题同滚),focusin/focusout 同触发;已应用于导航项/contact、blog 列表行、Home 最新博客行;reduced-motion 不绑事件)
 - [x] **M3-5 Pixelated 标题(A4)**:Home hero 标题像素化入场特效(实现方案本任务内定:canvas 或分块 div)
   - 验收:入场一次性播放;reduced-motion 降级为 fade ✅(2026-07-09,方案定为分块 div(真实 DOM 文字,SEO/无障碍友好,否决 canvas):底色方块网格盖住标题,随机顺序消失揭示;首访等 preloader 完成事件再播;hero h1 移出 A7 stagger 避免叠加;reduced-motion 降级整体 fade)
+  - ⚠️ **2026-08-21:A4 已弃用**,Home hero 改为迪斯科灯球叙事动画(M6,见 homepage-animation-plan.md)。本条为历史建造记录,保留不删。
 - [x] **M3-6 Work 滚动画廊动效(A5)**:ScrollTrigger pin + 大图切换 + 序号数字 mask 翻转 + 作品名 indicator 高亮 + whitespace 缓冲
   - 验收:PRD US-W1 完整验收;滚动正反向均流畅;移动端不启用 pin ✅(2026-07-09,motion/scroll-gallery.tsx:pin 整屏、每作品一屏滚动量,进度离散驱动大图淡切/双 digit 1lh mask 翻转/— indicator 位移+名字高亮,前后 20vh 缓冲;gsap.matchMedia 限 md+ 且非 reduced-motion;降级走 CSS 变体(hidden motion-safe:md:block / motion-safe:md:hidden),<md 与 reduced-motion 均为静态卡片列表;进度条属 M3-7(A6))
 - [x] **M3-7 ProgressBar(A6)**:滚动/阅读进度条,应用到 Blog 详情与 Work
@@ -90,16 +92,20 @@
 - [x] **M5-5 验证走查**:`npm run lint && npm run build` 通过;完整上传流程 e2e 验证;边界测试
   - 验收:lint + build 通过;本地 dev 与 Docker 均可正常上传和展示 ✅(2026-07-11,lint 0 errors 0 warnings;build 成功,/api/upload 与 /uploads/[...path] 路由均识别;新增依赖 sharp ~1.5MB)
 
-## M6 主页迪斯科灯球高级动效 (Epic: Homepage Disco Animation)
+## M6 主页迪斯科灯球叙事动画 (Epic: Homepage Disco Ball Animation)
 
-> 详见 [homepage-animation-plan.md](homepage-animation-plan.md) 了解完整的六阶段实施计划。
+> 路线:**Blender 预渲染序列 + GSAP/CSS/DOM 编排**(路线 2)。准绳 `idea/disco_ball_animation_feasibility.md`。
+> 需求 HR-1~HR-10 详见 [homepage-animation-plan.md](homepage-animation-plan.md);资产见 [blender-assets.md](blender-assets.md)。
+> 分支 `feature/disco-ball-homepage`。旧的 R3F/六阶段方案已废弃(2026-08-21 推倒重来)。
 
-- [ ] **M6-1 Phase 1**: Initial Glitch Animation (初始闪烁发光动画)
-- [ ] **M6-2 Phase 2**: Typography Shift (排版重构与字形融合)
-- [ ] **M6-3 Phase 3**: Star Ring & Acceleration (3D星环与ScrollTrigger加速)
-- [ ] **M6-4 Phase 4**: Pretext Text Wrap (平移与 Pretext 文字动态环绕)
-- [ ] **M6-5 Phase 5**: Groove & Final Reveal (凹槽咬合与终局展示)
-- [ ] **M6-6 Phase 6**: Responsive & A11y (移动端降级与无障碍处理)
+- [ ] **M6-1 Blender 资产**:搭主控场景(模型+灯光 rig+HDRI+材质库+渲染预设),产出 `ball-intro` / `ball-loop` / `ring-loop`(透明,无缝)
+- [ ] **M6-2 序列播放器**:前端无缝循环 + scroll 变速播放组件 + CSS 发光叠层
+- [ ] **M6-3 Act I 入场时间线(HR-1~5)**:承接 preloader → 接触不良 → 渐亮定住 → 缩小变"O"(球盖隐藏 O)→ 星环生成
+- [ ] **M6-4 Act II 滚动骨架(HR-6)**:ScrollTrigger pin + 大字渐隐 + 球/星环变速
+- [ ] **M6-5 球左移 + 文字绕排(HR-7)**:translateX + shape-outside 环绕(pretext 备选)
+- [ ] **M6-6 反色凹槽咬合(HR-8)**:DOM + mix-blend-mode,与球缩小时间线对齐
+- [ ] **M6-7 三板块 + 收尾(HR-9/10)**:work/blog/radar 简介+跳转,to be continued,释放 pin
+- [ ] **M6-8 响应式 + 无障碍(§2/§3)**:移动端纵向降级、prefers-reduced-motion 降级
 
 ## V2 候选池(不排期)
 

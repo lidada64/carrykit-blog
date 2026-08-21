@@ -49,3 +49,6 @@ npm-debug.log*
 
 # idea brainstorms (local reference, not tracked)
 /idea/
+
+# AI 改动工单(本地进度管理,不入库)
+/docs/change_8_21.md

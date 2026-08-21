@@ -62,7 +62,7 @@
 - 内容最大宽度:`1120px`,水平内边距 `24px`(移动)/ `48px`(桌面)
 - **例外**:blog 双栏页(列表 + 详情)以负 margin 破格加宽至 `1440px`,两栏比例为黄金分割 `1 : 1.618`(左信息栏短、右内容长)
 - 区块垂直间距量级:`py-24`(桌面)/ `py-16`(移动);断点用 Tailwind 默认(`sm 640 / md 768 / lg 1024`)
-- **导航**(全站共享,顶部):左侧 logo,右侧 `work / blog / about / contact` + 语言切换(`EN/中`);caption 字号 + 大写 + mono;当前页高亮(参考站 `active` 态);移动端保持横排
+- **导航**(全站共享,顶部):左侧 logo,右侧 `work / blog / radar` + 语言切换(`EN/中`);caption 字号 + 大写 + mono;当前页高亮(参考站 `active` 态);移动端保持横排(注:原 about/contact 已移除,contact 联系方式下沉至 footer,见 change_8_21.md)
 - **Footer**:极简一行,`名字 — 页面名` 式署名 + 社交链接
 
 ## 5. 动效规范(GSAP)
@@ -86,7 +86,7 @@
 | A1 | **页面过渡 revealer** | 全屏遮罩(`--revealer` 色):路由切换时,屏幕纵向约 3/4 处(下 1/4)浮现一条**约 2/5 屏宽**的横向黑线,X/Y **同步由慢到快**放大(同一 tween,同时抵达上下与左右边缘,"弹出"感)铺满全屏 → 新页就绪 → 遮罩**自底向上由慢到快**上刷揭示内容;每页顶层挂 revealer 元素 | 全站所有路由切换 |
 | A2 | **Preloader** | 首次访问:全屏 overlay + 数字 counter(mono 字体)从 0 计数到 100 → overlay 揭开进入 hero;sessionStorage 记忆,同会话不重播 | Home 首次加载 |
 | A3 | **文字滚动 hover(text-roll)** | 同一文字堆叠 3 份 span 于 overflow-hidden wrapper 内,hover 时 wrapper translateY 滚动到下一份;**触发容器整体反色**(整行/整项背景变 `--foreground`,滚入副本文字为 `--background`),避免不同字号的文字块各自反色;离开时滚到第三份(正常色)后无缝复位 | 博客列表行(整行反色,日期+标题各自滚动)、导航项 |
-| A4 | **Pixelated 标题** | hero 大标题入场时像素块化 → 逐步清晰的揭示特效(canvas 或分块 div 实现,M3 定方案) | Home hero 标题 |
+| A4 | ~~**Pixelated 标题**~~ **(已弃用)** | Home hero 改为迪斯科灯球叙事动画,像素标题不再作为 hero 入场机制;详见 [homepage-animation-plan.md](homepage-animation-plan.md) | ~~Home hero 标题~~ |
 | A5 | **Work 滚动画廊** | ScrollTrigger pin 整屏:滚动驱动 ① 作品大图依次切换 ② 序号数字在 overflow mask 内翻转(双 digit wrapper 上移) ③ 右侧作品名列表 indicator(`—` 符号)移动 + 当前名高亮 ④ 底部 progressBar 随总进度增长;前后留 whitespace 滚动缓冲区 | Work 页 |
 | A6 | **阅读进度条 progressBar** | 页面底部(或顶部)细条,宽度 = 滚动进度 | Blog 详情、Work |
 | A7 | **入场 fade+up** | 区块进入视口:opacity 0→1 + y 24→0,列表项 stagger;`once: true` | 全站通用兜底动效 |
@@ -102,12 +102,12 @@
 ### Home `/`
 ```
 [Preloader: counter 00→100 + overlay 揭示(仅首次)]        ← A2
-[Nav: logo ······ work blog about contact | EN/中]
+[Nav: logo ······ work blog radar | EN/中]
 
-[hero ~100vh]
-  大字标语 (display, pixelated 入场)                       ← A4
-  hero 大图
-  双栏 description(左右两列副文, muted)
+[hero ~pin 多屏]
+  迪斯科灯球叙事动画(黑场→接触不良→渐亮→变"O"→星环→
+  左移绕排→凹槽咬合→work/blog/radar 三板块→to be continued)
+  详见 homepage-animation-plan.md(HR-1~HR-10)
 
 [SELECTED WORK  (caption/mono 大写)]
   作品卡片 × ≤3                                            ← A8
@@ -168,14 +168,10 @@
 [Nav] → 封面大图 → 标题 + 技术标签(mono) + 外链按钮 → Markdown 正文 → [Footer]
 ```
 
-### About `/about` — 分节布局
-```
-[Nav]
-[BIO   (label mono 大写)] 自我介绍开场句 (display 缩小档) + 介绍段落
-[SKILLS]                  技能/关注领域标签列表
-[CONNECT]                 email(mailto) + socials 社交链接
-[Footer]
-```
+### Radar `/radar` — 内容空间(取代原 About)
+
+> 原 About 页(BIO/SKILLS/CONNECT 分节)已移除(2026-08-21,见 change_8_21.md);contact 联系方式下沉至 footer。
+> Radar 由 5 个子页组成(音乐/电影/游戏/文摘/项目工具),线框/动效/数据模型待单独设计;内容构想见 `idea/radar-*.md`。
 
 ### Admin `/admin/**`
 后台**不受**本规范动效/排版约束,以朴素实用为准,但仍使用同一色板 token。

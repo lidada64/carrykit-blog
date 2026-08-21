@@ -37,7 +37,7 @@ Carrykit blog2/
 │   │   ├── (site)/            # 公开站路由组:共享 Nav + Footer
 │   │   │   ├── layout.tsx     # 公开站布局:导航 + footer(admin 不走此布局)
 │   │   │   ├── page.tsx       # Home
-│   │   │   ├── about/page.tsx
+│   │   │   ├── radar/         # 内容空间(取代原 about,子页待建)
 │   │   │   ├── blog/
 │   │   │   │   ├── page.tsx   # 列表
 │   │   │   │   └── [slug]/page.tsx
@@ -131,7 +131,7 @@ model User {
 
 | 路由 | 策略 |
 |------|------|
-| `/`、`/about`、`/blog`、`/work` | SSG + ISR(`revalidate` 60s),内容更新后自动生效 |
+| `/`、`/blog`、`/work`、`/radar`(子页待建) | SSG + ISR(`revalidate` 60s),内容更新后自动生效 |
 | `/blog/[slug]`、`/work/[slug]` | `generateStaticParams` + ISR;草稿返回 404 |
 | `/admin/**` | 动态渲染(SSR);`admin/(protected)/layout.tsx` 统一校验 session,未登录重定向 `/admin/login` |
 | 写操作 | 优先 Server Actions(表单提交),内部先校验 session;避免暴露裸 API |
