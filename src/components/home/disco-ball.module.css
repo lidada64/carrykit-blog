@@ -1,0 +1,146 @@
+/*
+ * DiscoBall —— 方案 C 预览替身(纯 CSS 迪斯科球 + 斜星环)。
+ *
+ * 定位:这是 Blender 预渲染序列(docs/blender-assets.md B-2/B-3)到位前的
+ * 「可视预览替身」,唯一职责是让主页动画编排(HR-1~10)能实时看到效果。
+ * 将来把 .ball / .ring 的内部换成 sprite/webm 序列播放器即可,
+ * 组件对外的 CSS 变量契约(见 disco-ball.tsx)保持不变。
+ *
+ * 【限制突破】铬/镜面质感必须用多档字面量色值,违反 DESIGN_SPEC §3
+ * 「禁止字面量色值」——已记录于 docs/dev-overrides.md(DV-1)。
+ */
+
+.stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--disco-size, 240px);
+  height: var(--disco-size, 240px);
+  /* HR-4/8 缩放走此变量,GSAP 可覆写;不改 --disco-size 以免影响布局尺寸 */
+  transform: scale(var(--disco-scale, 1));
+  will-change: transform;
+}
+
+/* 发光光晕(HR-3 渐亮):强度由 --disco-glow 驱动 */
+.glow {
+  position: absolute;
+  inset: -35%;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(180, 210, 255, 0.55) 0%,
+    rgba(120, 150, 255, 0.25) 38%,
+    transparent 70%
+  );
+  filter: blur(10px);
+  opacity: var(--disco-glow, 1);
+  pointer-events: none;
+}
+
+/* 星环(HR-5):斜置持续旋转。Phase 0 置于球后,真·前后遮挡留待 Blender 资产 */
+.ring {
+  position: absolute;
+  width: 156%;
+  height: 156%;
+  border-radius: 50%;
+  border: 2px dashed rgba(205, 224, 255, 0.85);
+  box-shadow: 0 0 12px rgba(150, 185, 255, 0.6);
+  /* 斜约 30°(rotateX 60° = 视觉俯角 30°) */
+  transform: rotateX(60deg) rotateZ(0deg);
+  transform-style: preserve-3d;
+  animation: discoRingSpin var(--disco-ring-duration, 12s) linear infinite;
+  pointer-events: none;
+}
+
+/* 球体:铬反光母层(固定光位) */
+.ball {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  background: radial-gradient(
+    circle at 32% 26%,
+    #ffffff 0%,
+    #d5e4ff 9%,
+    #8ea6cf 26%,
+    #45536f 56%,
+    #161c2c 100%
+  );
+  box-shadow:
+    inset -18px -22px 42px rgba(0, 0, 0, 0.55),
+    inset 14px 16px 32px rgba(255, 255, 255, 0.28),
+    0 0 44px rgba(120, 160, 255, 0.55);
+}
+
+/* 镜面碎片层:横向平移 background-position 造成「自转」错觉 */
+.facets {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.14) 0 5px, transparent 5px 11px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.22) 0 5px, transparent 5px 11px);
+  background-size: 11px 11px, 11px 11px;
+  mix-blend-mode: overlay;
+  /* 边缘淡出,贴合球体曲率错觉 */
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 58%, transparent 100%);
+  mask: radial-gradient(circle at 50% 50%, #000 58%, transparent 100%);
+  animation: discoSpin var(--disco-spin-duration, 8s) linear infinite;
+}
+
+/* 高光扫掠:一道亮带随自转掠过,强化转动感 */
+.specular {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.35) 47%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.35) 53%,
+    transparent 70%
+  );
+  mix-blend-mode: screen;
+  -webkit-mask: radial-gradient(circle at 50% 50%, #000 62%, transparent 100%);
+  mask: radial-gradient(circle at 50% 50%, #000 62%, transparent 100%);
+  animation: discoSpecular var(--disco-spin-duration, 8s) linear infinite;
+}
+
+@keyframes discoSpin {
+  to {
+    /* 一个 tile 宽 11px,平移 22px 保持无缝 */
+    background-position-x: 22px, 22px;
+  }
+}
+
+@keyframes discoSpecular {
+  0% {
+    transform: translateX(-40%);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateX(40%);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(-40%);
+    opacity: 0.35;
+  }
+}
+
+@keyframes discoRingSpin {
+  to {
+    transform: rotateX(60deg) rotateZ(360deg);
+  }
+}
+
+/* reduced-motion 红线(DESIGN_SPEC §5):停一切转动,留最亮静态终态 */
+@media (prefers-reduced-motion: reduce) {
+  .facets,
+  .specular,
+  .ring {
+    animation: none;
+  }
+}
