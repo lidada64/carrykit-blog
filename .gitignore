@@ -52,3 +52,7 @@ npm-debug.log*
 
 # AI 改动工单(本地进度管理,不入库)
 /docs/change_8_21.md
+
+# 标题 SVG 烘焙的临时预览/mock(本地对比用,不入库)
+images/svg/_*
+images/*.png
