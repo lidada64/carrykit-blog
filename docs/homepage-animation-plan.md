@@ -53,6 +53,13 @@ Act I → Act II 的交接:Act I 末帧状态(小球 + 星环居中)= Act II 首
 - **"O" 处理(已定)**:灯球**盖在隐藏的字母 "O" 上**,该 O 不实际渲染(灯球本身看起来就是 O)。DOM 上 "O" 仅作占位/基线对齐锚点,`visibility:hidden` 或透明,球投影到其位置。
 - **降级**:reduced-motion → 直接以最终排版态展示标题 + 小球,无补间。
 
+### HR-BG · 背景播报文字墙(Stanley 感)
+- **触发**:time(HR-3 定住后淡入)· scroll(HR-6 变速时加速)
+- **描述**:主标题四周铺一面**密集平铺、隔行反向无缝横滚**的文字墙,内容为 **"CARRYKIT IS NOT JUST"** 反复循环(参照 Stanley Parable「THE END IS NEVER THE END」);标题区用**字形轮廓 envelope**(clip-path 梯形:左边贴 W 左斜杠、右边贴末字母右缘)清空,字幕滚到斜墙即消失,墙内全清空。
+- **验收**:文字密集到位、隔行反向缓慢滚动且无缝循环(平移一份内容 = -50%);envelope 左/右斜墙贴合边界字母、内部干净无字幕透出、跨断点自动对齐(实测字母盒生成 clip-path);字体用 **Anton SC(`--font-broadcast`,fonts.ts)+ 前景色 `--foreground`**(次级文字,区别于标题 display 字体),不引入字面量色值。
+- **资产**:无(纯 DOM/CSS/JS)。组件 `broadcast-wall.tsx`(forwardRef)、`use-title-envelope.ts`(测量→clip-path);契约变量 `--bw-opacity`(HR-3 后淡入 / 退场)、`--bw-speed`(HR-6 滚动变速)。
+- **降级**:reduced-motion → 停止滚动;SSR/无 JS → CSS % 近似梯形 clip-path 兜底(JS 测量后被 px 覆盖)。
+
 ### HR-5 · 星环生成(斜 30°)
 - **触发**:time(与 HR-4 同段收尾)
 - **描述**:灯球由内向外生出一圈**倾斜约 30°、持续旋转**的星环。

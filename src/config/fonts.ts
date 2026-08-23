@@ -1,4 +1,4 @@
-import { Girassol, Geist, Geist_Mono } from "next/font/google";
+import { Girassol, Geist, Geist_Mono, Anton_SC } from "next/font/google";
 
 import localFont from "next/font/local";
 
@@ -34,5 +34,13 @@ export const fontMono = Geist_Mono({
   display: "swap",
 });
 
+/** 背景播报文字墙(HR-BG)专用字体 Anton SC(次级文字,区别于标题/正文) */
+export const fontBroadcast = Anton_SC({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-broadcast",
+  display: "swap",
+});
+
 /** 挂到 <html> 上的变量类名集合,根 layout 使用 */
-export const fontVariables = `${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable} ${newFont.variable}`;
+export const fontVariables = `${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable} ${newFont.variable} ${fontBroadcast.variable}`;
