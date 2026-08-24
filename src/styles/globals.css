@@ -39,6 +39,8 @@
   --font-display: var(--font-display), var(--font-zh), "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-body: var(--font-body), var(--font-zh), "PingFang SC", "Microsoft YaHei", sans-serif;
   --font-mono: var(--font-mono), var(--font-zh), "PingFang SC", "Microsoft YaHei", monospace;
+  --font-title: var(--font-title), "IM Fell English SC", serif;
+  --font-broadcast: var(--font-broadcast), "Anton SC", sans-serif;
 
   /*
    * 字号阶梯(DESIGN_SPEC §2):全站公开页只准使用以下 5 档

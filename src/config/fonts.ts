@@ -1,4 +1,4 @@
-import { Girassol, Geist, Geist_Mono, Anton_SC } from "next/font/google";
+import { Girassol, Geist, Geist_Mono, Anton_SC, IM_Fell_English_SC } from "next/font/google";
 
 import localFont from "next/font/local";
 
@@ -42,5 +42,13 @@ export const fontBroadcast = Anton_SC({
   display: "swap",
 });
 
+/** 主页矢量大标题专用字体 IM Fell English SC(古典衬线小型大写) */
+export const fontTitle = IM_Fell_English_SC({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-title",
+  display: "swap",
+});
+
 /** 挂到 <html> 上的变量类名集合,根 layout 使用 */
-export const fontVariables = `${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable} ${newFont.variable} ${fontBroadcast.variable}`;
+export const fontVariables = `${fontDisplay.variable} ${fontBody.variable} ${fontMono.variable} ${newFont.variable} ${fontBroadcast.variable} ${fontTitle.variable}`;

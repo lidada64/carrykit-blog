@@ -11,10 +11,10 @@ import { useLocale, useT, type TKey } from "@/i18n";
 const navItems: { key: TKey; href: string }[] = [
   { key: "nav.work", href: "/work" },
   { key: "nav.blog", href: "/blog" },
-  { key: "nav.about", href: "/about" },
+  { key: "nav.radar", href: "/radar" },
 ];
 
-/** 全站导航(DESIGN_SPEC §4):logo + work/blog/about/contact + EN/中,caption mono 大写,当前页高亮 */
+/** 全站导航(DESIGN_SPEC §4):logo 顶到最左上、右侧图标顶到最右上(满宽,不再受 1120 容器约束) */
 export function Nav() {
   const pathname = usePathname();
   const { locale, setLocale } = useLocale();
@@ -28,17 +28,17 @@ export function Nav() {
   }, []);
 
   return (
-    <header className="mx-auto w-full max-w-[1120px] px-6 lg:px-12">
-      <nav className="flex items-center justify-between gap-4 py-6 text-caption font-mono uppercase">
-        {/* 360px 窄屏 logo 降一档,避免与右侧导航贴死(M3-9) */}
+    <header className="w-full px-4 sm:px-6 lg:px-8">
+      <nav className="flex items-center justify-between gap-4 py-5 text-caption font-mono uppercase">
+        {/* logo 顶到最左上并加大 */}
         <Link
           href="/"
-          className="font-display normal-case text-body sm:text-subheading"
+          className="ml-2 font-display normal-case text-subheading sm:ml-4 sm:text-heading"
         >
           {site.name}
         </Link>
-        {/* 360px 窄屏下 gap-4 会顶满可用宽度,收紧到 gap-3(M3-9) */}
-        <div className="flex items-center gap-3 sm:gap-8">
+        {/* 右上路由组:与左上 logo 同款 font-display(Girassol),加粗;gap-3 防 360px 窄屏顶满(M3-9) */}
+        <div className="flex items-center gap-3 font-display font-bold text-body sm:gap-8">
           {navItems.map(({ key, href }) => {
             const active = pathname === href || pathname.startsWith(`${href}/`);
             return (

@@ -25,6 +25,12 @@ export function ScrollIndicator() {
     () => {
       const bar = ref.current;
       if (!bar) return;
+
+      const isHome = pathname === "/";
+
+      // 主页英雄屏可见时先隐藏,其他页走 onRefresh 逻辑
+      if (isHome) gsap.set(bar, { autoAlpha: 0 });
+
       gsap.fromTo(
         bar,
         { scaleY: 0 },
@@ -35,13 +41,29 @@ export function ScrollIndicator() {
             start: 0,
             end: "max",
             scrub: true,
-            onRefresh: () =>
+            onRefresh: () => {
+              if (isHome) return; // 主页可见性由下方 hero trigger 控制
               gsap.set(bar, {
                 autoAlpha: ScrollTrigger.maxScroll(window) > 0 ? 1 : 0,
-              }),
+              });
+            },
           },
         },
       );
+
+      // 主页:英雄底部滚出视口时出现,滚回来时隐藏
+      if (isHome) {
+        const hero = document.querySelector("[data-hero]");
+        if (hero) {
+          ScrollTrigger.create({
+            trigger: hero,
+            start: "bottom top",
+            onEnter: () => gsap.to(bar, { autoAlpha: 1, duration: 0.3 }),
+            onLeaveBack: () => gsap.to(bar, { autoAlpha: 0, duration: 0.3 }),
+          });
+        }
+      }
+
       ScrollTrigger.refresh();
     },
     { dependencies: [pathname], revertOnUpdate: true, scope: ref },

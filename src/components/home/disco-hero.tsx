@@ -11,9 +11,9 @@ import { TitleFigure } from "./title-figure";
  */
 export function DiscoHero() {
   return (
-    <section className="relative mx-[calc(50%-50vw)] flex min-h-svh w-screen items-center justify-center overflow-hidden px-6 py-16">
+    <section data-hero className="relative mx-[calc(50%-50vw)] flex min-h-svh w-screen items-center justify-center overflow-hidden px-6 py-16">
       <TitleFigure
-        className="w-[min(92vw,1100px)]"
+        className="w-[min(98vw,1700px)]"
         spinDuration={7}
         ringDuration={14}
         glow={1}

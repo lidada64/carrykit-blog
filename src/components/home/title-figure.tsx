@@ -2,23 +2,17 @@
 
 import { forwardRef, type CSSProperties } from "react";
 import { DiscoBall } from "./disco-ball";
-import {
-  BALL,
-  CARRY_PATH,
-  CARRY_TRANSFORM,
-  TITLE_VIEWBOX,
-  WELCOME_PATH,
-} from "./title-paths";
 
 /**
- * TitleFigure —— 主标题「welcome T[O] carrykit」的矢量呈现。
+ * TitleFigure —— 主标题「Welcome / T[O] / CarryKit」的三行居中呈现
+ * (布局见 idea/disco_ball_animation_feasibility.md 2026.8.24 更新)。
  *
- * 内联两段**导出的字形轮廓**(images/svg → title-paths.ts),像素级还原设计稿;
- * 灯球充当字母 O:SVG 里**不画 O**,由 DiscoBall 按同一 viewBox 归一化坐标绝对
- * 叠放在 O 位。整体作为单个 SVG 等比缩放,DiscoBall 以 % 定位随之缩放。
+ * 排版改为**真实文字**(字体 IM Fell English SC,古典衬线小型大写,
+ * 挂在 --font-title / font-title 工具类上),弃用此前的字形轮廓 SVG 方案。
+ * 中行「TO」的字母 O 由 DiscoBall 充当:以 em 尺寸内联,随字号等比缩放;
+ * 灯球的星环/光晕溢出行盒是刻意效果(穿插于上下行之间)。
  *
- * 宽度完全交给外部 className(内部不设 width,避免工具类冲突导致标题盒失控)。
- * forwardRef 暴露根 div(留作将来背景绕排字幕测量标题盒之用)。
+ * 宽度交给外部 className;forwardRef 暴露根 div(留作日后测量标题盒之用)。
  */
 export interface TitleFigureProps {
   /** 灯球自转一圈时长(秒) */
@@ -39,43 +33,38 @@ export const TitleFigure = forwardRef<HTMLDivElement, TitleFigureProps>(
     return (
       <div
         ref={ref}
-        className={["relative", className].filter(Boolean).join(" ")}
-        style={{ aspectRatio: `${TITLE_VIEWBOX.w} / ${TITLE_VIEWBOX.h}`, ...style }}
+        className={[
+          "flex flex-col items-center text-center leading-[0.92]",
+          "font-title font-normal tracking-[0.02em] [color:var(--foreground)]",
+          "text-[clamp(3.5rem,16vw,14rem)]",
+          className,
+        ]
+          .filter(Boolean)
+          .join(" ")}
+        style={style}
       >
-        {/* 无障碍:图形标题读作完整句;SVG/球均 aria-hidden */}
+        {/* 无障碍:图形标题读作完整句;各视觉行 aria-hidden */}
         <h1 className="sr-only">welcome to carrykit</h1>
 
-        {/* 字形层:前景色实字,O 位留空由灯球补上 */}
-        <svg
-          aria-hidden
-          viewBox={`0 0 ${TITLE_VIEWBOX.w} ${TITLE_VIEWBOX.h}`}
-          className="block h-auto w-full [color:var(--foreground)]"
-          fill="currentColor"
-        >
-          <path d={WELCOME_PATH} />
-          <path
-            d={CARRY_PATH}
-            transform={`translate(${CARRY_TRANSFORM.x},${CARRY_TRANSFORM.y})`}
-          />
-        </svg>
+        <span aria-hidden>Welcome</span>
 
-        {/* 灯球 O:按 viewBox 归一化坐标以 % 叠放,随 SVG 等比缩放 */}
-        <div
-          className="absolute -translate-x-1/2 -translate-y-1/2"
-          style={{
-            left: `${BALL.cxPct * 100}%`,
-            top: `${BALL.cyPct * 100}%`,
-            width: `${BALL.dPct * 100}%`,
-            aspectRatio: "1",
-          }}
-        >
+        {/* 中行 T[O]:字母 O 由灯球充当,随字号缩放 */}
+        <span aria-hidden className="my-[0.08em] inline-flex items-center gap-[0.04em]">
+          T
           <DiscoBall
-            size="100%"
+            size="0.74em"
             spinDuration={spinDuration}
             ringDuration={ringDuration}
             glow={glow}
           />
-        </div>
+        </span>
+
+        <span
+          aria-hidden
+          className="italic underline decoration-[0.02em] underline-offset-[0.08em]"
+        >
+          CarryKit
+        </span>
       </div>
     );
   },
