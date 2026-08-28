@@ -45,33 +45,34 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 4 }: HomeSce
       {/* 顶部导航:仅最外层可交互 */}
       <SceneNav interactive={!inner} />
 
-      {/* 灰圆 —— disco 灯球锚点占位。中上偏center。悬停反色。
+      {/* 灰圆 —— disco 灯球锚点占位。中上偏center。选中(镜像)时反色。
+          data-key 供顶层命中检测;group-data 变体让每层同 key 元素同步高亮。
           日后替换:<DiscoBall size="7.6cqw" ... /> (仅 depth 0 挂真实组件) */}
       <div
-        data-hoverable
-        className="absolute left-1/2 top-[19.5%] h-[7.6cqw] w-[7.6cqw] -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted transition-colors duration-200 hover:bg-foreground"
+        data-key="orb"
+        className="absolute left-1/2 top-[19.5%] h-[7.6cqw] w-[7.6cqw] -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted transition-colors duration-200 group-data-[hk=orb]/frame:bg-foreground"
       />
 
       {/* 主 wordmark:左偏中、大号斜体。字体同现有主页标题(font-title=IM Fell
-          English SC,italic),与站点保持一致;scale-y 适度竖向拉长;悬停高亮 */}
+          English SC,italic),与站点保持一致;scale-y 适度竖向拉长;选中高亮 */}
       <span
-        data-hoverable
-        className="absolute left-[11%] top-[43.6%] origin-center -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[8.5cqw] font-normal italic leading-none tracking-[0.02em] text-foreground transition-colors duration-200 hover:text-accent"
+        data-key="wordmark"
+        className="absolute left-[11%] top-[43.6%] origin-center -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[8.5cqw] font-normal italic leading-none tracking-[0.02em] text-foreground transition-colors duration-200 group-data-[hk=wordmark]/frame:text-accent"
       >
         CarryKit.
       </span>
 
-      {/* 灰星 —— 篝火锚点占位,底部居中,仅最外层。悬停反色。
+      {/* 灰星 —— 篝火锚点占位,底部居中,仅最外层。选中反色。
           日后替换:<CampfireDither ... /> (仅 depth 0) */}
       {showCampfire && (
         <div
-          data-hoverable
-          className="absolute left-1/2 top-[91%] h-[3.2cqw] w-[3.2cqw] -translate-x-1/2 -translate-y-1/2 bg-muted transition-colors duration-200 hover:bg-foreground"
+          data-key="star"
+          className="absolute left-1/2 top-[91%] h-[3.2cqw] w-[3.2cqw] -translate-x-1/2 -translate-y-1/2 bg-muted transition-colors duration-200 group-data-[hk=star]/frame:bg-foreground"
           style={{ clipPath: STAR_CLIP }}
         />
       )}
 
-      {/* 右下角自嵌套卡片:1/3 尺寸(仍 16:9),内部递归同一场景。当前不可选取。
+      {/* 右下角自嵌套卡片:1/3 尺寸(仍 16:9),内部递归同一场景。当前不可直接选取。
           不传 showCampfire → 篝火天然不下传。描边用 cq 单位以随层缩放。 */}
       {hasNested && (
         <div
@@ -80,6 +81,15 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 4 }: HomeSce
           <HomeScene depth={depth + 1} maxDepth={maxDepth} />
         </div>
       )}
+
+      {/* 递归镜像光标:每层一个环,读 frame 继承的 --cx/--cy 按本层容器定位 →
+          等比出现在每层嵌套里。尺寸/描边用 cqw 随层缩小;命中可选元素(frame 有
+          data-hk)时放大;鼠标离场(data-active≠1)时隐藏。 */}
+      <div
+        aria-hidden
+        style={{ left: "calc(var(--cx, 0.5) * 100%)", top: "calc(var(--cy, 0.5) * 100%)" }}
+        className="pointer-events-none absolute z-10 h-[1.6cqw] w-[1.6cqw] -translate-x-1/2 -translate-y-1/2 rounded-full border-[0.12cqw] border-foreground opacity-0 transition-[width,height,opacity] duration-200 ease-out group-data-[active=1]/frame:opacity-100 group-data-[hk]/frame:h-[2.6cqw] group-data-[hk]/frame:w-[2.6cqw]"
+      />
     </div>
   );
 }
