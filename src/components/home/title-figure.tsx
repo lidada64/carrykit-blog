@@ -2,6 +2,7 @@
 
 import { forwardRef, type CSSProperties } from "react";
 import { DiscoBall } from "./disco-ball";
+import { GlyphCarousel } from "./glyph-carousel";
 
 /**
  * TitleFigure —— 主标题「Welcome / T[O] / CarryKit」的三行居中呈现
@@ -34,7 +35,7 @@ export const TitleFigure = forwardRef<HTMLDivElement, TitleFigureProps>(
       <div
         ref={ref}
         className={[
-          "flex flex-col items-center text-center leading-[0.92]",
+          "leading-[0.92]",
           "font-title font-normal tracking-[0.02em] [color:var(--foreground)]",
           "text-[clamp(3.5rem,16vw,14rem)]",
           className,
@@ -43,25 +44,30 @@ export const TitleFigure = forwardRef<HTMLDivElement, TitleFigureProps>(
           .join(" ")}
         style={style}
       >
-        {/* 无障碍:图形标题读作完整句;各视觉行 aria-hidden */}
+        {/* 无障碍:图形标题读作完整句;各视觉块 aria-hidden */}
         <h1 className="sr-only">welcome to carrykit</h1>
 
-        <span aria-hidden>Welcome</span>
-
-        {/* 中行 T[O]:字母 O 由灯球充当,随字号缩放 */}
-        <span aria-hidden className="my-[0.08em] inline-flex items-center gap-[0.04em]">
-          T
+        {/* Welcome T[O] + 轮播标点:一行相连。灯球 O 紧接 T、随组内字号缩放;
+            球右侧 ":"/">"/"?" 轮播 SVG 平衡左重的视觉重心。整组钉在左上。 */}
+        <div
+          aria-hidden
+          className="absolute left-[4vw] top-[14vh] flex -translate-y-1/2 items-center gap-[0.18em] whitespace-nowrap text-[0.5em]"
+        >
+          {/* 与左上导航 logo「CarryKit」同款字体 Girassol(font-display) */}
+          <span className="font-display tracking-[0.12em]">Welcome T</span>
           <DiscoBall
             size="0.74em"
             spinDuration={spinDuration}
             ringDuration={ringDuration}
             glow={glow}
           />
-        </span>
+          <GlyphCarousel className="h-[0.72em] w-[0.44em]" />
+        </div>
 
+        {/* CarryKit:屏幕居中 */}
         <span
           aria-hidden
-          className="italic underline decoration-[0.02em] underline-offset-[0.08em]"
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 italic underline decoration-[0.02em] underline-offset-[0.08em]"
         >
           CarryKit
         </span>

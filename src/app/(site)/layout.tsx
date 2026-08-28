@@ -15,7 +15,7 @@ export default function SiteLayout({
       {/* 惯性滚动包裹层:fixed 元素(Revealer/ScrollIndicator)必须留在层外 */}
       <SmoothScroll>
         <Nav />
-        <main className="mx-auto w-full max-w-[1120px] flex-1 px-6 lg:px-12">
+        <main className="mx-auto flex w-full max-w-[1120px] flex-1 flex-col px-6 lg:px-12">
           {children}
         </main>
         <Footer />
