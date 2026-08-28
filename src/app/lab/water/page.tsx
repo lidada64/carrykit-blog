@@ -11,8 +11,8 @@ import { CampfireDither } from "@/components/lab/campfire-dither";
  * Act I / Act II 预设演示「分幕」(入场暗·静 ↔ 叙事亮·流动)。移动鼠标激涟漪。
  */
 
-const ACT_I: WaterDitherParams = { speed: 0.35, cell: 3, brightness: 0.7, contrast: 1.35, glint: 0.6 };
-const ACT_II: WaterDitherParams = { speed: 1.4, cell: 3, brightness: 1.02, contrast: 1.2, glint: 1.1 };
+const ACT_I: WaterDitherParams = { speed: 0.35, cell: 3, brightness: 0.7, contrast: 1.35, glint: 0.6, warp: 0.8, flowBend: 0.7, angle: 0, calmTop: 0 };
+const ACT_II: WaterDitherParams = { speed: 1.4, cell: 3, brightness: 1.02, contrast: 1.2, glint: 1.1, warp: 1, flowBend: 1, angle: 0, calmTop: 0 };
 
 export default function WaterLabPage() {
   const [p, setP] = useState<WaterDitherParams>(ACT_II);
@@ -54,6 +54,10 @@ export default function WaterLabPage() {
           {row("亮度", "brightness", 0.4, 1.6, 0.05)}
           {row("对比", "contrast", 0.6, 2, 0.05)}
           {row("高光", "glint", 0, 2, 0.05)}
+          {row("扭曲", "warp", 0, 2.5, 0.05)}
+          {row("流扰", "flowBend", 0, 2.5, 0.05)}
+          {row("流向", "angle", 0, 180, 1)}
+          {row("静止顶", "calmTop", 0, 240, 4)}
         </div>
         <hr style={{ border: 0, borderTop: "1px solid rgba(255,255,255,0.15)", margin: "10px 0" }} />
         <label style={rowStyle}>

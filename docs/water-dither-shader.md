@@ -1,18 +1,107 @@
+# 抖动流水背景(WaterDither shader) — 可复用归档
+
+> **状态**:2026-08-25 原型完成,曾作为首页全屏背景(`HeroWater`)接入,验证了
+> 主题反色 / 顶部静止带 / 切换过渡等细节,**现已从首页移除**(`HeroWater` 删除、
+> layout 摘除),主页恢复为「只有标题、无背景」。
+>
+> **引擎 `WaterDither` 组件与 `/lab/water` 原型页仍保留在树里**(可继续调参预览),
+> 本文件完整记录设计、参数与被删的首页集成源码,供日后在首页/别处重启复用。
+> 参照 [`pretext-scrolling-subtitle-flow.md`](pretext-scrolling-subtitle-flow.md) 的归档法。
+
+---
+
+## 1. 一句话定位
+
+奥伯拉丁风格的 **1-bit 抖动「流水」**:纯裸 WebGL(零依赖)全屏铺满,用一张
+高度场 + Bayer 8×8 有序抖动量化成**站点两色**(墨/纸,跟随主题 token),读作
+「流动的亮带 / 暗水」而非满屏中灰噪点。可当页面/区块背景,鼠标激涟漪。
+
+## 2. 水读作水,靠哪几样(设计要点)
+
+1. **定向平流 + 域扭曲**:坐标被另一层 fbm 扭动 → 液体涡流,波脊弯曲成流;
+   再叠一个随时间前推的相位 → 水在「流」。
+2. **各向异性**:flow 采样 `fbm(qr * vec2(1.1, 3.6))` 纵向压缩,拉出水平流纹。
+3. **法线高光 + 焦散**:从高度场前向差分取法线,做镜面高光——波峰反光的闪烁
+   是「水读作水」的关键;高对比让抖动落成亮带/暗水,而不是纸碎屑般的中灰网点。
+4. **两色抖动**:`bayer8(floor(frag / uPixel))` 阈值化 → `mix(uInk, uPaper, bw)`。
+   按**设备物理像素**采样,retina 不糊;`prefers-reduced-motion` 定格静态帧。
+
+## 3. 演进 & 踩过的坑(调参历程)
+
+- **波脊太规则(等距横线)**:根因是「域扭曲」只有单层、强度小。改为**双层迭代
+  域扭曲**——低频大涡 `warp1` 把波脊整体推弯,再喂进高频细涡 `warp2` 卷出湍流
+  (`qr += uWarp * (0.42·warp1 + 0.22·warp2)`),并加大 flow 对相位的扰动
+  (`uFlowBend`)。抽成 `warp` / `flowBend` 两个可调 uniform。
+- **「中间两条宽光带」**:并非 bug。主波脊项 `sin(q.y * 8.5 …)` 在整屏高度上
+  只有 `8.5 / 2π ≈ 1.35` 个周期 → **恰好落两个波峰**,`smoothstep(hC)` 把峰映射成
+  亮带 → 两条胖亮带。想要更密的流纹得抬高 `q.y` 系数(8.5 / 16.0)。
+- **波峰该横还是竖**:顺流条痕(平行流向,横)vs 波前(垂直流向,竖)都真实。
+  做成 **`angle` uniform**:把坐标旋进「流向参考系」(`mat2(ca,sa,-sa,ca)*q`),
+  波脊/平流/各向异性一起转,`0°`↔`90°` 横竖无级切换。**鼠标涟漪留在原始坐标系**
+  (径向、与旋转无关),锚在光标下不跟着转。
+- **主题切换「不反色」**:曾**按亮度**分配颜色(暗 token→ink、亮 token→paper),
+  结果两种主题都成「深底+浅纹」,几乎看不出切换。改为**按角色**:
+  `ink = --background`(水底)、`paper = --foreground`(高光波纹)。这样水面跟随
+  页面一起反色——**日间亮水·深墨波纹,夜间暗水·亮波纹**(见 `themeColors()`)。
+- **切换时颜色瞬跳**:与 body 的 `0.4s` 过渡不同步、突兀。加**逐帧色彩缓动**
+  (指数,τ≈0.12s ≈ 0.4s 收敛):`syncTheme` 只设目标色,`draw` 每帧把当前色追向
+  目标。首帧与 reduced-motion 瞬切(后者补一帧)。
+- **背景流动干扰导航文字**:加**顶部静止带** `calmTop`——顶部 `[0, calmTop]`(CSS px,
+  上传前 ×dpr)把随时间变化的动态量渐隐为静止的纯背景色,`[calmTop, 2·calmTop]`
+  平滑过渡回全速水面。导航就坐在静止纯色区上,不被水纹干扰。
+
+## 4. 集成坑(首页那次)
+
+- **要盖住导航栏**:导航 `<Nav>` 在 `SmoothScroll` 内、`<main>` 之上,把 hero 往下
+  推,水面若放在 hero 里盖不到导航那条。且 `SmoothScroll` 用 transform,**fixed 元素
+  放进去会失效**。解法:把水面提成 **`fixed inset-0 -z-10` 全屏层,渲染在
+  SmoothScroll 层外**(与 Revealer / ScrollIndicator 同理),即 `HeroWater`。
+- **`-z-10` 能透出**:`body` 背景不透明,但绘制在最底;fixed `-z-10` 子元素绘于
+  body 背景之上、in-flow 内容之下 → 水显示、导航/标题在其上可读。`pointer-events-none`
+  不拦截交互(代价:首页无鼠标涟漪,但 Act I「暗·静」本就求静)。
+- **导航取色随之定**:水面既然跟随主题反色(日间亮水/夜间暗水),导航沿用主题
+  token(`text-foreground/muted`)即两主题都清晰,**无需强制白**。若改成「两主题
+  都暗水」的方案,才需要把导航翻白——两者要一起定。
+
+## 5. 参数表(`WaterDitherParams` + 颜色)
+
+| 参数 | 含义 | 建议范围 | 首页用值(Act I·暗·静) |
+|---|---|---|---|
+| `speed` | 流速 | 0–3 | `0.35` |
+| `cell` | 抖动网点单元(CSS px,越小越密) | 1–8 | `2` |
+| `brightness` | 亮度偏移(1=不变) | 0.4–1.6 | `0.7` |
+| `contrast` | 对比 | 0.6–2 | `1.35` |
+| `glint` | 高光/闪光强度 | 0–2 | `0.6` |
+| `warp` | 域扭曲强度(0=笔直横线) | 0–2.5 | `0.8` |
+| `flowBend` | flow 对波脊相位的扰动(越大越有机) | 0–2.5 | `0.7` |
+| `angle` | 流向角(度):0=横波脊竖滚,90=竖波峰横推 | 0–180 | `0` |
+| `calmTop` | 顶部静止带高度(CSS px,0=关) | 0–240 | `96` |
+| `ink`/`paper` | 显式两色(不传则跟随主题 token) | — | 不传 |
+
+`/lab/water` 预览页把上述全部挂成实时滑块,并有 Act I / Act II 两档预设,可直接调。
+
+## 6. 复用步骤
+
+1. 引擎已在 `src/components/lab/water-dither.tsx`(见 §7.1 快照)。零依赖,直接用。
+2. 当区块背景:`<WaterDither className="absolute inset-0 h-full w-full" {...params} />`,
+   容器 `relative`,内容 `relative z-10`。
+3. 当**全屏页面背景且要盖导航**:照 §7.2 的 `HeroWater`——`fixed inset-0 -z-10`,
+   **渲染在惯性滚动/transform 包裹层之外**,按路由 `usePathname` 门控。
+4. 不传 `ink/paper` 即跟随站点 `--foreground/--background`,并随 `data-theme` 反色 +
+   过渡;要固定配色就显式传(会关掉主题跟随与过渡)。
+5. 顶部有浮层文字(导航)时给 `calmTop` ≈ 浮层高度,静止纯色打底。
+
+---
+
+## 7. 完整源码
+
+### 7.1 引擎 `src/components/lab/water-dither.tsx`(快照,树内仍在)
+
+```tsx
 "use client";
 
 import { useEffect, useRef } from "react";
 
-/**
- * WaterDither —— 奥伯拉丁风格 1-bit 抖动「流水」(shader 原型 · 探索用)。
- *
- * 纯裸 WebGL(零依赖)。水的"流动质感"靠三样:①定向平流 + 域扭曲(coords
- * 被另一层 fbm 扭动 → 液体涡流);②各向异性(纵向压缩)拉出水平流纹;
- * ③从高度场取法线做**镜面高光 + 焦散条纹**——水读作水的关键是波峰反光的闪烁。
- * 最后 Bayer 8×8 有序抖动量化成纯黑/白(站点 token 色)。
- *
- * 篝火已拆出(见 campfire-dither.tsx),此组件只负责水面背景。
- * 抖动按设备物理像素采样,retina 不糊;reduced-motion 定格静态帧(§5)。
- */
 export interface WaterDitherParams {
   /** 流速 */
   speed: number;
@@ -347,3 +436,53 @@ export function WaterDither({ ink, paper, className, ...params }: WaterDitherPro
 
   return <canvas ref={canvasRef} className={className} />;
 }
+```
+
+### 7.2 首页集成 `HeroWater`(已从树删除,此处保留原文)
+
+原 `src/components/home/hero-water.tsx`——全屏 fixed 背景、渲染在 `SmoothScroll`
+层外、`-z-10` 沉底、仅首页启用:
+
+```tsx
+"use client";
+
+import { usePathname } from "next/navigation";
+import { WaterDither } from "@/components/lab/water-dither";
+
+export function HeroWater() {
+  const pathname = usePathname();
+  if (pathname !== "/") return null;
+  return (
+    <WaterDither
+      className="pointer-events-none fixed inset-0 -z-10 h-full w-full"
+      speed={0.35}
+      cell={2}
+      brightness={0.7}
+      contrast={1.35}
+      glint={0.6}
+      warp={0.8}
+      flowBend={0.7}
+      angle={0}
+      calmTop={96}
+    />
+  );
+}
+```
+
+挂载点在 `src/app/(site)/layout.tsx`,**必须在 `<SmoothScroll>` 之外**:
+
+```tsx
+return (
+  <>
+    {/* 主页全屏流水背景:fixed,必须留在 SmoothScroll 层外(transform 破坏 fixed) */}
+    <HeroWater />
+    <SmoothScroll>
+      <Nav />
+      <main>{children}</main>
+      <Footer />
+    </SmoothScroll>
+    <Revealer />
+    <ScrollIndicator />
+  </>
+);
+```
