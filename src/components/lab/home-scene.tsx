@@ -19,15 +19,15 @@ export interface HomeSceneProps {
   depth: number;
   /** 是否渲染篝火(灰星)——仅最外层传 true,不向下递归 */
   showCampfire?: boolean;
-  /** 递归收口层数;默认 4(第 4 层约 1/81 帧,观感"无限") */
+  /** 递归收口层数;默认 6(第 6 层约 1/729 帧,观感"无限",供收缩前滚的深隧道) */
   maxDepth?: number;
 }
 
-// 五角星裁剪路径(篝火锚点占位)
-const STAR_CLIP =
+// 五角星裁剪路径(篝火锚点占位)。导出供 HomeCollapse 的独立星标复用(篝火脱离缩放)。
+export const STAR_CLIP =
   "polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)";
 
-export function HomeScene({ depth, showCampfire = false, maxDepth = 4 }: HomeSceneProps) {
+export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSceneProps) {
   const inner = depth > 0;
   const hasNested = depth < maxDepth;
 
@@ -76,6 +76,7 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 4 }: HomeSce
           不传 showCampfire → 篝火天然不下传。描边用 cq 单位以随层缩放。 */}
       {hasNested && (
         <div
+          data-nested
           className="absolute left-[58.75%] top-[54.9%] h-[33.333cqh] w-[33.333cqw] overflow-hidden border-[0.1cqw] border-border"
         >
           <HomeScene depth={depth + 1} maxDepth={maxDepth} />
