@@ -14,9 +14,20 @@ gsap.registerPlugin(ScrollTrigger, useGSAP);
  *  帧以此为原点缩到 1/3(收进右下角);每张嵌套卡以此为原点放大到 3(恰好填满父级)。 */
 const FIXED_ORIGIN = "88.125% 82.35%";
 
-/** 收缩段与每条问答段的时间线时长(单位);end 取其和的百分比。 */
-const COLLAPSE = 1;
+/** 时间线时长(单位);end = 各段之和的百分比。
+ *  段1 递退一级(整帧 →1/3);段2 依次去嵌套(内层卡 →3,深层先)与问答同步铺满;段3 隧道缩没(帧 →0)。 */
+const SEG1 = 1;
 const QA = 1;
+const FADE = 1; // 段3:末端隧道缩没入不动点的滚动配额
+
+/** 段1 dolly 视差幅度:每层 counter-scale(越深越大 → 净递退越慢 = 越靠前越快)。手感旋钮。
+ *  注:嵌套复合 → 幅度非线性放大,~0.06 时最深层净递退≈静止;再大最深层会「反涨」溢出(裁掉,可接受)。 */
+const PARALLAX = 0.06;
+
+/** 段1 末尾灯球「吊起升出」:占段1 尾段的比例 + 上移量(orb 自身高的倍数,负=上)。
+ *  −220% ≈ 从 top 19.5% 升过帧顶完全离场(orb 高 7.6cqw、帧高 56.25cqw 换算),第二幕开始前已离场。 */
+const HOIST_SPAN = 0.6; // 吊起动作占 SEG1 的后 60%(「末尾」)
+const HOIST_RISE = -220; // yPercent:升出顶部的目标位移
 
 /** act2 逐条播报:问题(屏幕上方) + 答案(缩放画面左侧, Anton SC 大写)。答案为占位, 待填真文案。 */
 const QA_ITEMS: { q: string; a: string }[] = [
@@ -28,15 +39,20 @@ const QA_ITEMS: { q: string; a: string }[] = [
 /**
  * HomeCollapse —— /lab/home 的**滚动收缩转场 + 问答播报**(见 docs/home-collapse-transition.md)。
  *
- * 一个 pin + scrub 时间线,两幕:
- * ① 收缩(视差=重合去嵌套):hero 帧以不动点 scale→1/3 收进右下角;**每张嵌套卡以同一不动点
- *    scale→3 放大恰好填满父级** → 首页缩、嵌套页放,层层重合,末态扁平**无嵌套**。缓动引站点
- *    转场遮罩(revealer)同款 accelerate(popSettle):慢起→指数冲刺→急刹。
- * ② 问答:继续下滑,屏幕上方问题依次交叉淡切(What is CarryKit / Who am I / 生命的意义),
- *    对应答案在缩放画面左侧(Anton SC 大写)切换;「CarryKit」淡化水印留在原位做背景。
+ * 一个 pin + scrub 时间线,拆成两段(+ 同步问答):
+ * ① 段1 递退一级:hero 帧以不动点 scale→1/3 收进右下角 → 靠自相似合成,每层精确落到「后一层」
+ *    footprint,整条隧道递退但**仍保持嵌套**(不摊平)。dolly 视差:深层 counter-scale 滞后 →
+ *    越靠前越快、隧道被拉深。缓动引站点转场遮罩(revealer)同款 accelerate(popSettle)。
+ *    灯球(orb)在覆盖层脱离缩放、不随收缩移动,仅段1 末尾以 swipe(慢快慢)「吊起升出」帧顶。
+ * ② 段2 依次去嵌套(与问答同步):第一层卡(帧)保持 1/3 不动,内层嵌套卡逐张 scale→3 填满父级,
+ *    **从最外浅层往深处**交错(外层先放大、深层加速跟进,末卡恰在段末收尾)。同时屏幕上方问题依次交叉淡切
+ *    (What is CarryKit / Who am I / 生命的意义),答案在左侧(Anton SC 大写)切换;CarryKit 水印做背景。
+ * ③ 段3 消失:段2 后隧道整帧从 1/3 继续 scale→0(about F)→ 缩向右下不动点没入消失;问答/水印/星标
+ *    (覆盖层)不缩、保留 → 末态 = 空背景 + 最后一条问答文字。
  *
- * 篝火(星标)脱离缩放:摘出缩放帧,改在 stage 覆盖层常驻原位(帧底部居中),贯穿转场不缩不盖。
- * 覆盖层(问题/答案/水印/星标)均 pointer-events-none、不随帧缩放。
+ * 篝火(星标)、灯球(orb)脱离缩放:摘出缩放帧,改在 stage 覆盖层常驻原位(星标帧底部居中、
+ * orb 帧顶部居中),不随收缩移动;orb 另在段1 末尾单独吊起升出。
+ * 覆盖层(问题/答案/水印/星标/灯球)均 pointer-events-none、不随帧缩放。
  * reduced-motion 不建时间线:静态满屏 hero + 其下堆叠问答 + 静态星标兜底。
  */
 export function HomeCollapse() {
@@ -57,6 +73,7 @@ export function HomeCollapse() {
       if (!stage) return;
 
       const accel = motionTokens.ease.accelerate;
+      const SEG2 = QA_ITEMS.length * QA; // 段2 = 问答总长,去嵌套与其同步
       const mm = gsap.matchMedia();
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         gsap.set(frame, { transformOrigin: FIXED_ORIGIN });
@@ -70,7 +87,7 @@ export function HomeCollapse() {
           scrollTrigger: {
             trigger: stage,
             start: "top top",
-            end: "+=400%", // 1 屏收缩 + 3 屏问答
+            end: "+=500%", // 段1 递退(1) + 段2 去嵌套/问答(3) + 段3 缩没(1)
             pin: true,
             scrub: 1,
             invalidateOnRefresh: true,
@@ -87,24 +104,51 @@ export function HomeCollapse() {
           },
         });
 
-        // ① 收缩:帧缩到 1/3;每张嵌套卡放大到 3(填满父级)→ 逐级重合、末态无嵌套。
-        tl.to(frame, { scale: 1 / 3, ease: accel, duration: COLLAPSE }, 0);
-        nestedCards.forEach((c) =>
-          tl.to(c, { scale: 3, ease: accel, duration: COLLAPSE }, 0),
+        // ① 段1 递退一级:整帧 scale→1/3(about F)→ 靠合成让每层精确落到「后一层」footprint,
+        //    隧道自相似递退、仍保持嵌套(不摊平)。此为「越靠前越快」的驱动层。
+        tl.to(frame, { scale: 1 / 3, ease: accel, duration: SEG1 }, 0);
+        // dolly 视差(front faster):给每张嵌套卡随深度递增的 counter-scale(i=0 最外层不加),
+        //    深层净递退更慢 → 段1 期间隧道被「拉深」。段1 末深层略 >1(几 %),段2 再从此值 →3。
+        nestedCards.forEach((c, i) =>
+          tl.to(c, { scale: 1 + i * PARALLAX, ease: "power2.in", duration: SEG1 }, 0),
         );
-        // CarryKit 水印:收缩时淡入到低不透明度做背景(承接被覆盖的帧内 wordmark)
+        // 灯球「吊起升出」:orb 在覆盖层脱离缩放 → **不随嵌套/收缩动画移动**,只在段1 尾段
+        //    (后 HOIST_SPAN)沿自身 yPercent 升过帧顶,缓动 swipe(power4.inOut = 慢快慢);
+        //    SEG1 收尾 → 第二幕开始前离场。之后停在顶外,不再可见,无需清理。
+        const orb = root.querySelector<HTMLElement>("[data-orb]");
+        if (orb)
+          tl.to(
+            orb,
+            { yPercent: HOIST_RISE, ease: motionTokens.ease.swipe, duration: SEG1 * HOIST_SPAN },
+            SEG1 * (1 - HOIST_SPAN),
+          );
+        // CarryKit 水印:段1 淡入到低不透明度做背景(承接被覆盖的帧内 wordmark)
         if (watermark)
           tl.fromTo(
             watermark,
             { autoAlpha: 0 },
-            { autoAlpha: 0.14, ease: "none", duration: COLLAPSE },
+            { autoAlpha: 0.14, ease: "none", duration: SEG1 },
             0,
           );
 
-        // ② 问答逐条交叉淡切(问题+答案同步)。最后一条保持不淡出。
+        // ② 段2 依次去嵌套(**浅层先/从外往深**)+ 与问答同步:帧不 tween → 保持 1/3;
+        //    内层卡逐张 scale→3(about F、填满父级),按 DOM 序 **从最外浅层往深处交错**:
+        //    最外层先放大填满,随后深层「慢慢开始」并加速跟进——嵌套复合(深层内容被每个外层缩放
+        //    叠乘)→ 越深越放越快,像俯冲钻进隧道。
+        //    起始只铺开 span、dur=SEG2−span → **最后一张(最深)卡恰在 SEG1+SEG2 收尾**,
+        //    去嵌套完整落在 SEG2 内;各卡 dur 相同且大幅重叠 → 复合缩放平滑连续。
+        const n = nestedCards.length; // nestedCards DOM 序:[0]=最外浅层 … 末=最深层
+        const span = SEG2 * 0.4; // 各卡起始时间的总铺开(浅层先→深层后)
+        const dur = SEG2 - span; // 末(最深)卡在 SEG1+SEG2 收尾
+        nestedCards.forEach((card, k) => {
+          const at = SEG1 + (n > 1 ? (k / (n - 1)) * span : 0);
+          tl.to(card, { scale: 3, ease: accel, duration: dur }, at);
+        });
+
+        // ③ 问答逐条交叉淡切(问题+答案同步),与段2 去嵌套同步推进。最后一条保持不淡出。
         questions.forEach((q, i) => {
           const pair = [q, answers[i]].filter(Boolean) as HTMLElement[];
-          const at = COLLAPSE + i * QA;
+          const at = SEG1 + i * QA;
           tl.fromTo(
             pair,
             { autoAlpha: 0 },
@@ -114,6 +158,10 @@ export function HomeCollapse() {
           if (i < questions.length - 1)
             tl.to(pair, { autoAlpha: 0, ease: "none", duration: QA * 0.35 }, at + QA);
         });
+
+        // ④ 段3 消失:段2 后,隧道整帧从 1/3 继续 scale→0(仍 about F)→ 整幅画面缩向右下不动点、
+        //    缩成一点没入消失。问答/水印/星标(覆盖层)不缩、保留 → 末态 = 空背景 + 最后一条问答文字。
+        tl.to(frame, { scale: 0, ease: accel, duration: FADE }, SEG1 + SEG2);
       });
 
       return () => mm.revert();
@@ -162,6 +210,13 @@ export function HomeCollapse() {
               className="absolute left-1/2 top-[91%] h-[3.2cqw] w-[3.2cqw] -translate-x-1/2 -translate-y-1/2 bg-muted"
               style={{ clipPath: STAR_CLIP }}
             />
+
+            {/* 灯球(disco orb 占位):脱离缩放、常驻原位(帧顶部居中,同 HomeScene 原位)→
+                **不随嵌套/收缩动画移动**。外壳定位居中,内圆 [data-orb] 是段1 末尾「吊起升出」的
+                GSAP 目标(动自身 yPercent,不扰居中)。日后内圆换 <DiscoBall size="100%" ... />。 */}
+            <div className="absolute left-1/2 top-[19.5%] h-[7.6cqw] w-[7.6cqw] -translate-x-1/2 -translate-y-1/2">
+              <div data-orb className="h-full w-full rounded-full bg-muted" />
+            </div>
           </div>
         </div>
 
@@ -170,7 +225,7 @@ export function HomeCollapse() {
           <div
             ref={frameRef}
             data-active="0"
-            className="group/frame aspect-[16/9] max-h-full w-full max-w-[calc(100vh*16/9)]"
+            className="group/frame relative aspect-[16/9] max-h-full w-full max-w-[calc(100vh*16/9)]"
           >
             <HomeScene depth={0} />
           </div>

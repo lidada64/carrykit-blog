@@ -10,16 +10,19 @@ import { SceneNav } from "./scene-nav";
  * 33.333cqh,仍为 16:9)的自身 → 内层 cqw 自动解析为父级 1/3,每层无需逐层调参、
  * 文字真实渲染不糊。层层嵌套呈"画中画/无限自嵌套"。
  *
- * - 篝火(灰星)只在最外层:showCampfire 不向下传 → 天然只在 depth 0 出现。
- * - 灯球(灰圆)/篝火(灰星)当前为灰色占位,预留 slot;日后一行替换为
- *   <DiscoBall>(CSS→Blender)/ <CampfireDither>,且只在 depth 0 挂真实动画组件。
+ * - 篝火(灰星)只在最外层 depth 0(showCampfire 不向下递归)。当前灰色占位,预留 slot;
+ *   日后一行替换为 <CampfireDither>。
+ * - 灯球(orb)**不在本组件内**:它需「不随嵌套/收缩动画移动」,故与篝火同样脱离缩放帧,
+ *   改由 HomeCollapse 挂在 stage 覆盖层常驻原位、段1 末尾单独「吊起升出」(见 home-collapse.tsx)。
+ * - nav 栏**随层递归**(每层都渲染,仅 depth 0 可交互):深层 nav 文字在段2 去嵌套放大时会有
+ *   被裁的碎字残留(已认可的取舍),换取隧道 Droste 更丰富。
  * - 嵌套副本(depth>0)pointer-events-none + aria-hidden,不可点、不被读屏重复朗读。
  */
 export interface HomeSceneProps {
   depth: number;
   /** 是否渲染篝火(灰星)——仅最外层传 true,不向下递归 */
   showCampfire?: boolean;
-  /** 递归收口层数;默认 6(第 6 层约 1/729 帧,观感"无限",供收缩前滚的深隧道) */
+  /** 递归收口层数;默认 9(第 9 层不再套娃,自然收口为纯 hero)。 */
   maxDepth?: number;
 }
 
@@ -27,7 +30,7 @@ export interface HomeSceneProps {
 export const STAR_CLIP =
   "polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)";
 
-export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSceneProps) {
+export function HomeScene({ depth, showCampfire = false, maxDepth = 9 }: HomeSceneProps) {
   const inner = depth > 0;
   const hasNested = depth < maxDepth;
 
@@ -42,16 +45,11 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSce
         .join(" ")}
       aria-hidden={inner || undefined}
     >
-      {/* 顶部导航:仅最外层可交互 */}
+      {/* 顶部导航:**随层递归**(每层渲染,仅最外层 depth 0 可交互;嵌套副本静态镜像)。
+          深层 nav 在段2 去嵌套放大时会留碎字残留(已认可取舍),换隧道 Droste 更丰富。 */}
       <SceneNav interactive={!inner} />
 
-      {/* 灰圆 —— disco 灯球锚点占位。中上偏center。选中(镜像)时反色。
-          data-key 供顶层命中检测;group-data 变体让每层同 key 元素同步高亮。
-          日后替换:<DiscoBall size="7.6cqw" ... /> (仅 depth 0 挂真实组件) */}
-      <div
-        data-key="orb"
-        className="absolute left-1/2 top-[19.5%] h-[7.6cqw] w-[7.6cqw] -translate-x-1/2 -translate-y-1/2 rounded-full bg-muted transition-colors duration-200 group-data-[hk=orb]/frame:bg-foreground"
-      />
+      {/* 灯球(orb)已移出本组件 → HomeCollapse 的 stage 覆盖层(脱离缩放、不随嵌套动画移动)。 */}
 
       {/* 主 wordmark:左偏中、大号斜体。字体同现有主页标题(font-title=IM Fell
           English SC,italic),与站点保持一致;scale-y 适度竖向拉长;选中高亮 */}
@@ -73,11 +71,13 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSce
       )}
 
       {/* 右下角自嵌套卡片:1/3 尺寸(仍 16:9),内部递归同一场景。当前不可直接选取。
-          不传 showCampfire → 篝火天然不下传。描边用 cq 单位以随层缩放。 */}
+          不传 showCampfire → 篝火天然不下传。
+          注:不加边框——收缩时卡放大 3×、逐层复合 3^depth,任何 border 都会被同步放大成
+          越往里越粗、在不动点堆成"灰疙瘩";无框才能让各层无缝重合。 */}
       {hasNested && (
         <div
           data-nested
-          className="absolute left-[58.75%] top-[54.9%] h-[33.333cqh] w-[33.333cqw] overflow-hidden border-[0.1cqw] border-border"
+          className="absolute left-[58.75%] top-[54.9%] h-[33.333cqh] w-[33.333cqw] overflow-hidden"
         >
           <HomeScene depth={depth + 1} maxDepth={maxDepth} />
         </div>
