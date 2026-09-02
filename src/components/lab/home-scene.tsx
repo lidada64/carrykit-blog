@@ -6,8 +6,8 @@ import { SceneNav } from "./scene-nav";
  * HomeScene —— /lab/home 极简 Hero 的**递归自相似单元**(复刻 Figma "page")。
  *
  * 自相似做法(方案 A):根元素声明 [container-type:size],所有位置用 %、所有
- * 尺寸/字号用 cqw/cqh(相对容器自身)。嵌套一个**比例 0.6** 尺寸(60cqw ×
- * 60cqh)的自身 → 内层 cqw 自动解析为父级 0.6,每层无需逐层调参、文字真实渲染不糊。
+ * 尺寸/字号用 cqw/cqh(相对容器自身)。嵌套一个**比例 0.5** 尺寸(50cqw ×
+ * 50cqh)的自身 → 内层 cqw 自动解析为父级 0.5,每层无需逐层调参、文字真实渲染不糊。
  * 嵌套居中向**距顶 61.8% 的下黄金比点**汇聚(不动点 50% / 61.8%),层层往后叠 + 逐层淡出。
  *
  * - 篝火(灰星)只在最外层 depth 0(showCampfire 不向下递归)。当前灰色占位,预留 slot;
@@ -69,16 +69,16 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSce
         />
       )}
 
-      {/* 自嵌套卡片:**比例 0.6** 尺寸,居中偏上定位 → 向下黄金比不动点(50%/61.8%)汇聚。
-          比例越小 = 每层递缩步幅越大 = 层间间隔越拉长(隧道更疏、后退更快)。
-          opacity-[0.7]:每层不透明度沿嵌套复合递减(depth d ≈ 0.7^d)→ 层间间隔拉大后梯度更陡,越往后越快淡向背景。
+      {/* 自嵌套卡片:**比例 0.5** 尺寸,居中偏上定位 → 向下黄金比不动点(50%/61.8%)汇聚。
+          比例越小 = 每层递缩步幅越大 = 层数密度越低(隧道更疏、后退更快)。
+          opacity-[0.7]:每层不透明度沿嵌套复合递减(depth d ≈ 0.7^d)→ 越往后越快淡向背景。
           不传 showCampfire → 篝火天然不下传。
-          注:不加边框——收缩时卡放大 1/0.6×、逐层复合,任何 border 都会被同步放大成
+          注:不加边框——收缩时卡放大 1/0.5×、逐层复合,任何 border 都会被同步放大成
           越往里越粗、在不动点堆成"灰疙瘩";无框才能让各层无缝重合。 */}
       {hasNested && (
         <div
           data-nested
-          className="absolute left-[20%] top-[24.72%] h-[60cqh] w-[60cqw] overflow-hidden opacity-[0.7]"
+          className="absolute left-[25%] top-[30.9%] h-[50cqh] w-[50cqw] overflow-hidden opacity-[0.7]"
         >
           <HomeScene depth={depth + 1} maxDepth={maxDepth} />
         </div>
