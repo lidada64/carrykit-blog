@@ -10,17 +10,17 @@ import { motionTokens } from "@/components/motion/tokens";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-/** 递归不动点 = 嵌套汇聚点。黄金比嵌套(每层 0.618)映射 x'=0.191+0.618x、y'=0.236+0.618y,
+/** 递归不动点 = 嵌套汇聚点。嵌套比例 r=0.7 映射 x'=0.15+0.7x、y'=0.185+0.7y,
  *  不动点 = (L/(1−r), T/(1−r)) = (50%, 61.8%) → 屏幕水平居中、竖直下黄金比线。
- *  帧以此为原点缩到 0.618(递退一级);每张嵌套卡以此为原点放大到 1/0.618≈1.618(填满父级)。 */
+ *  帧以此为原点缩到 r(递退一级);每张嵌套卡以此为原点放大到 1/r(填满父级)。 */
 const FIXED_ORIGIN = "50% 61.8%";
 
-/** 嵌套比例 r = 1/φ(黄金分割 0.618):子卡 = 父级 0.618。转场缩放目标由它派生
- *  (段1 帧→r 递退一级、段2 卡→1/r 去嵌套)。改比例须与子卡 left/top、FIXED_ORIGIN 联动。 */
-const NEST_RATIO = 0.618;
+/** 嵌套比例 r:子卡 = 父级 r。转场缩放目标由它派生(段1 帧→r 递退一级、段2 卡→1/r 去嵌套)。
+ *  改比例须与子卡 left/top(= F·(1−r) = 15% / 18.54%)、FIXED_ORIGIN 联动。 */
+const NEST_RATIO = 0.7;
 
 /** 时间线时长(单位);end = 各段之和的百分比。
- *  段1 递退一级(整帧 →0.618);段2 依次去嵌套(内层卡 →1.618,深层先)与问答同步铺满;段3 隧道缩没(帧 →0)。 */
+ *  段1 递退一级(整帧 →r);段2 依次去嵌套(内层卡 →1/r,深层先)与问答同步铺满;段3 隧道缩没(帧 →0)。 */
 const SEG1 = 1;
 const QA = 1;
 const FADE = 1; // 段3:末端隧道缩没入不动点的滚动配额
@@ -45,14 +45,14 @@ const QA_ITEMS: { q: string; a: string }[] = [
  * HomeCollapse —— /lab/home 的**滚动收缩转场 + 问答播报**(见 docs/home-collapse-transition.md)。
  *
  * 一个 pin + scrub 时间线,拆成两段(+ 同步问答):
- * ① 段1 递退一级:hero 帧以不动点 scale→0.618 收进下黄金比点 → 靠自相似合成,每层精确落到「后一层」
+ * ① 段1 递退一级:hero 帧以不动点 scale→r(NEST_RATIO)收进下黄金比点 → 靠自相似合成,每层精确落到「后一层」
  *    footprint,整条隧道递退但**仍保持嵌套**(不摊平)。dolly 视差:深层 counter-scale 滞后 →
  *    越靠前越快、隧道被拉深。缓动引站点转场遮罩(revealer)同款 accelerate(popSettle)。
  *    灯球(orb)在覆盖层脱离缩放、不随收缩移动,仅段1 末尾以 swipe(慢快慢)「吊起升出」帧顶。
- * ② 段2 依次去嵌套(与问答同步):第一层卡(帧)保持 0.618 不动,内层嵌套卡逐张 scale→1.618 填满父级,
+ * ② 段2 依次去嵌套(与问答同步):第一层卡(帧)保持 r 不动,内层嵌套卡逐张 scale→1/r 填满父级,
  *    **从最外浅层往深处**交错(外层先放大、深层加速跟进,末卡恰在段末收尾)。同时屏幕上方问题依次交叉淡切
  *    (What is CarryKit / Who am I / 生命的意义),答案在左侧(Anton SC 大写)切换;CarryKit 水印做背景。
- * ③ 段3 消失:段2 后隧道整帧从 0.618 继续 scale→0(about F)→ 缩向下黄金比不动点没入消失;问答/水印/星标
+ * ③ 段3 消失:段2 后隧道整帧从 r 继续 scale→0(about F)→ 缩向下黄金比不动点没入消失;问答/水印/星标
  *    (覆盖层)不缩、保留 → 末态 = 空背景 + 最后一条问答文字。
  *
  * 篝火(星标)、灯球(orb)脱离缩放:摘出缩放帧,改在 stage 覆盖层常驻原位(星标帧底部居中、
@@ -109,11 +109,11 @@ export function HomeCollapse() {
           },
         });
 
-        // ① 段1 递退一级:整帧 scale→NEST_RATIO(0.618,about F)→ 靠合成让每层精确落到「后一层」footprint,
+        // ① 段1 递退一级:整帧 scale→NEST_RATIO(about F)→ 靠合成让每层精确落到「后一层」footprint,
         //    隧道自相似递退、仍保持嵌套(不摊平)。此为「越靠前越快」的驱动层。
         tl.to(frame, { scale: NEST_RATIO, ease: accel, duration: SEG1 }, 0);
         // dolly 视差(front faster):给每张嵌套卡随深度递增的 counter-scale(i=0 最外层不加),
-        //    深层净递退更慢 → 段1 期间隧道被「拉深」。段1 末深层略 >1(几 %),段2 再从此值 →1.618。
+        //    深层净递退更慢 → 段1 期间隧道被「拉深」。段1 末深层略 >1(几 %),段2 再从此值 →1/r。
         nestedCards.forEach((c, i) =>
           tl.to(c, { scale: 1 + i * PARALLAX, ease: "power2.in", duration: SEG1 }, 0),
         );
@@ -127,17 +127,20 @@ export function HomeCollapse() {
             { yPercent: HOIST_RISE, ease: motionTokens.ease.swipe, duration: SEG1 * HOIST_SPAN },
             SEG1 * (1 - HOIST_SPAN),
           );
-        // CarryKit 水印:段1 淡入到低不透明度做背景(承接被覆盖的帧内 wordmark)
-        if (watermark)
+        // CarryKit 水印:段1 淡入到低不透明度做背景(承接被覆盖的帧内 wordmark);
+        //    **进入段2 先消失**(t=SEG1 快速淡出)→ 段2 不再有水印背景。
+        if (watermark) {
           tl.fromTo(
             watermark,
             { autoAlpha: 0 },
             { autoAlpha: 0.14, ease: "none", duration: SEG1 },
             0,
           );
+          tl.to(watermark, { autoAlpha: 0, ease: "none", duration: QA * 0.3 }, SEG1);
+        }
 
-        // ② 段2 依次去嵌套(**浅层先/从外往深**)+ 与问答同步:帧不 tween → 保持 0.618;
-        //    内层卡逐张 scale→1/NEST_RATIO(≈1.618,about F、填满父级),按 DOM 序 **从最外浅层往深处交错**:
+        // ② 段2 依次去嵌套(**浅层先/从外往深**)+ 与问答同步:帧不 tween → 保持 r;
+        //    内层卡逐张 scale→1/NEST_RATIO(about F、填满父级),按 DOM 序 **从最外浅层往深处交错**:
         //    最外层先放大填满,随后深层「慢慢开始」并加速跟进——嵌套复合(深层内容被每个外层缩放
         //    叠乘)→ 越深越放越快,像俯冲钻进隧道。
         //    起始只铺开 span、dur=SEG2−span → **最后一张(最深)卡恰在 SEG1+SEG2 收尾**,
@@ -194,7 +197,7 @@ export function HomeCollapse() {
             {/* 淡化 CarryKit 水印:与 scene wordmark 同(**水平居中**)位置/字体,收缩时淡入做背景 */}
             <span
               data-watermark
-              className="absolute left-1/2 top-[43.6%] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[8.5cqw] font-normal italic leading-none tracking-[0.02em] text-foreground opacity-0"
+              className="absolute left-1/2 top-[43.6%] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[12cqw] font-normal italic leading-none tracking-[0.02em] text-foreground opacity-0"
             >
               CarryKit.
             </span>

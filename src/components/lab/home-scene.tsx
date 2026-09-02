@@ -6,8 +6,8 @@ import { SceneNav } from "./scene-nav";
  * HomeScene —— /lab/home 极简 Hero 的**递归自相似单元**(复刻 Figma "page")。
  *
  * 自相似做法(方案 A):根元素声明 [container-type:size],所有位置用 %、所有
- * 尺寸/字号用 cqw/cqh(相对容器自身)。嵌套一个**黄金比 0.618** 尺寸(61.8cqw ×
- * 61.8cqh)的自身 → 内层 cqw 自动解析为父级 0.618,每层无需逐层调参、文字真实渲染不糊。
+ * 尺寸/字号用 cqw/cqh(相对容器自身)。嵌套一个**比例 0.7** 尺寸(70cqw ×
+ * 70cqh)的自身 → 内层 cqw 自动解析为父级 0.7,每层无需逐层调参、文字真实渲染不糊。
  * 嵌套居中向**距顶 61.8% 的下黄金比点**汇聚(不动点 50% / 61.8%),层层往后叠 + 逐层淡出。
  *
  * - 篝火(灰星)只在最外层 depth 0(showCampfire 不向下递归)。当前灰色占位,预留 slot;
@@ -51,10 +51,10 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 9 }: HomeSce
 
       {/* 主 wordmark:**水平居中**、大号斜体。字体同现有主页标题(font-title=IM Fell
           English SC,italic),与站点保持一致;scale-y 适度竖向拉长;选中高亮。
-          每层居中 → 沿汇聚线叠成居中的 CarryKit 隧道。 */}
+          z-[1] 置于本层嵌套卡之上 → **外层字体不透明**,内层 wordmark 随嵌套卡 opacity 复合渐隐。 */}
       <span
         data-key="wordmark"
-        className="absolute left-1/2 top-[43.6%] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[8.5cqw] font-normal italic leading-none tracking-[0.02em] text-foreground transition-colors duration-200 group-data-[hk=wordmark]/frame:text-accent"
+        className="absolute left-1/2 top-[43.6%] z-[1] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[12cqw] font-normal italic leading-none tracking-[0.02em] text-foreground transition-colors duration-200 group-data-[hk=wordmark]/frame:text-accent"
       >
         CarryKit.
       </span>
@@ -69,15 +69,15 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 9 }: HomeSce
         />
       )}
 
-      {/* 自嵌套卡片:**黄金比 0.618** 尺寸,居中偏上定位 → 向下黄金比不动点(50%/61.8%)汇聚。
+      {/* 自嵌套卡片:**比例 0.7** 尺寸,居中偏上定位 → 向下黄金比不动点(50%/61.8%)汇聚。
           opacity-[0.85]:每层不透明度沿嵌套复合递减(depth d ≈ 0.85^d)→ 越往后越淡向背景。
           不传 showCampfire → 篝火天然不下传。
-          注:不加边框——收缩时卡放大 1/0.618×、逐层复合,任何 border 都会被同步放大成
+          注:不加边框——收缩时卡放大 1/0.7×、逐层复合,任何 border 都会被同步放大成
           越往里越粗、在不动点堆成"灰疙瘩";无框才能让各层无缝重合。 */}
       {hasNested && (
         <div
           data-nested
-          className="absolute left-[19.1%] top-[23.6%] h-[61.8cqh] w-[61.8cqw] overflow-hidden opacity-[0.85]"
+          className="absolute left-[15%] top-[18.54%] h-[70cqh] w-[70cqw] overflow-hidden opacity-[0.85]"
         >
           <HomeScene depth={depth + 1} maxDepth={maxDepth} />
         </div>
