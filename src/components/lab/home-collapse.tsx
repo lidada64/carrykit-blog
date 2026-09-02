@@ -4,21 +4,21 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { HomeScene, STAR_CLIP } from "./home-scene";
+import { HomeScene, STAR_CLIP, WORDMARK_TOP_BASE } from "./home-scene";
 import { CursorMirror } from "./cursor-mirror";
 import { motionTokens } from "@/components/motion/tokens";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-/** 递归不动点 = 嵌套汇聚点。嵌套比例 r=0.5 映射 x'=0.25+0.5x、y'=0.309+0.5y,
+/** 递归不动点 = 嵌套汇聚点。嵌套比例 r=0.55 映射 x'=0.225+0.55x、y'=0.2781+0.55y,
  *  不动点 = (L/(1−r), T/(1−r)) = (50%, 61.8%) → 屏幕水平居中、竖直下黄金比线。
  *  帧以此为原点缩到 r(递退一级);每张嵌套卡以此为原点放大到 1/r(填满父级)。 */
 const FIXED_ORIGIN = "50% 61.8%";
 
 /** 嵌套比例 r:子卡 = 父级 r。转场缩放目标由它派生(段1 帧→r 递退一级、段2 卡→1/r 去嵌套)。
- *  改比例须与子卡 left/top(= F·(1−r) = 25% / 30.9%)、FIXED_ORIGIN 联动。
+ *  改比例须与子卡 left/top(= F·(1−r) = 22.5% / 27.81%)、FIXED_ORIGIN 联动。
  *  r 越小 = 层数密度越低(每层递缩步幅越大、隧道更疏)。 */
-const NEST_RATIO = 0.5;
+const NEST_RATIO = 0.55;
 
 /** 时间线时长(单位);end = 各段之和的百分比。
  *  段1 递退一级(整帧 →r);段2 依次去嵌套(内层卡 →1/r,深层先)与问答同步铺满;段3 隧道缩没(帧 →0)。 */
@@ -198,7 +198,8 @@ export function HomeCollapse() {
             {/* 淡化 CarryKit 水印:与 scene wordmark 同(**水平居中**)位置/字体,收缩时淡入做背景 */}
             <span
               data-watermark
-              className="absolute left-1/2 top-[43.6%] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[11cqw] font-normal italic leading-none tracking-[0.02em] text-foreground opacity-0"
+              style={{ top: `${WORDMARK_TOP_BASE}%` }}
+              className="absolute left-1/2 origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[11cqw] font-normal italic leading-none tracking-[0.02em] text-foreground opacity-0"
             >
               CarryKit.
             </span>

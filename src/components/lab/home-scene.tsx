@@ -6,8 +6,8 @@ import { SceneNav } from "./scene-nav";
  * HomeScene —— /lab/home 极简 Hero 的**递归自相似单元**(复刻 Figma "page")。
  *
  * 自相似做法(方案 A):根元素声明 [container-type:size],所有位置用 %、所有
- * 尺寸/字号用 cqw/cqh(相对容器自身)。嵌套一个**比例 0.5** 尺寸(50cqw ×
- * 50cqh)的自身 → 内层 cqw 自动解析为父级 0.5,每层无需逐层调参、文字真实渲染不糊。
+ * 尺寸/字号用 cqw/cqh(相对容器自身)。嵌套一个**比例 0.55** 尺寸(55cqw ×
+ * 55cqh)的自身 → 内层 cqw 自动解析为父级 0.55,每层无需逐层调参、文字真实渲染不糊。
  * 嵌套居中向**距顶 61.8% 的下黄金比点**汇聚(不动点 50% / 61.8%),层层往后叠 + 逐层淡出。
  *
  * - 篝火(灰星)只在最外层 depth 0(showCampfire 不向下递归)。当前灰色占位,预留 slot;
@@ -28,6 +28,13 @@ export interface HomeSceneProps {
 // 五角星裁剪路径(篝火锚点占位)。导出供 HomeCollapse 的独立星标复用(篝火脱离缩放)。
 export const STAR_CLIP =
   "polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)";
+
+/** wordmark 逐层竖向错位:**靠前(depth 小)往下放、靠后(depth 大)往上放**。
+ *  本层竖向锚点(容器局部 %)= BASE − depth·STEP。都是手感旋钮。
+ *  注:HomeCollapse 的水印(承接 depth 0 的 wordmark)须与 depth 0 的值(=BASE)对齐。 */
+export const WORDMARK_TOP_BASE = 52; // depth 0(最靠前)——往下
+const WORDMARK_TOP_STEP = 5; // 每深一层上移的百分点(靠后往上)
+export const wordmarkTopPct = (depth: number) => WORDMARK_TOP_BASE - depth * WORDMARK_TOP_STEP;
 
 export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSceneProps) {
   const inner = depth > 0;
@@ -54,7 +61,8 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSce
           z-[1] 置于本层嵌套卡之上 → **外层字体不透明**,内层 wordmark 随嵌套卡 opacity 复合渐隐。 */}
       <span
         data-key="wordmark"
-        className="absolute left-1/2 top-[43.6%] z-[1] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[11cqw] font-normal italic leading-none tracking-[0.02em] text-foreground transition-colors duration-200 group-data-[hk=wordmark]/frame:text-accent"
+        style={{ top: `${wordmarkTopPct(depth)}%` }}
+        className="absolute left-1/2 z-[1] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[11cqw] font-normal italic leading-none tracking-[0.02em] text-foreground transition-colors duration-200 group-data-[hk=wordmark]/frame:text-accent"
       >
         CarryKit.
       </span>
@@ -69,16 +77,16 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSce
         />
       )}
 
-      {/* 自嵌套卡片:**比例 0.5** 尺寸,居中偏上定位 → 向下黄金比不动点(50%/61.8%)汇聚。
+      {/* 自嵌套卡片:**比例 0.55** 尺寸,居中偏上定位 → 向下黄金比不动点(50%/61.8%)汇聚。
           比例越小 = 每层递缩步幅越大 = 层数密度越低(隧道更疏、后退更快)。
           opacity-[0.7]:每层不透明度沿嵌套复合递减(depth d ≈ 0.7^d)→ 越往后越快淡向背景。
           不传 showCampfire → 篝火天然不下传。
-          注:不加边框——收缩时卡放大 1/0.5×、逐层复合,任何 border 都会被同步放大成
+          注:不加边框——收缩时卡放大 1/0.55×、逐层复合,任何 border 都会被同步放大成
           越往里越粗、在不动点堆成"灰疙瘩";无框才能让各层无缝重合。 */}
       {hasNested && (
         <div
           data-nested
-          className="absolute left-[25%] top-[30.9%] h-[50cqh] w-[50cqw] overflow-hidden opacity-[0.7]"
+          className="absolute left-[22.5%] top-[27.81%] h-[55cqh] w-[55cqw] overflow-hidden opacity-[0.7]"
         >
           <HomeScene depth={depth + 1} maxDepth={maxDepth} />
         </div>
