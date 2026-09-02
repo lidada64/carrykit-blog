@@ -198,7 +198,7 @@ export function HomeCollapse() {
             {/* 淡化 CarryKit 水印:与 scene wordmark 同(**水平居中**)位置/字体,收缩时淡入做背景 */}
             <span
               data-watermark
-              className="absolute left-1/2 top-[43.6%] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[16cqw] font-normal italic leading-none tracking-[0.02em] text-foreground opacity-0"
+              className="absolute left-1/2 top-[43.6%] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[11cqw] font-normal italic leading-none tracking-[0.02em] text-foreground opacity-0"
             >
               CarryKit.
             </span>

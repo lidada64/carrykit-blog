@@ -21,7 +21,7 @@ export interface HomeSceneProps {
   depth: number;
   /** 是否渲染篝火(灰星)——仅最外层传 true,不向下递归 */
   showCampfire?: boolean;
-  /** 递归收口层数;默认 9(第 9 层不再套娃,自然收口为纯 hero)。 */
+  /** 递归收口层数;默认 6(第 6 层不再套娃,自然收口为纯 hero)。 */
   maxDepth?: number;
 }
 
@@ -29,7 +29,7 @@ export interface HomeSceneProps {
 export const STAR_CLIP =
   "polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)";
 
-export function HomeScene({ depth, showCampfire = false, maxDepth = 9 }: HomeSceneProps) {
+export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSceneProps) {
   const inner = depth > 0;
   const hasNested = depth < maxDepth;
 
@@ -54,7 +54,7 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 9 }: HomeSce
           z-[1] 置于本层嵌套卡之上 → **外层字体不透明**,内层 wordmark 随嵌套卡 opacity 复合渐隐。 */}
       <span
         data-key="wordmark"
-        className="absolute left-1/2 top-[43.6%] z-[1] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[16cqw] font-normal italic leading-none tracking-[0.02em] text-foreground transition-colors duration-200 group-data-[hk=wordmark]/frame:text-accent"
+        className="absolute left-1/2 top-[43.6%] z-[1] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[11cqw] font-normal italic leading-none tracking-[0.02em] text-foreground transition-colors duration-200 group-data-[hk=wordmark]/frame:text-accent"
       >
         CarryKit.
       </span>
