@@ -31,9 +31,11 @@ export const STAR_CLIP =
 
 /** wordmark 逐层竖向错位:**靠前(depth 小)往下放、靠后(depth 大)往上放**。
  *  本层竖向锚点(容器局部 %)= BASE − depth·STEP。都是手感旋钮。
+ *  BASE=61.8 → depth 0 的 CarryKit **与收缩中心/嵌套不动点(50%/61.8%)重合**
+ *  → 最后收缩正好缩进第一层 CarryKit。
  *  注:HomeCollapse 的水印(承接 depth 0 的 wordmark)须与 depth 0 的值(=BASE)对齐。 */
-export const WORDMARK_TOP_BASE = 52; // depth 0(最靠前)——往下
-const WORDMARK_TOP_STEP = 5; // 每深一层上移的百分点(靠后往上)
+export const WORDMARK_TOP_BASE = 61.8; // depth 0(最靠前)——落在收缩中心
+const WORDMARK_TOP_STEP = 8; // 每深一层上移的百分点(靠后往上)
 export const wordmarkTopPct = (depth: number) => WORDMARK_TOP_BASE - depth * WORDMARK_TOP_STEP;
 
 export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSceneProps) {
