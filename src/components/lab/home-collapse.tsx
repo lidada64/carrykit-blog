@@ -10,14 +10,15 @@ import { motionTokens } from "@/components/motion/tokens";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-/** 递归不动点 = 嵌套汇聚点。嵌套比例 r=0.7 映射 x'=0.15+0.7x、y'=0.185+0.7y,
+/** 递归不动点 = 嵌套汇聚点。嵌套比例 r=0.6 映射 x'=0.20+0.6x、y'=0.2472+0.6y,
  *  不动点 = (L/(1−r), T/(1−r)) = (50%, 61.8%) → 屏幕水平居中、竖直下黄金比线。
  *  帧以此为原点缩到 r(递退一级);每张嵌套卡以此为原点放大到 1/r(填满父级)。 */
 const FIXED_ORIGIN = "50% 61.8%";
 
 /** 嵌套比例 r:子卡 = 父级 r。转场缩放目标由它派生(段1 帧→r 递退一级、段2 卡→1/r 去嵌套)。
- *  改比例须与子卡 left/top(= F·(1−r) = 15% / 18.54%)、FIXED_ORIGIN 联动。 */
-const NEST_RATIO = 0.7;
+ *  改比例须与子卡 left/top(= F·(1−r) = 20% / 24.72%)、FIXED_ORIGIN 联动。
+ *  r 越小 = 层间间隔越拉长(每层递缩步幅越大)。 */
+const NEST_RATIO = 0.6;
 
 /** 时间线时长(单位);end = 各段之和的百分比。
  *  段1 递退一级(整帧 →r);段2 依次去嵌套(内层卡 →1/r,深层先)与问答同步铺满;段3 隧道缩没(帧 →0)。 */
@@ -197,7 +198,7 @@ export function HomeCollapse() {
             {/* 淡化 CarryKit 水印:与 scene wordmark 同(**水平居中**)位置/字体,收缩时淡入做背景 */}
             <span
               data-watermark
-              className="absolute left-1/2 top-[43.6%] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[12cqw] font-normal italic leading-none tracking-[0.02em] text-foreground opacity-0"
+              className="absolute left-1/2 top-[43.6%] origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[16cqw] font-normal italic leading-none tracking-[0.02em] text-foreground opacity-0"
             >
               CarryKit.
             </span>
