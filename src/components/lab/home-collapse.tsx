@@ -10,10 +10,11 @@ import { motionTokens } from "@/components/motion/tokens";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-/** 递归不动点 = 嵌套汇聚点。嵌套比例 r=0.55 映射 x'=0.225+0.55x、y'=0.225+0.55y,
- *  不动点 = (L/(1−r), T/(1−r)) = (50%, 50%) → **屏幕正中心**。
- *  帧以此为原点缩到 r(递退一级、递退向正中);每张嵌套卡以此为原点放大到 1/r(填满父级)。 */
-const FIXED_ORIGIN = "50% 50%";
+/** 递归不动点 = 嵌套汇聚点。嵌套比例 r=0.55 映射 x'=0.225+0.55x、y'=0.1719+0.55y,
+ *  不动点 = (L/(1−r), T/(1−r)) = (50%, 38.2%) → **屏幕上黄金线(上短下长)**;
+ *  第一层 CarryKit 在正中(50%),越深越往上收进 38.2% 消失。
+ *  帧以此为原点缩到 r(递退一级、递退向上黄金点);每张嵌套卡以此为原点放大到 1/r(填满父级)。 */
+const FIXED_ORIGIN = "50% 38.2%";
 
 /** 嵌套比例 r:子卡 = 父级 r。转场缩放目标由它派生(段1 帧→r 递退一级、段2 卡→1/r 去嵌套)。
  *  改比例须与子卡 left/top(= F·(1−r) = 22.5% / 22.5%)、FIXED_ORIGIN 联动。
@@ -80,13 +81,15 @@ export function HomeCollapse() {
 
       const accel = motionTokens.ease.accelerate;
       const SEG2 = QA_ITEMS.length * QA; // 段2 = 问答总长,去嵌套与其同步
+      const SEG1_END = SEG1 / (SEG1 + SEG2 + FADE); // 段1 结束的滚动进度(镜像光标保留到此)
       const mm = gsap.matchMedia();
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         gsap.set(frame, { transformOrigin: FIXED_ORIGIN });
         nestedCards.forEach((c) => gsap.set(c, { transformOrigin: FIXED_ORIGIN }));
 
-        // CursorMirror 门控:帧一缩放其 getBoundingClientRect 失真、镜像环错位 →
-        // 滚出顶部时隐藏镜像环(data-active=0),回到顶部再恢复。仅原本 active 时切换。
+        // CursorMirror 门控:**段1 全程保留镜像环**(用户需随时知道鼠标位置)——环靠 CursorMirror
+        // 每帧用「最后鼠标屏幕坐标 ÷ 当前(缩放中)frame rect」重算 → 缩放时仍精确贴真实鼠标、不漂移。
+        // 段1 之后(段2 放大 / 段3 缩没)帧 rect 剧变 → 隐藏环(data-active=0),回滚进段1 再恢复。
         let hiddenByScroll = false;
 
         const tl = gsap.timeline({
@@ -99,10 +102,10 @@ export function HomeCollapse() {
             invalidateOnRefresh: true,
             onUpdate: (self) => {
               const p = self.progress;
-              if (p > 0.02 && frame.dataset.active === "1") {
+              if (p > SEG1_END && frame.dataset.active === "1") {
                 frame.dataset.active = "0";
                 hiddenByScroll = true;
-              } else if (p <= 0.02 && hiddenByScroll) {
+              } else if (p <= SEG1_END && hiddenByScroll) {
                 frame.dataset.active = "1";
                 hiddenByScroll = false;
               }

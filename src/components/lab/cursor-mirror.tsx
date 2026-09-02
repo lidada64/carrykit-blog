@@ -28,22 +28,18 @@ export function CursorMirror({ frameRef }: { frameRef: RefObject<HTMLDivElement 
     document.head.appendChild(style);
     frame.dataset.active = "1";
 
-    let tx = 0.5;
-    let ty = 0.5;
+    // 记「最后鼠标屏幕坐标」而非归一化值:每帧对**当前**frame rect 重算 → 转场缩放时(段1)
+    // 鼠标不动而 frame 缩放,环仍精确贴在真实鼠标处、不随缩放漂移(滚动无 pointermove 也跟得住)。
+    let lx: number | null = null;
+    let ly: number | null = null;
     let cx = 0.5;
     let cy = 0.5;
     let seeded = false;
     let raf = 0;
 
     const onMove = (e: PointerEvent) => {
-      const r = frame.getBoundingClientRect();
-      tx = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
-      ty = Math.min(1, Math.max(0, (e.clientY - r.top) / r.height));
-      if (!seeded) {
-        seeded = true;
-        cx = tx;
-        cy = ty;
-      }
+      lx = e.clientX;
+      ly = e.clientY;
       // 嵌套 pointer-events-none → e.target 只会是 depth 0 的 [data-key] 元素或空白
       const el = (e.target as Element | null)?.closest?.("[data-key]") as HTMLElement | null;
       const key = el?.dataset.key;
@@ -52,8 +48,20 @@ export function CursorMirror({ frameRef }: { frameRef: RefObject<HTMLDivElement 
     };
 
     const tick = () => {
-      cx += (tx - cx) * 0.2;
-      cy += (ty - cy) * 0.2;
+      if (lx !== null && ly !== null) {
+        const r = frame.getBoundingClientRect();
+        if (r.width > 0 && r.height > 0) {
+          const tx = Math.min(1, Math.max(0, (lx - r.left) / r.width));
+          const ty = Math.min(1, Math.max(0, (ly - r.top) / r.height));
+          if (!seeded) {
+            seeded = true;
+            cx = tx;
+            cy = ty;
+          }
+          cx += (tx - cx) * 0.2;
+          cy += (ty - cy) * 0.2;
+        }
+      }
       frame.style.setProperty("--cx", cx.toFixed(4));
       frame.style.setProperty("--cy", cy.toFixed(4));
       raf = requestAnimationFrame(tick);

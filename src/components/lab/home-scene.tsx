@@ -8,7 +8,8 @@ import { SceneNav } from "./scene-nav";
  * 自相似做法(方案 A):根元素声明 [container-type:size],所有位置用 %、所有
  * 尺寸/字号用 cqw/cqh(相对容器自身)。嵌套一个**比例 0.55** 尺寸(55cqw ×
  * 55cqh)的自身 → 内层 cqw 自动解析为父级 0.55,每层无需逐层调参、文字真实渲染不糊。
- * 嵌套居中向**屏幕正中心**汇聚(不动点 50% / 50%),层层往后叠 + 逐层淡出。
+ * 嵌套居中向**上黄金线**汇聚(不动点 50% / 38.2% = 上短下长);第一层 CarryKit 在**屏幕正中(50%)**、
+ * 越深的层越往上收进 38.2%,层层往后叠 + 逐层淡出。
  *
  * - 篝火(灰星)只在最外层 depth 0(showCampfire 不向下递归)。当前灰色占位,预留 slot;
  *   日后一行替换为 <CampfireDither>。
@@ -30,11 +31,11 @@ export const STAR_CLIP =
   "polygon(50% 0%,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)";
 
 /** wordmark 逐层竖向错位:本层竖向锚点(容器局部 %)= BASE − depth·STEP。都是手感旋钮。
- *  BASE=61.8 = **下黄金线**(在收缩中心/不动点 50% 的**下方**):depth 0 的 CarryKit 落在这条线、
- *  最前最大;收缩中心 = **屏幕正中 50%**,越深的层靠**自然嵌套汇聚**逐级往上收进正中心。
+ *  BASE=50 = **屏幕正中**:depth 0 的 CarryKit 落在画面中心、最前最大(视觉重心)。
+ *  收缩中心/不动点 = **上黄金线 38.2%**(在正中的**上方**),越深的层靠**自然嵌套汇聚**逐级往上收进 38.2%。
  *  STEP=0 → 不额外手动偏移(自然汇聚已给「越深越往上」);>0 可再把深层手动往上推。
  *  注:HomeCollapse 的水印(承接 depth 0 的 wordmark)须与 depth 0 的值(=BASE)对齐。 */
-export const WORDMARK_TOP_BASE = 61.8; // depth 0(最靠前)——下黄金线,正中心下方
+export const WORDMARK_TOP_BASE = 50; // depth 0(最靠前)——屏幕正中(视觉重心)
 const WORDMARK_TOP_STEP = 0; // 逐层手动上移的百分点(0=纯靠自然汇聚)
 export const wordmarkTopPct = (depth: number) => WORDMARK_TOP_BASE - depth * WORDMARK_TOP_STEP;
 
@@ -79,8 +80,8 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSce
         />
       )}
 
-      {/* 自嵌套卡片:**比例 0.55** 尺寸,居中定位 → 向**屏幕正中心不动点(50%/50%)**汇聚。
-          比例越小 = 每层递缩步幅越大 = 层数密度越低(隧道更疏、后退更快)。
+      {/* 自嵌套卡片:**比例 0.55** 尺寸,居中偏上定位 → 向**上黄金线不动点(50%/38.2%)**汇聚。
+          top = F_y·(1−r) = 0.382×0.45 = 17.19%。比例越小 = 每层递缩步幅越大 = 层数密度越低(隧道更疏)。
           opacity-[0.7]:每层不透明度沿嵌套复合递减(depth d ≈ 0.7^d)→ 越往后越快淡向背景。
           不传 showCampfire → 篝火天然不下传。
           注:不加边框——收缩时卡放大 1/0.55×、逐层复合,任何 border 都会被同步放大成
@@ -88,7 +89,7 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSce
       {hasNested && (
         <div
           data-nested
-          className="absolute left-[22.5%] top-[22.5%] h-[55cqh] w-[55cqw] overflow-hidden opacity-[0.7]"
+          className="absolute left-[22.5%] top-[17.19%] h-[55cqh] w-[55cqw] overflow-hidden opacity-[0.7]"
         >
           <HomeScene depth={depth + 1} maxDepth={maxDepth} />
         </div>
