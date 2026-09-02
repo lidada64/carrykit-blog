@@ -36,19 +36,16 @@
   - 验收:首屏渲染标语,文字带 fade + up 入场动画;移动端不溢出
 - **US-H2**:hero 下方展示精选作品(最多 3 个)与最新博客(最多 3 篇)入口
   - 验收:点击可跳转到对应详情页;无内容时该区块优雅隐藏
-- **US-H3**:全站统一导航:logo + work / blog / about / contact(contact 为 mailto 链接)+ 语言切换按钮
+- **US-H3**:全站统一导航:logo + work / blog / radar + 语言切换按钮
   - 验收:所有公开页面共享同一导航;当前页高亮
 - **US-H4**:首次访问时播放 preloader:数字 counter 计数 + 遮罩揭示进入 hero(对齐参考站)
   - 验收:同一会话内(sessionStorage)不重复播放;`prefers-reduced-motion` 时跳过
 
-### 3.2 About 页(`/about`)
+### 3.2 Radar 页(`/radar`)
 
-> Target 原文:"展示个人信息与联系方式"
+> 原 About 页已移除(2026-08-21,见 change_8_21.md);导航第三项由 about/contact 改为 radar。contact 联系方式下沉至 footer(邮箱/社交)。
 
-- **US-A1**:展示个人介绍(头像可选、姓名、简介段落)
-- **US-A2**:展示技能/关注领域列表
-- **US-A3**:展示联系方式:email + 社交链接(GitHub 等)
-  - 验收:email 为 `mailto:` 链接;社交链接新标签页打开
+Radar 为个人文化品味内容空间,由 5 个子页组成(音乐/电影/游戏/文摘/项目工具),内容以个人视角为核心。详见 `idea/radar-*.md`;完整需求(布局/动效/数据模型)待单独编写。
 
 ### 3.3 Blog 页(`/blog`、`/blog/[slug]`)
 
@@ -116,7 +113,7 @@
 
 | Target.md 条目 | PRD 覆盖 |
 |----------------|----------|
-| about 页,展示个人信息与联系方式 | §3.2 |
+| ~~about 页~~ 已移除,第三项改为 radar 内容空间 | §3.2 |
 | blog 页,展示想法 | §3.3 |
 | work 页,展示个人作品 | §3.4 |
 | home 页,默认展示 | §3.1 |

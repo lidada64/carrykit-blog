@@ -9,8 +9,8 @@ export function Footer() {
   const t = useT();
   const pathname = usePathname();
 
-  // Hide footer on all blog pages
-  if (pathname.startsWith("/blog")) {
+  // Hide footer on the homepage hero and all blog pages
+  if (pathname === "/" || pathname.startsWith("/blog")) {
     return null;
   }
 

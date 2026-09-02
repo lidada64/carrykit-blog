@@ -7,6 +7,7 @@ export const en = {
   nav: {
     work: "Work",
     blog: "Blog",
+    radar: "Radar",
     about: "About",
     contact: "Contact",
   },

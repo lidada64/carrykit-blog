@@ -7,6 +7,7 @@ export const zh: Dictionary = {
   nav: {
     work: "作品",
     blog: "博客",
+    radar: "雷达",
     about: "关于",
     contact: "联系",
   },
