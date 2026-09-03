@@ -43,7 +43,7 @@ export const PRESETS = {
       uShadeSpecGain: 0.0, uShadeLightOmega: 6.8e-5,
       uShadeLightElev: 0.35, uShadeLightAz: 0.0,
       uShadeSigmaFloor: 2e-4, uShadeSpecClip: 1.5,
-      uShadeExposure: 0.0, uShadeContrast: 8.0, uShadePivot: 0.48, uShadeSkyGain: 1.0,
+      uShadeExposure: 0.0, uShadeContrast: 12.0, uShadePivot: 0.575, uShadeSkyGain: 1.0,
     },
   },
   night: {

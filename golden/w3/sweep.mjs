@@ -18,7 +18,7 @@ for (const c of combos) {
   console.log(
     ("  " + c).padEnd(46) +
       g(/加权总分\s+([\d.]+)/).padStart(5) +
-      g(/前景平坦度[^\n]*?\s([\d.]+)\s+0\.065/).padStart(6) +
+      g(/前景平坦度[^\n]*?\s([\d.]+)\s+[\d.]+\s+≤/).padStart(6) +
       g(/相干度\s+([\d.-]+)/).padStart(6) +
       g(/曲线相关\s+([\d.-]+)/).padStart(6) +
       g(/峰值所在带\s+(\d+)/).padStart(5) +
