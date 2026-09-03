@@ -114,7 +114,7 @@ function defaultsFor(src) {
       uFieldFovY: [0.61],
       uFieldWindDir: [1.5708], // π/2。0 会让波脊沿 z 排列 → 屏幕上是竖线,不是横纹
       uFieldWindSpeed: [1.0],
-      uFieldSpread: [0.5],
+      uFieldSpread: [0.25],   // W2 消融:0.5→0.25 买到 +0.029 相干度余量,再花在摆动上
       uFieldAmp: [1.5],
       uFieldWarp: [1.0],
       uFieldFetchLen: [7.0],
@@ -130,7 +130,7 @@ function defaultsFor(src) {
       // ② 长尾划线
       uFieldTail: [1.0],
       // ③ 局部方向摆动
-      uFieldWander: [0.10],
+      uFieldWander: [0.30],   // 0.45 分更高(0.840)但会拉出贯穿全幅的直划,取中
       uFieldWanderScale: [0.25],
     }[name];
     const size = { float: 1, int: 1, vec2: 2, vec3: 3, vec4: 4 }[type];
