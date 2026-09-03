@@ -39,7 +39,9 @@ export const PRESETS = {
     baseline: "near",
     lut: "golden/w3/env-near.png",
     set: {
-      uPixel: 2, uDitherAniso: 0.8,
+      /* W3 之后重调(见 docs §10):near 的参考特征本来就接近方形(dashAspect 1.5),
+       * 却沿用了 mid 的横向拉伸抖动。aniso 归零后 dashAspect 3.17→2.00 进区间。 */
+      uPixel: 2, uDitherAniso: 0.0,
       uFieldCamHeight: 0.35, uFieldCamPitch: 0.335, uFieldFovY: 0.553,
       uFieldFetchLen: 1.5, uFieldLodBias: 5.0, uFieldAmp: 1.5,
       uShadeEnvLutScale: 2.0, uShadeEnvLutMin: -0.2, uShadeEnvLutMax: 1.0,
@@ -47,7 +49,7 @@ export const PRESETS = {
       uShadeSpecGain: 0.0, uShadeLightOmega: 6.8e-5,
       uShadeLightElev: 0.35, uShadeLightAz: 0.0,
       uShadeSigmaFloor: 2e-4, uShadeSpecClip: 1.5,
-      uShadeExposure: 0.0, uShadeContrast: 12.0, uShadePivot: 0.575, uShadeSkyGain: 1.0,
+      uShadeExposure: 0.06, uShadeContrast: 12.0, uShadePivot: 0.575, uShadeSkyGain: 1.0,
     },
   },
   night: {
