@@ -20,6 +20,7 @@ export const PRESETS = {
     baseline: "mid",
     lut: "golden/w3/env-mid.png",
     set: {
+      uPixel: 2, uDitherAniso: 0.8,
       uFieldCamHeight: 1.6, uFieldCamPitch: 0.37, uFieldFovY: 0.61,
       uFieldFetchLen: 7.0, uFieldLodBias: 5.0, uFieldAmp: 1.5,
       uShadeEnvLutScale: 2.0, uShadeEnvLutMin: -0.2, uShadeEnvLutMax: 1.0,
@@ -34,6 +35,7 @@ export const PRESETS = {
     baseline: "near",
     lut: "golden/w3/env-near.png",
     set: {
+      uPixel: 2, uDitherAniso: 0.8,
       uFieldCamHeight: 0.35, uFieldCamPitch: 0.335, uFieldFovY: 0.553,
       uFieldFetchLen: 1.5, uFieldLodBias: 5.0, uFieldAmp: 1.5,
       uShadeEnvLutScale: 2.0, uShadeEnvLutMin: -0.2, uShadeEnvLutMax: 1.0,
@@ -48,14 +50,15 @@ export const PRESETS = {
     baseline: "night",
     lut: "golden/w3/env-night.png",
     set: {
+      uPixel: 2, uDitherAniso: 0.0,
       uFieldCamHeight: 4.0, uFieldCamPitch: -0.1413, uFieldFovY: 0.61,
-      uFieldFetchLen: 7.0, uFieldLodBias: 5.0, uFieldAmp: 1.5,
+      uFieldFetchLen: 7.0, uFieldLodBias: 1.0, uFieldAmp: 0.6,
       uShadeEnvLutScale: 2.0, uShadeEnvLutMin: -0.2, uShadeEnvLutMax: 1.0,
       uShadeBody: 0.02, uShadeEnvGain: 1.0,
-      uShadeSpecGain: 200.0, uShadeLightOmega: 6.8e-5,
-      uShadeLightElev: 0.06, uShadeLightAz: 0.0,
-      uShadeSigmaFloor: 2e-4, uShadeSpecClip: 1.5,
-      uShadeExposure: 0.0, uShadeContrast: 1.0, uShadePivot: 0.25, uShadeSkyGain: 1.0,
+      uShadeSpecGain: 100000.0, uShadeLightOmega: 6.8e-5,
+      uShadeLightElev: 0.08, uShadeLightAz: 0.0,
+      uShadeSigmaFloor: 2e-4, uShadeSpecClip: 4.0,
+      uShadeExposure: 0.0, uShadeContrast: 8.0, uShadePivot: 0.22, uShadeSkyGain: 1.0,
     },
   },
 };
@@ -84,8 +87,6 @@ const args = [
   "--time", time,
   "--tex", "uBlueNoise=public/water/blue-noise-128.png",
   "--tex", `uShadeEnvLut=${preset.lut}`,
-  "--set", "uPixel=2",
-  "--set", "uDitherAniso=0.8",
 ];
 for (const [k, v] of Object.entries(set)) args.push("--set", `${k}=${v}`);
 

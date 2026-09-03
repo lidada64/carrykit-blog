@@ -65,9 +65,23 @@ void main(){
 mkdirSync(HERE, { recursive: true });
 writeFileSync(path.join(HERE, "preview.frag"), HEAD + FIELD + SHADE + TAIL);
 
+/* 扫参用:`--set night.glowWidth=0.012` 临时覆盖某个 preset 的环境列参数。
+ * 定稿值一律写回 env-column.ts 的 ENV_PRESETS,这里只是省一次编辑往返。 */
+const OVERRIDES = new Map<string, number>();
+for (let i = 0; i < process.argv.length; i++) {
+  if (process.argv[i] !== "--set") continue;
+  const [k, v] = String(process.argv[i + 1]).split("=");
+  OVERRIDES.set(k, Number(v));
+}
+
 async function writeLuts(): Promise<void> {
   for (const key of ["mid", "near", "night"] as const) {
-    const lut = buildEnvColumnLut(ENV_PRESETS[key]);
+    const p: Record<string, unknown> = { ...ENV_PRESETS[key] };
+    for (const [k, v] of OVERRIDES) {
+      const [pk, field] = k.split(".");
+      if (pk === key) p[field] = v;
+    }
+    const lut = buildEnvColumnLut(p as unknown as typeof ENV_PRESETS.mid);
     await sharp(Buffer.from(lut), { raw: { width: ENV_LUT_SIZE, height: 1, channels: 1 } })
       .png()
       .toFile(path.join(HERE, `env-${key}.png`));
