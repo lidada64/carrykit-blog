@@ -132,6 +132,26 @@ function defaultsFor(src) {
       // ③ 局部方向摆动
       uFieldWander: [0.30],   // 0.45 分更高(0.840)但会拉出贯穿全幅的直划,取中
       uFieldWanderScale: [0.25],
+
+      /* —— W3 shade.glsl.ts + env-column.ts(uShade 前缀,契约 §3)——
+       * 同样以 **mid preset** 为默认值。环境列是纹理,必须显式绑:
+       *   --tex uShadeEnvLut=golden/w3/env-mid.png
+       * 三个 preset 的完整参数在 golden/w3/run.mjs 的 PRESETS 里。 */
+      uShadeEnvLutScale: [2.0],   // env-column.ts 的 ENV_LUT_SCALE
+      uShadeEnvLutMin: [-0.2],    // 域:反射方向的 sin(仰角)
+      uShadeEnvLutMax: [1.0],
+      uShadeBody: [0.62],         // 水体亮度。mid 是乳白湖水,前景那片平静的亮面就是它
+      uShadeEnvGain: [1.0],
+      uShadeSpecGain: [0.0],      // 白天没有点光源;夜景 preset 才开
+      uShadeLightOmega: [6.8e-5], // 月亮立体角。**不许省**,少了这项近场烧成全白
+      uShadeLightElev: [0.06],
+      uShadeLightAz: [0.0],
+      uShadeSigmaFloor: [2e-4],
+      uShadeSpecClip: [1.5],
+      uShadeExposure: [0.0],
+      uShadeContrast: [8.0],      // 1-bit 输出的显示对比度,不是物理量
+      uShadePivot: [0.48],
+      uShadeSkyGain: [1.0],
     }[name];
     const size = { float: 1, int: 1, vec2: 2, vec3: 3, vec4: 4 }[type];
     out[name] = { type, value: preset ?? new Array(size).fill(0) };
