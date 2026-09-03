@@ -105,6 +105,33 @@ function defaultsFor(src) {
       uDitherAniso: [0.7],
       uQuantize: [1],
       uFieldTex: [0],
+      /* —— W2 field.glsl.ts(uField 前缀,契约 §3)——
+       * 默认值即 **mid preset**,所以 `--shader golden/w2/preview.frag` 不带任何
+       * --set 就是 W2 的验收帧。注意名字与 spike-a 的 uCamHeight/uSpread/... 不同:
+       * 模块化之后每个模块独占自己的前缀,拼装时 grep 不撞车。 */
+      uFieldCamHeight: [1.6],
+      uFieldCamPitch: [0.37],
+      uFieldFovY: [0.61],
+      uFieldWindDir: [1.5708], // π/2。0 会让波脊沿 z 排列 → 屏幕上是竖线,不是横纹
+      uFieldWindSpeed: [1.0],
+      uFieldSpread: [0.5],
+      uFieldAmp: [1.5],
+      uFieldWarp: [1.0],
+      uFieldFetchLen: [7.0],
+      uFieldLodBias: [5.0],
+      // ① 风阵斑块
+      uFieldPatchScale: [0.65],   // W2 实测:0.35 在这个构图下只有 2 个斑块横跨全屏
+      uFieldPatchMin: [0.15],
+      uFieldPatchMax: [2.0],      // 必须 >1,见 field.glsl.ts 里的阈值说明
+      uFieldPatchEdge: [0.06],
+      uFieldPatchBias: [0.40],
+      uFieldPatchDrift: [0.03],
+      uFieldOrbPatchGain: [0.0], // W5 接上 orbPatch 之前保持 0
+      // ② 长尾划线
+      uFieldTail: [1.0],
+      // ③ 局部方向摆动
+      uFieldWander: [0.10],
+      uFieldWanderScale: [0.25],
     }[name];
     const size = { float: 1, int: 1, vec2: 2, vec3: 3, vec4: 4 }[type];
     out[name] = { type, value: preset ?? new Array(size).fill(0) };
