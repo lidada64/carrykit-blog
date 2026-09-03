@@ -84,7 +84,9 @@ const BASELINES = {
      * 夜景 preset 的波纹各向异性用 near/mid 的 0.93~0.97 要求,别拿这条来卡。 */
     coherence: null,
     gradAngleDeg: null,
-    dashAspect: 1.0, // 奥伯拉丁用的是各向同性抖动,墨点近似方形
+    /* 0.23 = 偏竖。峰值带(70~80%)的亮特征是那道竖直的月光楔形,本来就该高大于宽。
+     * 旧值 1.0 是在**墨点层**上量的(各向同性抖动的方形颗粒),口径已废弃。 */
+    dashAspect: 0.23,
     spectralLineiness: 80.9, // 1-bit 密度场由地平线眩光主导,基数天然高
     peakWavelengthPx: 42.7,
   },
@@ -460,14 +462,34 @@ function analyze(img, polarity) {
   for (let i = 0; i < peakMask.length; i++) cover += peakMask[i];
   const featureCoverage = (100 * cover) / peakMask.length;
 
+  /* dashAspect 必须走**反抖动后的密度场**,不能走墨点层。
+   *
+   * 实测(W3 之后):同一个画面只差量化——连续灰度量到 135px 宽 × 8px 高(比值 15.4),
+   * 一旦 1-bit 抖动,同一处变成 4px × 2~6px(比值 0.93)。而**纯抖动、零水面结构**的
+   * 对照图在同样亮度(0.752)上报 4px × 2px = 2.00。
+   * 也就是说墨点层上量到的宽度完全是抖动颗粒,与水面结构无关;更糟的是残留的结构只
+   * 抬高了游程**高度**,让比值往反方向走——横向结构越强这个数越小,一张零结构的图
+   * (2.00)比真实水面(0.93)更接近基线 3.5。
+   *
+   * 而三张参考图都是连续调,基线 1.5/3.5/1.0 是在密度场分支上量的。拿墨点层的数字
+   * 去比连续调的基线,是两套口径。统一到密度场之后 obra 的基线也要重测。 */
+  const aspectMask = (b0) => {
+    const m = new Uint8Array(w * bandH);
+    const sl = d.subarray(b0 * w, (b0 + bandH) * w);
+    const s = std(sl);
+    for (let i = 0; i < m.length; i++) {
+      m[i] = polarity === "bright" ? (sl[i] > s ? 1 : 0) : sl[i] < -s ? 1 : 0;
+    }
+    return m;
+  };
   const aspects = [];
   let dashW = 0,
     dashH = 0;
   for (let b = 0; b < BANDS; b++) {
     if (rms[b] < 0.5 * rms[peak]) continue;
-    const mm = maskOf(b * bandH);
-    const rw = runMedian(mm.m, mm.w, mm.h, 1, 3);
-    const rh = runMedian(mm.m, mm.w, mm.h, 0, 3);
+    const am = aspectMask(b * bandH);
+    const rw = runMedian(am, w, bandH, 1, 3);
+    const rh = runMedian(am, w, bandH, 0, 3);
     if (rw > 0 && rh > 0) {
       aspects.push(rw / rh);
       if (b === peak) {
