@@ -148,7 +148,7 @@ function defaultsFor(src) {
       uShadeLightAz: [0.0],
       uShadeSigmaFloor: [2e-4],
       uShadeSpecClip: [1.5],
-      uShadeExposure: [0.0],
+      uShadeExposure: [0.10],
       uShadeContrast: [8.0],      // 1-bit 输出的显示对比度,不是物理量
       uShadePivot: [0.48],
       uShadeSkyGain: [1.0],

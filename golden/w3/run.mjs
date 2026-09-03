@@ -23,12 +23,16 @@ export const PRESETS = {
       uPixel: 2, uDitherAniso: 0.8,
       uFieldCamHeight: 1.6, uFieldCamPitch: 0.37, uFieldFovY: 0.61,
       uFieldFetchLen: 7.0, uFieldLodBias: 5.0, uFieldAmp: 1.5,
+      /* W2 的默认散布是 0.25;W3 收到 0.15 —— 波脊更平行 → 峰值带暗划线更长更疏,
+       * featureCoverage 28.5→24.7(基线 19.6±5)。这是 W3 唯一改动的 W2 参数,
+       * 渲染台默认值仍留 0.25 不动,跑 W3 验收帧要显式 --set uFieldSpread=0.15。 */
+      uFieldSpread: 0.15,
       uShadeEnvLutScale: 2.0, uShadeEnvLutMin: -0.2, uShadeEnvLutMax: 1.0,
       uShadeBody: 0.62, uShadeEnvGain: 1.0,
       uShadeSpecGain: 0.0, uShadeLightOmega: 6.8e-5,
       uShadeLightElev: 0.35, uShadeLightAz: 0.0,
       uShadeSigmaFloor: 2e-4, uShadeSpecClip: 1.5,
-      uShadeExposure: 0.0, uShadeContrast: 8.0, uShadePivot: 0.48, uShadeSkyGain: 1.0,
+      uShadeExposure: 0.10, uShadeContrast: 8.0, uShadePivot: 0.48, uShadeSkyGain: 1.0,
     },
   },
   near: {
