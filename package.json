@@ -11,7 +11,8 @@
     "db:seed": "prisma db seed",
     "water:metrics": "node scripts/water-metrics.mjs",
     "water:baseline": "node scripts/water-metrics.mjs --verify-baseline",
-    "water:frame": "node scripts/water-harness.mjs"
+    "water:frame": "node scripts/water-harness.mjs",
+    "water:bluenoise": "node scripts/gen-blue-noise.mjs"
   },
   "dependencies": {
     "@gsap/react": "^2.1.2",

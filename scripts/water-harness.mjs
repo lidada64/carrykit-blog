@@ -25,6 +25,7 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
 import { chromium } from "playwright";
+import sharp from "sharp";
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => {
@@ -76,11 +77,34 @@ function defaultsFor(src) {
       uContrast: [1.2],
       uGlint: [1],
       uWarp: [1],
+      uFetchLen: [4.0],
+      uLodBias: [1.0],
       uFlowBend: [1],
       uAngle: [0],
       uCalmTop: [0],
       uInk: [0.196, 0.2, 0.102], // #32331A
       uPaper: [0.902, 0.996, 0.992], // #E6FEFD
+      // —— spike / 水面模块默认值(mid preset)——
+      uCamHeight: [1.6],
+      uCamPitch: [0.3],
+      uFovY: [0.35],
+      uWindDir: [1.5708],
+      uWindSpeed: [1.0],
+      uSpread: [0.35],
+      uAmp: [1.0],
+      uBody: [0.18],
+      uEnvShore: [0.10],
+      uEnvSky: [0.86],
+      uEnvGlow: [0.0],
+      uEnvEdge: [0.08],
+      uLightOmega: [6.8e-5],
+      uSpecGain: [0.0],
+      uLightElev: [0.22],
+      uLightAz: [1.5708],
+      uExposure: [0.0],
+      uDitherAniso: [0.7],
+      uQuantize: [1],
+      uFieldTex: [0],
     }[name];
     const size = { float: 1, int: 1, vec2: 2, vec3: 3, vec4: 4 }[type];
     out[name] = { type, value: preset ?? new Array(size).fill(0) };
@@ -90,6 +114,17 @@ function defaultsFor(src) {
 
 const src = loadShader(shaderPath);
 const uniforms = defaultsFor(src);
+
+// --tex uName=path.png:把一张 PNG 作为 sampler2D 绑上去(NEAREST + REPEAT)
+const textures = [];
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] !== "--tex") continue;
+  const [name, file] = argv[i + 1].split("=");
+  const { data, info } = await sharp(file).greyscale().raw().toBuffer({ resolveWithObject: true });
+  textures.push({ name, w: info.width, h: info.height, data: Array.from(data) });
+  // 纹理尺寸也走 uniform 通道,否则会被后面的 setAll 统一写成 0 → 采样出 NaN
+  if (uniforms[name + "Size"]) uniforms[name + "Size"].value = [info.width, info.height];
+}
 for (let i = 0; i < argv.length; i++) {
   if (argv[i] !== "--set") continue;
   const [name, vals] = argv[i + 1].split("=");
@@ -112,6 +147,7 @@ window.__ready = false; window.__err = null; window.__cost = null;
 (function(){
   const FRAG = ${JSON.stringify(src)};
   const UNIFORMS = ${JSON.stringify(uniforms)};
+  const TEXTURES = ${JSON.stringify(textures)};
   const VERT_100 = "attribute vec2 aPos; void main(){ gl_Position = vec4(aPos,0.0,1.0); }";
   const VERT_300 = "#version 300 es\\nin vec2 aPos; void main(){ gl_Position = vec4(aPos,0.0,1.0); }";
   const es3 = FRAG.trimStart().startsWith("#version 300");
@@ -152,6 +188,22 @@ window.__ready = false; window.__err = null; window.__cost = null;
         else if (u.type === "vec4") gl.uniform4f(loc, v[0], v[1], v[2], v[3]);
       }
     };
+    TEXTURES.forEach(function(tx, unit){
+      const tex = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, tx.w, tx.h, 0, gl.RED, gl.UNSIGNED_BYTE,
+                    new Uint8Array(tx.data));
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+      const loc = gl.getUniformLocation(p, tx.name);
+      if (loc) gl.uniform1i(loc, unit);
+      const sz = gl.getUniformLocation(p, tx.name + "Size");
+      if (sz) gl.uniform2f(sz, tx.w, tx.h);
+    });
     gl.viewport(0,0,${W},${H});
     setAll(null);
     gl.drawArrays(gl.TRIANGLES, 0, 3);

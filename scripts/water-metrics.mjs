@@ -54,6 +54,7 @@ const BASELINES = {
     coherence: 0.932,
     gradAngleDeg: 92.0,
     dashAspect: 1.5,
+    spectralLineiness: 21.7,
     peakWavelengthPx: 11.6,
   },
   mid: {
@@ -67,6 +68,7 @@ const BASELINES = {
     coherence: 0.974,
     gradAngleDeg: 91.7,
     dashAspect: 3.5,
+    spectralLineiness: 15.6,
     peakWavelengthPx: 8.0,
   },
   obra: {
@@ -83,6 +85,7 @@ const BASELINES = {
     coherence: null,
     gradAngleDeg: null,
     dashAspect: 1.0, // 奥伯拉丁用的是各向同性抖动,墨点近似方形
+    spectralLineiness: 80.9, // 1-bit 密度场由地平线眩光主导,基数天然高
     peakWavelengthPx: 42.7,
   },
 };
@@ -99,6 +102,7 @@ const WEIGHTS = {
   gradAngleDeg: 0.1,
   featureCoverage: 0.1,
   gridArtifact: 0.05,
+  spectralLineiness: 0.05,
 };
 
 /* ═══════════════════════════ 基础工具 ═══════════════════════════════════ */
@@ -245,6 +249,27 @@ function meanSpectrum(rows, len) {
 
 /** 谱「尖峰度」:高频段里落在孤立谱峰上的能量占比。有序抖动(Bayer)会留下
  *  这种尖峰,蓝噪声不会。只看 0.4×Nyquist 以上,避开水波本身的合法低频峰。 */
+/** 波段谱线度:低频(波)段里落在孤立谱线上的能量占比。
+ *  少量固定正弦叠加会织出**周期性干涉点阵**——看起来像布纹不像水,但相干度、
+ *  游程、梯度角这些指标全都察觉不到(实测那种图能拿 0.97 分)。真实水面的波谱
+ *  是**宽**的,谱线度低。这一项是 W1 用眼睛发现问题之后补进来的。 */
+function lineiness(spec) {
+  // 谱平坦度(维纳熵)的补:几何均值 / 算术均值。线谱 → 平坦度接近 0 → 谱线度接近 100;
+  // 宽带随机 → 平坦度接近 1 → 谱线度接近 0。不需要调窗口,对分辨率也不敏感。
+  const lo = Math.max(2, Math.floor(spec.length * 0.015));
+  const hi = Math.floor(spec.length * HF_CUTOFF);
+  let logSum = 0, sum = 0, n = 0;
+  for (let k = lo; k < hi; k++) {
+    const p = spec[k] * spec[k] + 1e-12;
+    logSum += Math.log(p);
+    sum += p;
+    n++;
+  }
+  if (!n) return 0;
+  const flatness = Math.exp(logSum / n) / (sum / n);
+  return 1 - flatness;
+}
+
 function spikiness(spec) {
   const lo = Math.floor(spec.length * HF_CUTOFF);
   let total = 0,
@@ -283,17 +308,34 @@ function runMedian(mask, w, h, axis, step) {
 
 /* ═══════════════════════════ 指标 ═══════════════════════════════════════ */
 
+/* 按**原生分辨率**读入。1-bit 判定与反抖动必须在原生像素上做:
+ * 先缩放会把两个色调插值成连续灰阶,bilevel 判定直接失效,
+ * 于是整幅图按「连续图」统计,量到的全是抖动噪声——分带曲线糊平、相干度归零。
+ * (这个 bug 是 W1 给量化后的输出打分时才暴露出来的。) */
 async function loadGray(file) {
-  const meta = await sharp(file).metadata();
-  const w = Math.round((meta.width / meta.height) * ANALYSIS_HEIGHT);
-  const { data } = await sharp(file)
-    .resize(w, ANALYSIS_HEIGHT, { fit: "fill" })
-    .greyscale()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const g = new Float64Array(w * ANALYSIS_HEIGHT);
+  const { data, info } = await sharp(file).greyscale().raw().toBuffer({ resolveWithObject: true });
+  const g = new Float64Array(info.width * info.height);
   for (let i = 0; i < g.length; i++) g[i] = data[i];
-  return { g, w, h: ANALYSIS_HEIGHT };
+  return { g, w: info.width, h: info.height };
+}
+
+/** 面积平均降采样到指定高度(保持宽高比)。用于把反抖动后的密度场归一到分析尺寸。 */
+function resampleToHeight(src, w, h, targetH) {
+  if (h === targetH) return { data: src, w, h };
+  const targetW = Math.max(1, Math.round((w / h) * targetH));
+  const out = new Float64Array(targetW * targetH);
+  for (let y = 0; y < targetH; y++) {
+    const y0 = Math.floor((y * h) / targetH);
+    const y1 = Math.max(y0 + 1, Math.floor(((y + 1) * h) / targetH));
+    for (let x = 0; x < targetW; x++) {
+      const x0 = Math.floor((x * w) / targetW);
+      const x1 = Math.max(x0 + 1, Math.floor(((x + 1) * w) / targetW));
+      let s = 0, n = 0;
+      for (let yy = y0; yy < y1; yy++) for (let xx = x0; xx < x1; xx++) { s += src[yy * w + xx]; n++; }
+      out[y * targetW + x] = s / n;
+    }
+  }
+  return { data: out, w: targetW, h: targetH };
 }
 
 /**
@@ -306,7 +348,7 @@ async function loadGray(file) {
  * 这一步是必须的:我们自己的产出也是 1-bit 抖动输出,直接对抖动像素算局部 RMS
  * 量到的是抖动噪声而不是水面结构,曲线会整片糊平。
  */
-function prepare(g, w, h) {
+function prepare(g, w, h, polarity) {
   const hist = new Float64Array(256);
   for (let i = 0; i < g.length; i++) hist[Math.min(255, Math.max(0, Math.round(g[i])))]++;
   let m1 = 0;
@@ -330,7 +372,9 @@ function prepare(g, w, h) {
   for (let i = 0; i < g.length; i++) bright[i] = g[i] > mid ? 255 : 0;
   let cover = 0;
   for (let i = 0; i < bright.length; i++) cover += bright[i] > 0 ? 1 : 0;
-  const inkIsBright = cover / bright.length < 0.5; // 墨 = 少数色调
+  /* 墨点取哪一侧:baseline 指定了就听 baseline(near/mid 看暗划线,obra 看亮墨点)。
+   * 早先按「少数色调」自动猜,在整体偏暗的渲染上会猜反,featureCoverage 直接量到 60%+。 */
+  const inkIsBright = polarity ? polarity === "bright" : cover / bright.length < 0.5;
   const ink = new Uint8Array(w * h);
   for (let i = 0; i < ink.length; i++) {
     ink[i] = (bright[i] > 0) === inkIsBright ? 1 : 0;
@@ -339,9 +383,13 @@ function prepare(g, w, h) {
 }
 
 function analyze(img, polarity) {
-  const { w, h } = img;
-  const { field, ink, isBilevel } = prepare(img.g, w, h);
-  const g = field;
+  const nat = prepare(img.g, img.w, img.h, polarity); // 原生分辨率
+  const rs = resampleToHeight(nat.field, img.w, img.h, ANALYSIS_HEIGHT);
+  const w = rs.w, h = rs.h;
+  const isBilevel = nat.isBilevel;
+  // ink 留在原生分辨率:划线游程与网纹谱都必须在真实像素上量
+  const inkNat = nat.ink, inkW = img.w, inkH = img.h;
+  const g = rs.data;
   const blur = boxBlur(g, w, h, DETREND_RADIUS);
   const d = new Float64Array(w * h);
   for (let i = 0; i < d.length; i++) d[i] = g[i] - blur[i];
@@ -386,20 +434,28 @@ function analyze(img, polarity) {
    * 划线长宽比按带测量,取「对比度够读出纹理」那几带(rms ≥ 0.5×峰值)的中位数
    * ——只看峰值带一条会偏低,因为最亮那带常被高光打断成点。 */
   const maskOf = (b0) => {
-    const m = new Uint8Array(w * bandH);
     if (isBilevel) {
-      for (let i = 0; i < m.length; i++) m[i] = ink[b0 * w + i];
-    } else {
+      // 把分析尺寸的带边界映射回原生像素,在原生分辨率上取掩码
+      const ny0 = Math.floor((b0 / h) * inkH);
+      const ny1 = Math.max(ny0 + 1, Math.floor(((b0 + bandH) / h) * inkH));
+      const mh = ny1 - ny0;
+      const m = new Uint8Array(inkW * mh);
+      for (let i = 0; i < m.length; i++) m[i] = inkNat[ny0 * inkW + i];
+      return { m, w: inkW, h: mh };
+    }
+    {
+      const m = new Uint8Array(w * bandH);
       const sl = d.subarray(b0 * w, (b0 + bandH) * w);
       const s = std(sl);
       for (let i = 0; i < m.length; i++) {
         m[i] = polarity === "bright" ? (sl[i] > s ? 1 : 0) : sl[i] < -s ? 1 : 0;
       }
+      return { m, w, h: bandH };
     }
-    return m;
   };
 
-  const peakMask = maskOf(py0);
+  const peak_ = maskOf(py0);
+  const peakMask = peak_.m;
   let cover = 0;
   for (let i = 0; i < peakMask.length; i++) cover += peakMask[i];
   const featureCoverage = (100 * cover) / peakMask.length;
@@ -409,9 +465,9 @@ function analyze(img, polarity) {
     dashH = 0;
   for (let b = 0; b < BANDS; b++) {
     if (rms[b] < 0.5 * rms[peak]) continue;
-    const m = maskOf(b * bandH);
-    const rw = runMedian(m, w, bandH, 1, 3);
-    const rh = runMedian(m, w, bandH, 0, 3);
+    const mm = maskOf(b * bandH);
+    const rw = runMedian(mm.m, mm.w, mm.h, 1, 3);
+    const rh = runMedian(mm.m, mm.w, mm.h, 0, 3);
     if (rw > 0 && rh > 0) {
       aspects.push(rw / rh);
       if (b === peak) {
@@ -465,25 +521,34 @@ function analyze(img, polarity) {
 
   /* 尖峰度:在**墨点层**上量(有序抖动的网格残留住在那儿,不在平滑的密度场上)。
    * 连续输入退化为对去趋势场量,取行/列两个方向的较大者。 */
+  const artW = isBilevel ? peak_.w : w;
+  const artH = isBilevel ? peak_.h : bandH;
   const artSrc = isBilevel
     ? (() => {
-        const a = new Float64Array(w * bandH);
+        const a = new Float64Array(artW * artH);
         for (let i = 0; i < a.length; i++) a[i] = peakMask[i] ? 1 : -1;
         return a;
       })()
     : band;
   const artRows = [];
-  for (let y = 0; y < bandH; y += 3) artRows.push(artSrc.subarray(y * w, y * w + w));
+  for (let y = 0; y < artH; y += 3) artRows.push(artSrc.subarray(y * artW, y * artW + artW));
   const artCols = [];
-  for (let x = 0; x < w; x += 7) {
-    const c = new Float64Array(bandH);
-    for (let y = 0; y < bandH; y++) c[y] = artSrc[y * w + x];
+  for (let x = 0; x < artW; x += 7) {
+    const c = new Float64Array(artH);
+    for (let y = 0; y < artH; y++) c[y] = artSrc[y * artW + x];
     artCols.push(c);
   }
   const gridArtifact = Math.max(
-    spikiness(meanSpectrum(artRows, w)),
-    spikiness(meanSpectrum(artCols, bandH))
+    spikiness(meanSpectrum(artRows, artW)),
+    spikiness(meanSpectrum(artCols, artH))
   );
+  const fullCols = [];
+  for (let x = 0; x < w; x += 11) {
+    const c = new Float64Array(h);
+    for (let y = 0; y < h; y++) c[y] = d[y * w + x];
+    fullCols.push(c);
+  }
+  const spectralLineiness = lineiness(meanSpectrum(fullCols, h));
 
   return {
     bandRms: rms.map((v) => +v.toFixed(2)),
@@ -497,6 +562,7 @@ function analyze(img, polarity) {
     dashRunPx: { w: dashW, h: dashH },
     peakWavelengthPx: +peakWavelengthPx.toFixed(1),
     gridArtifact: +(100 * gridArtifact).toFixed(2), // 百分比
+    spectralLineiness: +(100 * spectralLineiness).toFixed(2), // 百分比
   };
 }
 
@@ -521,6 +587,8 @@ function score(m, base) {
    * 是各向同性抖动(1.0)。相对误差 40% 以内满分。 */
   s.dashAspect = clamp01(1 - (Math.abs(m.dashAspect - base.dashAspect) / base.dashAspect - 0.4) / 0.6);
   s.gridArtifact = clamp01(1 - (m.gridArtifact - 2) / 8);
+  s.spectralLineiness =
+    base.spectralLineiness == null ? null : clamp01(1 - (m.spectralLineiness - base.spectralLineiness - 4) / 12);
   s.coherence = base.coherence == null ? null : clamp01((m.coherence - 0.55) / 0.3);
   s.gradAngleDeg =
     base.gradAngleDeg == null ? null : clamp01(1 - (angDist(m.gradAngleDeg, 90) - 8) / 22);
@@ -546,6 +614,7 @@ const ROWS = [
   ["gradAngleDeg", "主梯度角 (90=横纹)", "90±8", (m) => m.gradAngleDeg],
   ["featureCoverage", "峰值带特征覆盖率 %", "±5pp", (m) => m.featureCoverage],
   ["gridArtifact", "谱尖峰度 % (抓 Bayer 网纹)", "< 2", (m) => m.gridArtifact],
+  ["spectralLineiness", "波段谱线度 % (抓周期点阵)", "基线+4", (m) => m.spectralLineiness],
 ];
 
 function report(name, m, base, sc) {
