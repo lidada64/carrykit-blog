@@ -15,6 +15,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { SRC as FIELD } from "../../src/components/lab/water/field.glsl";
 import { SRC as SHADE } from "../../src/components/lab/water/shade.glsl";
+import { SRC as DITHER } from "../../src/components/lab/water/dither.glsl";
 import {
   ENV_PRESETS,
   ENV_LUT_SIZE,
@@ -30,18 +31,10 @@ uniform vec2  uRes;
 uniform float uTime;
 `;
 
-/* 抖动壳:W4 会换成正式模块,这里沿用 W2 preview 的写法,保证与 W2 的分数可比。 */
+/* W4 起抖动走 `dither.glsl.ts` 正式模块(uDither 前缀),TAIL 里只剩 main()。
+ * 拼装顺序 HEAD + FIELD + SHADE + DITHER + TAIL —— DITHER 必须在 TAIL 之前,
+ * GLSL 没有前向声明。 */
 const TAIL = `
-uniform float uPixel;       // 抖动单元(物理 px)
-uniform float uDitherAniso; // 0 = 各向同性,1 = 强横向拉长
-uniform float uQuantize;    // 0 = 连续灰度(调物理时必须先看这个),1 = 两色抖动
-uniform vec3  uInk;
-uniform vec3  uPaper;
-uniform sampler2D uBlueNoise;
-uniform vec2 uBlueNoiseSize;
-
-float waterDither(vec2 p){ return texture(uBlueNoise, (p + 0.5) / uBlueNoiseSize).r; }
-
 void main(){
   vec2 frag = gl_FragCoord.xy;
   vec2 ndc  = (frag / uRes) * 2.0 - 1.0;
@@ -55,15 +48,12 @@ void main(){
     waterNormalRough(p, uTime, footprint, N, sigma2);
     lum = waterTonemap(waterShadeSurface(N, rd, sigma2));
   }
-  if (uQuantize < 0.5){ fragColor = vec4(vec3(lum), 1.0); return; }
-  vec2 dp = floor(frag / uPixel);
-  dp.x = floor(dp.x * mix(1.0, 0.30, uDitherAniso));
-  fragColor = vec4(mix(uInk, uPaper, step(waterDither(dp), lum)), 1.0);
+  fragColor = vec4(waterDitherApply(frag, lum), 1.0);
 }
 `;
 
 mkdirSync(HERE, { recursive: true });
-writeFileSync(path.join(HERE, "preview.frag"), HEAD + FIELD + SHADE + TAIL);
+writeFileSync(path.join(HERE, "preview.frag"), HEAD + FIELD + SHADE + DITHER + TAIL);
 
 /* 扫参用:`--set night.glowWidth=0.012` 临时覆盖某个 preset 的环境列参数。
  * 定稿值一律写回 env-column.ts 的 ENV_PRESETS,这里只是省一次编辑往返。 */

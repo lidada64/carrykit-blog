@@ -82,6 +82,12 @@ function defaultsFor(src) {
       uFlowBend: [1],
       uAngle: [0],
       uCalmTop: [0],
+      /* uInk/uPaper 与下面的 uDitherInk/uDitherPaper 是同一对颜色的两套名字:
+       * 这里(旧名)只服务 W0/W1/W2 的 spike-a、golden/w2/preview.frag 与
+       * baseline/current-water-dither.frag,**不要删**,删了旧黄金帧就复现不出来。
+       * 数值是 CSS token `--water-ink` / `--water-paper` 的 sRGB 归一值,
+       * 唯一定义处是 src/styles/globals.css 的 :root(AGENTS.md 扩展性红线)。
+       * 这是脚本不是组件,所以允许出现字面量;组件必须从 token 读。 */
       uInk: [0.196, 0.2, 0.102], // #32331A
       uPaper: [0.902, 0.996, 0.992], // #E6FEFD
       // —— spike / 水面模块默认值(mid preset)——
@@ -153,6 +159,17 @@ function defaultsFor(src) {
       uShadeContrast: [8.0],      // 1-bit 输出的显示对比度,不是物理量
       uShadePivot: [0.48],
       uShadeSkyGain: [1.0],
+
+      /* —— W4 dither.glsl.ts(uDither 前缀,契约 §3)——
+       * 阈值图是纹理,必须显式绑:
+       *   --tex uDitherNoise=public/water/blue-noise-128.png
+       * uDitherPixel/uDitherAniso 的三个 preset 值在 golden/w3/run.mjs 的 PRESETS 里
+       * (near 0 / mid 0.8 / night 0 —— 别照 W3 那句"越各向异性越好",见 docs §12)。
+       * 这里的默认值沿用旧 uPixel/uDitherAniso/uQuantize,保证不带 --set 的行为不变。 */
+      uDitherPixel: [3],
+      uDitherQuantize: [1],
+      uDitherInk: [0.196, 0.2, 0.102], // --water-ink  #32331A
+      uDitherPaper: [0.902, 0.996, 0.992], // --water-paper #E6FEFD
     }[name];
     const size = { float: 1, int: 1, vec2: 2, vec3: 3, vec4: 4 }[type];
     out[name] = { type, value: preset ?? new Array(size).fill(0) };

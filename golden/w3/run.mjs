@@ -5,7 +5,7 @@
  *   node golden/w3/run.mjs <mid|near|night> [--time 2.5] [--out /tmp/x.png]
  *                          [--raw] [--set uX=1 ...] [--noscore]
  *
- * --raw = uQuantize 0(连续灰度)。**调物理时先看这个**,抖动会掩盖问题(W1 教训)。
+ * --raw = uDitherQuantize 0(连续灰度)。**调物理时先看这个**,抖动会掩盖问题(W1 教训)。
  * 未被 --set 覆盖的 uniform 走下面 PRESETS 里的值;PRESETS 就是 W3 的交付参数,
  * 与 scripts/water-harness.mjs 里 mid 的默认值保持一致。
  */
@@ -20,7 +20,7 @@ export const PRESETS = {
     baseline: "mid",
     lut: "golden/w3/env-mid.png",
     set: {
-      uPixel: 2, uDitherAniso: 0.8,
+      uDitherPixel: 2, uDitherAniso: 0.8,
       uFieldCamHeight: 1.6, uFieldCamPitch: 0.37, uFieldFovY: 0.61,
       uFieldFetchLen: 7.0, uFieldLodBias: 5.0, uFieldAmp: 1.5,
       /* W2 的默认散布是 0.25;W3 收到 0.15 —— 波脊更平行 → 峰值带暗划线更长更疏,
@@ -41,7 +41,7 @@ export const PRESETS = {
     set: {
       /* W3 之后重调(见 docs §10):near 的参考特征本来就接近方形(dashAspect 1.5),
        * 却沿用了 mid 的横向拉伸抖动。aniso 归零后 dashAspect 3.17→2.00 进区间。 */
-      uPixel: 2, uDitherAniso: 0.0,
+      uDitherPixel: 2, uDitherAniso: 0.0,
       uFieldCamHeight: 0.35, uFieldCamPitch: 0.335, uFieldFovY: 0.553,
       uFieldFetchLen: 1.5, uFieldLodBias: 5.0, uFieldAmp: 1.5,
       uShadeEnvLutScale: 2.0, uShadeEnvLutMin: -0.2, uShadeEnvLutMax: 1.0,
@@ -56,7 +56,7 @@ export const PRESETS = {
     baseline: "night",
     lut: "golden/w3/env-night.png",
     set: {
-      uPixel: 2, uDitherAniso: 0.0,
+      uDitherPixel: 2, uDitherAniso: 0.0,
       uFieldCamHeight: 4.0, uFieldCamPitch: -0.1413, uFieldFovY: 0.61,
       uFieldFetchLen: 7.0, uFieldLodBias: 1.0, uFieldAmp: 0.6,
       uShadeEnvLutScale: 2.0, uShadeEnvLutMin: -0.2, uShadeEnvLutMax: 1.0,
@@ -84,7 +84,7 @@ for (let i = 0; i < argv.length; i++) {
   const [k, v] = argv[i + 1].split("=");
   set[k] = Number(v);
 }
-if (argv.includes("--raw")) set.uQuantize = 0;
+if (argv.includes("--raw")) set.uDitherQuantize = 0;
 
 /* preview.frag 是 build.ts 从 field/shade.glsl.ts 拼出来的产物。W2 手抄 preview.frag
  * 导致过悄悄漂移;这里再踩了一次同一个坑的变体——build.ts 存在但没人跑,改了
@@ -100,7 +100,7 @@ const args = [
   "--shader", "golden/w3/preview.frag",
   "--out", out,
   "--time", time,
-  "--tex", "uBlueNoise=public/water/blue-noise-128.png",
+  "--tex", "uDitherNoise=public/water/blue-noise-128.png",
   "--tex", `uShadeEnvLut=${preset.lut}`,
 ];
 for (const [k, v] of Object.entries(set)) args.push("--set", `${k}=${v}`);

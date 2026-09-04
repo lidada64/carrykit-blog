@@ -301,15 +301,37 @@ float waterTonemap(float lum){
   return clamp((lum - uShadePivot) * uShadeContrast + uShadePivot + uShadeExposure, 0.0, 1.0);
 }
 
-uniform float uPixel;       // 抖动单元(物理 px)
-uniform float uDitherAniso; // 0 = 各向同性,1 = 强横向拉长
-uniform float uQuantize;    // 0 = 连续灰度(调物理时必须先看这个),1 = 两色抖动
-uniform vec3  uInk;
-uniform vec3  uPaper;
-uniform sampler2D uBlueNoise;
-uniform vec2 uBlueNoiseSize;
+// —— 阈值图(void-and-cluster 蓝噪声,R8,NEAREST + REPEAT)——
+uniform sampler2D uDitherNoise;
+uniform vec2  uDitherNoiseSize;  // 由渲染台按纹理尺寸写入
 
-float waterDither(vec2 p){ return texture(uBlueNoise, (p + 0.5) / uBlueNoiseSize).r; }
+// —— 网点几何 ——
+uniform float uDitherPixel;      // 抖动单元边长(物理 px)。1 = 逐像素;2 = 站点默认
+uniform float uDitherAniso;      // 0 = 各向同性方颗粒;1 = 横向压缩到 0.30 → 颗粒被拉长
+
+// —— 输出 ——
+uniform float uDitherQuantize;   // 0 = 连续灰度(调物理时先看这个);1 = 两色抖动
+uniform vec3  uDitherInk;        // --water-ink,#32331A
+uniform vec3  uDitherPaper;      // --water-paper,#E6FEFD
+
+/* 横向压缩下限。0.30 = 采样坐标 x 缩到 30% → 同一列噪声被复用 ~3 个像素宽。
+ * 这个数与 near/mid/night 三个 preset 的 uDitherAniso 是一套扫出来的,单独改它
+ * 等于把三个 preset 的 dashAspect 一起推走。 */
+const float WATER_DITHER_ANISO_MIN = 0.30;
+
+/** 屏幕像素 → 阈值 [0,1)。纯函数:不吃 uTime,不吃世界坐标。 */
+float waterDitherThreshold(vec2 frag){
+  vec2 dp = floor(frag / uDitherPixel);
+  dp.x = floor(dp.x * mix(1.0, WATER_DITHER_ANISO_MIN, uDitherAniso));
+  // +0.5 取纹素中心;NEAREST + REPEAT,所以整数坐标可以直接除尺寸平铺
+  return texture(uDitherNoise, (dp + 0.5) / uDitherNoiseSize).r;
+}
+
+/** 亮度 → 最终 RGB。uDitherQuantize < 0.5 时旁路成连续灰度。 */
+vec3 waterDitherApply(vec2 frag, float lum){
+  if (uDitherQuantize < 0.5) return vec3(lum);
+  return mix(uDitherInk, uDitherPaper, step(waterDitherThreshold(frag), lum));
+}
 
 void main(){
   vec2 frag = gl_FragCoord.xy;
@@ -324,8 +346,5 @@ void main(){
     waterNormalRough(p, uTime, footprint, N, sigma2);
     lum = waterTonemap(waterShadeSurface(N, rd, sigma2));
   }
-  if (uQuantize < 0.5){ fragColor = vec4(vec3(lum), 1.0); return; }
-  vec2 dp = floor(frag / uPixel);
-  dp.x = floor(dp.x * mix(1.0, 0.30, uDitherAniso));
-  fragColor = vec4(mix(uInk, uPaper, step(waterDither(dp), lum)), 1.0);
+  fragColor = vec4(waterDitherApply(frag, lum), 1.0);
 }
