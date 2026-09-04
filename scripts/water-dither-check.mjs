@@ -34,8 +34,8 @@ const arg = (k, d) => {
 };
 const WORK = arg("--out", "/tmp/w4-check");
 const KEEP = argv.includes("--keep");
-const W = 1920;
-const H = 1080;
+const H = 1080; // 黄金帧协议固定 1920×1080,这里只用到高度
+
 const NOISE = "public/water/blue-noise-128.png";
 
 mkdirSync(WORK, { recursive: true });

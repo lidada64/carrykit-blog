@@ -522,3 +522,30 @@ slope(41~46%)、camHeight(46~69%)、pivot/exposure/body(会把峰值带从 5 弹
 肉眼看 near 是"木纹"——横划太长太平行,不是波长不对。
 所以该动的很可能是 `uFieldSpread` / `uFieldWander`(打断划线)或干脆重定 near 的构图,
 不是继续在振幅谱上找。
+
+---
+
+## 12. W4 量化呈现层 → 见 `docs/water-dither-layer.md`
+
+抖动层从 `golden/w3/build.ts` 的 TAIL 壳搬进正式模块
+`src/components/lab/water/dither.glsl.ts`(uniform 改名到 `uDither` 前缀,
+输出 md5 逐字节不变)。参数表、线性度与 Bayer/IGN 对照数字、时间稳定性结论
+在那份文档里。这里只留一条必须写进本文件的东西:
+
+### 坑 8 · `gridArtifact` 在我们自己的黄金帧上抓不到 Bayer
+
+把 mid preset 的阈值函数原地换成 Bayer 8×8 / IGN(其余一字不动,三个输出 md5 互不相同),
+`gridArtifact` **三个都读 0%**——而这一项的名字就叫「抓 Bayer 网纹」。
+根因是分辨率:它在**峰值带**的墨点掩码上量,mid 的峰值带只有 108 行,
+列方向 FFT 补零到 128 点后 0.4×Nyquist 以上只剩 64 条谱线,
+而 `spikiness` 的 ±15 中位窗已经吃掉高频段的一半,再尖的峰也顶不到中位数的 8 倍。
+
+§6 里那个 64.37% 是在改造前 `water-dither.tsx` 的构图与网点尺度上量到的,
+**不是这项指标普遍有效的证据**。
+
+**后果**:三个 preset 打分表上的 `gridArtifact 0%` 不能当作「蓝噪声在起作用」的证据。
+判别力在 `scripts/water-dither-check.mjs` 的梯度台上(蓝噪声 0.00% vs Bayer 99.96%
+vs IGN 95.13%),验收抖动层必须跑它。
+
+顺带:换 Bayer 后相干度**反而从 0.956 涨到 0.972**,IGN 的总分与蓝噪声**完全相同**
+(0.951)。九项指标里没有一项在惩罚有序抖动。
