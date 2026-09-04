@@ -15,6 +15,11 @@ uniform float uFieldWindDir;     // 风向(弧度)。注意:0 会让波脊沿 z 
 uniform float uFieldWindSpeed;   // 0..1,只影响相速度
 uniform float uFieldSpread;      // 方向散布半角(弧度),越小越各向异性
 uniform float uFieldAmp;         // 振幅总缩放
+uniform float uFieldSpectralSlope; // 振幅谱斜率 n:a ∝ (lambda/0.1)^n。
+                                 // 0.9 = W1/W2 沿用的默认(长波主导,主导波长偏粗);
+                                 // 调小 → 振幅推向短波,划线变细变密;0 = 各波长等幅。
+                                 // 见 docs/water-reference-metrics.md §10:near 的
+                                 // λ 偏粗 3× 就是这个常数写死导致的,preset 调参够不着。
 uniform float uFieldWarp;        // 低频域扭曲强度(0 = 笔直波脊)
 uniform float uFieldFetchLen;    // 风区长度(米):离近岸多远波才长起来。0 = 关闭
 uniform float uFieldLodBias;     // LOD 淡出提前量:>1 更早淡出 → 远端更平
@@ -140,8 +145,8 @@ float waterWaveField(vec2 p, float t, float footprint, out vec2 grad, out float 
     float omega = sqrt(WATER_G * k + WATER_SIGMA * k * k * k);
     float th = uFieldWindDir + uFieldSpread * (waterHash11(fi + 9.3) * 2.0 - 1.0) + wander;
     vec2 dir = vec2(cos(th), sin(th));
-    // 振幅谱 a ∝ lambda^0.9,按分量数归一,再乘风区、斑块、长尾三个权重
-    float a = 0.0042 * pow(lambda / 0.10, 0.9) * (6.0 / float(WATER_COMPONENTS))
+    // 振幅谱 a ∝ lambda^uFieldSpectralSlope,按分量数归一,再乘风区、斑块、长尾三个权重
+    float a = 0.0042 * pow(lambda / 0.10, uFieldSpectralSlope) * (6.0 / float(WATER_COMPONENTS))
             * uFieldAmp * fetch * gust * waterTailWeight(fi);
 
     // 解析 LOD:一个波长内不足 4 px 时开始淡出,到 2 px(奈奎斯特)完全消失。

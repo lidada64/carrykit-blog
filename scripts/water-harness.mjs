@@ -116,6 +116,7 @@ function defaultsFor(src) {
       uFieldWindSpeed: [1.0],
       uFieldSpread: [0.25],   // W2 消融:0.5→0.25 买到 +0.029 相干度余量,再花在摆动上
       uFieldAmp: [1.5],
+      uFieldSpectralSlope: [0.9], // 默认 = W1/W2 的硬编码值,不改分
       uFieldWarp: [1.0],
       uFieldFetchLen: [7.0],
       uFieldLodBias: [5.0],

@@ -86,6 +86,15 @@ for (let i = 0; i < argv.length; i++) {
 }
 if (argv.includes("--raw")) set.uQuantize = 0;
 
+/* preview.frag 是 build.ts 从 field/shade.glsl.ts 拼出来的产物。W2 手抄 preview.frag
+ * 导致过悄悄漂移;这里再踩了一次同一个坑的变体——build.ts 存在但没人跑,改了
+ * field.glsl.ts 却在用旧 .frag 跑分,一整轮扫参出来六个完全相同的 md5。
+ * 所以每次跑分前强制重建,除非显式 --nobuild。 */
+if (!argv.includes("--nobuild")) {
+  const b = spawnSync("node_modules/.bin/tsx", ["golden/w3/build.ts"], { cwd: ROOT, encoding: "utf8" });
+  if (b.status !== 0) { console.log(b.stdout, b.stderr); process.exit(1); }
+}
+
 const args = [
   "scripts/water-harness.mjs",
   "--shader", "golden/w3/preview.frag",
