@@ -7,11 +7,14 @@
  * 契约:
  *  · uniform 一律 `uShade` 前缀,函数一律 `water` 前缀。
  *  · 入口两个:
- *      float waterShadeSurface(vec3 nField, vec3 rd, float sigma2)  // 水面像素
+ *      float waterShadeSurface(vec3 nField, vec3 rd, float sigma2, vec2 p)  // 水面像素
  *      float waterShadeSky(vec3 rd)                                 // 地平线以上
  *      float waterTonemap(float lum)                                // 曝光/对比度
  *  · 吃 field.glsl.ts 的 `waterNormalRough` 输出(N 与 sigma2)与
- *    `waterSurfacePoint` 输出的 rd,不需要别的输入。
+ *    `waterSurfacePoint` 输出的 rd 与 p。
+ *  · **W5 起依赖 light.glsl.ts**(拼装顺序 FIELD + LIGHT + SHADE):
+ *    `waterOrbIrradiance` / `waterOrbLightDir` / `waterOrbSpecular`。
+ *    第四个参数 `p` 就是为它们加的 —— 灯球照度是位置相关的。
  *
  * ── 三条不可改的物理 ────────────────────────────────────────────────────
  *
@@ -60,12 +63,62 @@ uniform float uShadeContrast;
 uniform float uShadePivot;        // 对比度支点。夜景要压低(天空别被顶到中灰)
 uniform float uShadeSkyGain;      // 地平线以上像素的额外增益(构图用,水面不受影响)
 
+/* —— 天空一侧的地平线辉光(只作用于地平线以上的像素)——
+ * 奥伯拉丁那条地平线:亮核只有十几像素,往上却是**一大片逐渐溶解的网点**。
+ * 想靠加宽环境列里的 glowWidth 做出这片溶解是走不通的 —— 水面在掠射角下
+ * 反射到的正是地平线**上方**那一小段仰角,环境列一加宽,水面反射的环境亮度
+ * 跟着整体抬高,前景平坦度从 0.08 直接崩到 0.54(实测 glowWidthUp=0.03 时
+ * 总分 0.267)。上下不对称也救不了:两边采的是同一段仰角。
+ *
+ * 所以这一项**只加在天空像素上**,和 uShadeSkyGain 一样是构图旋钮不是物理量。
+ * 真实大气里水面当然也会反射到这片辉光,但那点贡献在 1-bit 量化后看不见,
+ * 而它对前景平坦度的破坏是致命的。 */
+uniform float uShadeSkyGlowGain;   // 峰值(叠加在环境列之上)
+uniform float uShadeSkyGlowWidth;  // 高斯半宽(sin 仰角)。0.03 ≈ 53 px @1080p/fov0.61
+
+/* —— 地平线起伏 ——
+ * 参考图的地平线亮带是**一段一段错开**的:边界不是一条直线,而是一串长短不一
+ * 的水平台阶。我们的是刀切一样直,这就是「太死板」。
+ *
+ * 根因不在抖动,在几何:解析 LOD 到了地平线附近把**所有**波分量都淡掉了
+ * (淡掉的能量只转进 σ²,而 σ² 只喂 Beckmann 高光,不参与环境列查表),
+ * 于是远处水面是一个**数学上完美的平面**,反射出来的边界当然是直线。
+ *
+ * 这里给环境列的查表仰角加一个**只随方位角变化**的低频起伏,天空与水面两侧
+ * 用同一个值 —— 相当于远处的长涌与地平线上的霾。幅度只有 ±0.003(≈5 px),
+ * 所以只在**环境列梯度陡的地方**(就是地平线)看得出来,其余位置查表结果不变。
+ * 这是「只扰动该扰动的那一处」,不是全局加噪。 */
+uniform float uShadeHorizonJitter;      // 幅度(sin 仰角)。0 = 关闭
+uniform float uShadeHorizonJitterScale; // 方位角上的频率(1/rad)。越大台阶越短
+
 const float WATER_SHADE_PI = 3.14159265;
 
 /* field.glsl.ts 的法线在「场坐标」(x, up, y_field) 里,而 rd 在相机世界系
  * (x, up, z) 里,两者第三轴反号 —— 逆投影里 p.y = -rd.z。差这一个符号的话
  * 掠射几何整套是镜像的(高光会跑到光源的反侧),所以在这里统一到相机系。 */
 vec3 waterFieldToView(vec3 n){ return vec3(n.x, n.y, -n.z); }
+
+/* 自带的一维值噪声。故意不复用 field.glsl.ts 的 waterVNoise —— 拼装顺序是
+ * FIELD+SHADE,借来能编过,但那会让本模块单独测不了。 */
+float waterShadeHash1(float x){ return fract(sin(x * 91.7) * 43758.5453); }
+float waterShadeNoise1(float x){
+  float i = floor(x), f = fract(x);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(waterShadeHash1(i), waterShadeHash1(i + 1.0), f);
+}
+
+/** 地平线起伏(sin 仰角的偏移)。天空与水面共用,保证两侧的台阶是对齐的。 */
+float waterHorizonJitter(vec3 dir){
+  if (uShadeHorizonJitter <= 0.0) return 0.0;
+  float az = atan(dir.x, -dir.z) * uShadeHorizonJitterScale;
+  /* 参考图的地平线不是平滑起伏,是**一段一段的水平台阶**:段内齐平,段与段之间
+   * 突然错开。所以主项用 floor 后的哈希(段内恒定、边界突变),再叠一层更细的
+   * 平滑噪声让段内不至于死平。只用平滑噪声会变成一条软趴趴的波浪线。 */
+  float step = waterShadeHash1(floor(az));
+  float fine = waterShadeNoise1(az * 3.7 + 5.1);
+  float n = 0.62 * step + 0.38 * fine;
+  return uShadeHorizonJitter * (n - 0.5) * 2.0;
+}
 
 /** 光源方向(相机世界系)。az=0 → 正前方(-z),月光路径竖直穿过画面中轴。 */
 vec3 waterLightDir(){
@@ -118,20 +171,57 @@ float waterFresnel(float ndv){
 /**
  * 水面像素的亮度。nField 直接来自 waterNormalRough(场坐标),rd 来自
  * waterSurfacePoint。返回的是 tonemap **之前**的线性亮度。
+ *
+ * ── W5 修订:多了一个 vec2 p(场坐标)────────────────────────────────
+ * 灯球的照度是**位置相关**的(光斑落在水面的某几处),而原签名只有法线和视线,
+ * 拿不到"这个像素在水面的哪里"。所以加了 p —— 调用方本来就有它
+ * (waterSurfacePoint 的输出),没有额外成本。
+ *
+ * 灯球分三路进这条链,**不在 tonemap 前后加一坨平的亮度**:
+ *  · (1-F)·(body + BodyGain·E(p)) —— **光斑落点**:光束打进水体又散射出来的漫射池。
+ *    它是漫射的,所以进 body;E(p) 是位置相关的,这就是要 p 的原因。
+ *  · F·(env + spec + SpecGain·D_orb) —— **球在水里的像**被波面打散成的镜面光路,
+ *    和月光路径同一个机制,出现在球的镜像方向上,**与光斑落点无关、不乘 E(p)**
+ *    (为什么不乘见 light.glsl.ts 的 waterOrbSpecular)。
+ *  · env 里还有一份:灯球倒影/光晕由 env-column.ts 的 lights 注入 LUT,这里不写代码。
+ *
+ * ── W10 修订:第四条通道是**乘法** ──────────────────────────────────────
+ * waterOrbFocusDim(p) 乘在 body 上(不是加在 lum 上):
+ *      lum = (1−F)·(body + BodyGain·E)·**dim** + F·(env + spec + SpecGain·D_orb)
+ * mid 的前景 tonemap 输出算出来是 1.70、被 clamp 到 1 —— 往饱和白上加光是零
+ * 收益,只有把没被照到的地方**压暗**才有对比。理由与四条约束见 light.glsl.ts。
+ * uOrbFocus = 0 时它精确返回 1.0,整条链逐位不变。
+ *
+ * uOrbEnergy = 0 时 waterOrbIrradiance 精确返回 0.0,
+ * uShadeBody + 0.0 与 env + spec + 0.0 在 IEEE 下逐位不变 ——
+ * 这是 §5 那条"md5 逐字节相同"验收的落点。
  */
-float waterShadeSurface(vec3 nField, vec3 rd, float sigma2){
+float waterShadeSurface(vec3 nField, vec3 rd, float sigma2, vec2 p){
   vec3 N = normalize(waterFieldToView(nField));
   vec3 V = -rd;
   float F = waterFresnel(dot(N, V));
   vec3  R = reflect(-V, N);
-  float env  = waterEnvColumn(R.y);
+  float env  = waterEnvColumn(R.y + waterHorizonJitter(R));
   float spec = waterSpecular(N, V, waterLightDir(), sigma2);
-  return (1.0 - F) * uShadeBody + F * (env + spec);
+  float orbBody = uOrbBodyGain * waterOrbIrradiance(p);
+  float orbSpec = uOrbSpecGain * waterOrbSpecular(N, V, waterOrbLightDir(p), sigma2);
+  /* W10 聚焦渐晕:**乘在 body 上**,不加在 lum 上。
+   * 加在 lum 上会把这条式子摊平成 lum = 分层 + 一坨常数,菲涅耳分层立刻不再是
+   * 对比度曲线的唯一来源(见上面 ①)——前景平坦度与对比度带会一起失效。
+   * uOrbFocus = 0 时 waterOrbFocusDim 精确返回 1.0,x × 1.0 ≡ x,逐位不变。 */
+  float body = (uShadeBody + orbBody) * waterOrbFocusDim(p);
+  return (1.0 - F) * body + F * (env + spec + orbSpec);
 }
 
-/** 地平线以上:同一张环境列,按视线仰角查。夜景的地平线眩光带由此而来。 */
+/** 地平线以上:同一张环境列,按视线仰角查,再叠一层天空专属的地平线辉光。 */
 float waterShadeSky(vec3 rd){
-  return waterEnvColumn(rd.y) * uShadeSkyGain;
+  float e = rd.y + waterHorizonJitter(rd);
+  float v = waterEnvColumn(e) * uShadeSkyGain;
+  if (uShadeSkyGlowGain > 0.0){
+    float d = e / max(uShadeSkyGlowWidth, 1e-4);
+    v += uShadeSkyGlowGain * exp(-d * d);
+  }
+  return v;
 }
 
 /** 曝光 / 对比度。支点可调:夜景在 0.5 上做对比度会把暗天空顶到中灰(W1 病灶)。 */

@@ -24,8 +24,12 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import sharp from "sharp";
+
+/** 仓库根 —— 从本文件位置推,不靠 cwd(`npm run water:frame` 与 run.mjs 的 cwd 不一定同) */
+const HARNESS_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const argv = process.argv.slice(2);
 const arg = (k, d) => {
@@ -60,11 +64,20 @@ function loadShader(p) {
 /** 解析 uniform 声明,给出默认值。未在此表中的类型需用 --set 显式给。 */
 function defaultsFor(src) {
   const out = {};
-  const re = /uniform\s+(float|int|vec2|vec3|vec4|sampler2D)\s+(\w+)\s*;/g;
+  /* W5 起要认**数组** uniform(`uniform vec4 uOrbSpots[24];`)——灯球的 K 个光斑
+   * 中心是 CPU 每帧算好的(orb-light.ts),以数组一次传进去,shader 里只做 K 次
+   * 核求和。不认数组的话它会被当成"着色器里没有这个 uniform"直接忽略,
+   * 画面上一个光斑都不会有,而且**不报错** —— 正是 docs §11 坑 7 那种沉默失效。 */
+  const re = /uniform\s+(float|int|vec2|vec3|vec4|sampler2D)\s+(\w+)\s*(?:\[\s*(\d+)\s*\])?\s*;/g;
   let m;
   while ((m = re.exec(src))) {
-    const [, type, name] = m;
+    const [, type, name, arrLen] = m;
     if (type === "sampler2D") continue;
+    if (arrLen) {
+      const n = { float: 1, int: 1, vec2: 2, vec3: 3, vec4: 4 }[type];
+      out[name] = { type, array: parseInt(arrLen, 10), value: new Array(n * parseInt(arrLen, 10)).fill(0) };
+      continue;
+    }
     const preset = {
       uRes: [W, H],
       uResolution: [W, H],
@@ -139,6 +152,15 @@ function defaultsFor(src) {
       // ③ 局部方向摆动
       uFieldWander: [0.30],   // 0.45 分更高(0.840)但会拉出贯穿全幅的直划,取中
       uFieldWanderScale: [0.25],
+      /* ④ 波脊断裂。默认 **0 = 关闭**,与 W2/W3 的旧黄金帧逐字等价;
+       * 三个 preset 在 golden/w3/run.mjs 里各自开到自己的值(见 docs §13)。 */
+      uFieldChop: [0.0],
+      uFieldChopLen: [0.55],
+      uFieldChopAniso: [0.5],   // <1 才是短波脊;>1 会连成竖帘
+      uFieldChopMin: [0.10],
+      uFieldChopMax: [1.7],     // 必须 >1,否则等于偷偷把 uFieldAmp 调小
+      uFieldChopEdge: [0.14],
+      uFieldChopBias: [0.55],
 
       /* —— W3 shade.glsl.ts + env-column.ts(uShade 前缀,契约 §3)——
        * 同样以 **mid preset** 为默认值。环境列是纹理,必须显式绑:
@@ -159,6 +181,13 @@ function defaultsFor(src) {
       uShadeContrast: [8.0],      // 1-bit 输出的显示对比度,不是物理量
       uShadePivot: [0.48],
       uShadeSkyGain: [1.0],
+      /* 天空专属的地平线辉光。默认 0 = 关闭(mid/near 不需要,旧黄金帧逐字等价);
+       * night 在 golden/w3/run.mjs 里开到 0.9 / 0.030,见 docs §13。 */
+      uShadeSkyGlowGain: [0.0],
+      uShadeSkyGlowWidth: [0.030],
+      /* 地平线起伏。默认 0 = 关闭(旧黄金帧逐字等价)。 */
+      uShadeHorizonJitter: [0.0],
+      uShadeHorizonJitterScale: [14.0],
 
       /* —— W4 dither.glsl.ts(uDither 前缀,契约 §3)——
        * 阈值图是纹理,必须显式绑:
@@ -166,6 +195,56 @@ function defaultsFor(src) {
        * uDitherPixel/uDitherAniso 的三个 preset 值在 golden/w3/run.mjs 的 PRESETS 里
        * (near 0 / mid 0.8 / night 0 —— 别照 W3 那句"越各向异性越好",见 docs §12)。
        * 这里的默认值沿用旧 uPixel/uDitherAniso/uQuantize,保证不带 --set 的行为不变。 */
+      /* —— W5 light.glsl.ts(uOrb 前缀,契约 §3)——
+       * **默认全部关闭**:uOrbEnergy = 0 → 所有出口精确返回 0.0 →
+       * 与灯球接入前的黄金帧逐字节相同。这是 W5 §5 那条硬性回归的落点,
+       * 别把默认值调成非零"图省事"。
+       * uOrbSpots[] 由 golden/w3/run.mjs 从 orb-light.ts 每帧算好后 --set 进来。 */
+      uOrbLightMode: [0],
+      uOrbEnergy: [0.0],
+      uOrbCenter: [0, 2.0, 6.0], // (x, 离水面高度, y_field),米
+      uOrbRadius: [0.35],
+      uOrbBodyGain: [0.25],
+      uOrbSpecGain: [1.0],
+      uOrbPatchGain: [0.8],
+      uOrbPatchCenter: [0, 6.0],
+      uOrbPatchRadius: [2.0],
+      uOrbOmega: [3.0e-4], // 单片镜子在水面处张开的立体角
+      uOrbSigmaFloor: [2e-4],
+      uOrbSpecClip: [1.5],
+      uOrbLightmapFrame: [0],
+      uOrbLightmapCols: [12],
+      uOrbLightmapRows: [10], // 12×10 = 120 帧,与 ball-loop 同长
+      uOrbLightmapRect: [-8, 0, 16, 24], // 照度图覆盖的场坐标矩形
+
+      /* —— W10 聚焦渐晕(light.glsl.ts 的第四条通道)——
+       * **默认关闭**:uOrbFocus = 0 → waterOrbFocusDim 精确返回 1.0 →
+       * body × 1.0 逐位不变 → 与 W8 定稿的黄金帧逐字节相同。
+       * 这是 W10 §3 那条硬性回归的落点,别把默认值调成非零"图省事"。
+       * 其余五个是 mid 的定标值(presets.ts 的 WATER_PRESETS.mid.focus),
+       * uOrbGround 由 golden/w3/run.mjs 从球心 --set 进来。 */
+      uOrbFocus: [0.0],
+      uOrbGround: [-1.12, 6.85], // 球在水面的落点(场坐标,米)
+      uOrbPoolR: [2.6],
+      uOrbAmbient: [0.58],
+      uOrbGrain: [2.0],
+      uOrbGrainBias: [0.42],
+      uOrbFarKeep: [0.28],
+      uOrbSpinPhase: [0.0],
+
+      /* —— W6 ripple.glsl.ts(uRipple 前缀,契约 §3)——
+       * **默认全部关闭**:uRippleAmp = 0 且 uRippleTexSize = (0,0) →
+       * `waterRipple` 精确返回 vec3(0.0),而 field.glsl.ts 里那段耦合根本不进分支,
+       * 输出与 W5 定稿逐字节相同。这是 W6 §4.1 那条硬性回归的落点。
+       * 求解纹理不是 PNG,不走 --tex:由 --ripple-steps 触发,页面里跑完 N 步
+       * 再把结果绑上来,同时把 uRippleTexSize 改成 (256,256)。 */
+      uRippleTexSize: [0, 0],
+      uRippleWorldMin: [-4.0, 2.0],
+      uRippleWorldSize: [8.0],
+      uRippleAmp: [0.0],
+      uRippleLodBias: [1.5],
+      uRippleEdgeFade: [8.0],
+
       uDitherPixel: [3],
       uDitherQuantize: [1],
       uDitherInk: [0.196, 0.2, 0.102], // --water-ink  #32331A
@@ -179,6 +258,76 @@ function defaultsFor(src) {
 
 const src = loadShader(shaderPath);
 const uniforms = defaultsFor(src);
+
+/* ── W6 涟漪:时间演化的确定性复现 ─────────────────────────────────────────
+ * 渲染台原本只渲**一帧**,而涟漪是时间演化的。加的模式是:
+ * 从一组**确定的初始冲击**出发,以**固定 dt** 跑 N 步显式波动方程,再渲染读回。
+ *
+ *   --ripple-steps 60                跑多少步(0 = 关闭涟漪,默认)
+ *   --ripple-dt 0.016                每步秒数。**绝不用 performance.now()**
+ *   --ripple-impulse x,y,强度,半径[,步] 世界坐标下丢一个冲击,可重复
+ *   --ripple-world minX,minY,边长     纹理覆盖的世界矩形(米)
+ *   --ripple-speed / --ripple-damping / --ripple-sponge / --ripple-sponge-k
+ *   --ripple-amp                     消费端幅度(0 = 关闭)
+ *   --ripple-probe 20,40,60          在这些步数上读回状态图,打波前半径/环宽/峰值
+ *
+ * 同一组参数跑两次必须逐字节相同 —— 这条在 docs/water-ripple.md §6 有实测。
+ * 求解器用的是 `src/components/lab/water/ripple.ts` 的 `RippleSolver` **本体**
+ * (源码 toString() 内联进页面),不是抄一份;着色器取自 `ripple.glsl.ts`。 */
+const rippleSteps = parseInt(arg("--ripple-steps", "0"), 10);
+let ripple = null;
+let RIPPLE_JS = "";
+if (rippleSteps > 0) {
+  const RGL = await import(
+    pathToFileURL(path.join(HARNESS_ROOT, "src/components/lab/water/ripple.glsl.ts")).href
+  );
+  const RTS = await import(
+    pathToFileURL(path.join(HARNESS_ROOT, "src/components/lab/water/ripple.ts")).href
+  );
+  RIPPLE_JS = [
+    RTS.RippleSolver.toString(),
+    RTS.createRippleSolver.toString(),
+    `const RIPPLE_TEX_SIZE=${RTS.RIPPLE_TEX_SIZE};`,
+    `const RIPPLE_IMPULSE_SLOTS=${RTS.RIPPLE_IMPULSE_SLOTS};`,
+    `const RIPPLE_CFL_MAX=${RTS.RIPPLE_CFL_MAX};`,
+    `const RIPPLE_HOVER_STRENGTH=${RTS.RIPPLE_HOVER_STRENGTH};`,
+    `const RIPPLE_DEFAULT_RADIUS=${RTS.RIPPLE_DEFAULT_RADIUS};`,
+    `const RIPPLE_SOLVE_SRC=${JSON.stringify(RGL.SOLVE_SRC)};`,
+  ].join("\n");
+
+  const impulses = [];
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] !== "--ripple-impulse") continue;
+    const n = argv[i + 1].split(",").map(Number);
+    impulses.push({
+      x: n[0], y: n[1],
+      strength: n[2] === undefined ? 0.002 : n[2],
+      radius: n[3] === undefined ? 0.06 : n[3],
+      step: n[4] === undefined ? 0 : n[4],
+    });
+  }
+  const w = arg("--ripple-world", "-4,2,8").split(",").map(Number);
+  ripple = {
+    steps: rippleSteps,
+    dt: parseFloat(arg("--ripple-dt", "0.016")),
+    worldMin: [w[0], w[1]],
+    worldSize: w[2],
+    waveSpeed: parseFloat(arg("--ripple-speed", "0.45")),
+    damping: parseFloat(arg("--ripple-damping", "0.997")),
+    spongeTexels: parseFloat(arg("--ripple-sponge", "24")),
+    spongeStrength: parseFloat(arg("--ripple-sponge-k", "0.12")),
+    size: parseInt(arg("--ripple-size", "256"), 10),
+    impulses,
+    probe: arg("--ripple-probe", "").split(",").filter(Boolean).map(Number),
+    probeAt: impulses.length ? [impulses[0].x, impulses[0].y] : [w[0] + w[2] / 2, w[1] + w[2] / 2],
+    /* 前沿判定的**绝对**阈值 = 首个冲击幅度的 2%。取百分比 of 当前环峰
+     * 会让前沿跟着环峰一起振荡,读不出匀速(见 ripple.ts 的说明)。 */
+    edgeThreshold: (impulses.length ? impulses[0].strength : 0.002) * 0.02,
+  };
+  if (uniforms.uRippleWorldMin) uniforms.uRippleWorldMin.value = ripple.worldMin;
+  if (uniforms.uRippleWorldSize) uniforms.uRippleWorldSize.value = [ripple.worldSize];
+  if (uniforms.uRippleAmp) uniforms.uRippleAmp.value = [parseFloat(arg("--ripple-amp", "1"))];
+}
 
 // --tex uName=path.png:把一张 PNG 作为 sampler2D 绑上去(NEAREST + REPEAT)
 const textures = [];
@@ -198,6 +347,15 @@ for (let i = 0; i < argv.length; i++) {
     console.warn(`  [警告] 着色器里没有 uniform ${name},忽略`);
     continue;
   }
+  if (uniforms[name].array) {
+    // 数组:给多少写多少,不足的补 0(未用的光斑槽位强度就该是 0)
+    const want = uniforms[name].value.length;
+    const v = new Array(want).fill(0);
+    for (let k = 0; k < Math.min(want, nums.length); k++) v[k] = nums[k];
+    if (nums.length > want) console.warn(`  [警告] ${name} 给了 ${nums.length} 个值,数组只有 ${want} 格,多余的丢弃`);
+    uniforms[name].value = v;
+    continue;
+  }
   uniforms[name].value = nums;
 }
 uniforms.uRes && (uniforms.uRes.value = [W, H]);
@@ -209,10 +367,16 @@ canvas{display:block;width:${W}px;height:${H}px}
 </style></head><body><canvas id="c" width="${W}" height="${H}"></canvas>
 <script>
 window.__ready = false; window.__err = null; window.__cost = null;
+window.__probes = null; window.__rippleInfo = null; window.__rippleWarn = null;
+/* W6 涟漪求解器:src/components/lab/water/ripple.ts 的 RippleSolver **本体**,
+ * 靠 toString() 原样内联(和预览台内联 orb-light.ts 那几个函数同一招)。
+ * 抄一份 JS 会重演 docs §11 坑 7:两边悄悄漂了还没人发现。--ripple-steps 为 0 时这里是空串。 */
+${RIPPLE_JS}
 (function(){
   const FRAG = ${JSON.stringify(src)};
   const UNIFORMS = ${JSON.stringify(uniforms)};
   const TEXTURES = ${JSON.stringify(textures)};
+  const RIPPLE = ${JSON.stringify(ripple)};
   const VERT_100 = "attribute vec2 aPos; void main(){ gl_Position = vec4(aPos,0.0,1.0); }";
   const VERT_300 = "#version 300 es\\nin vec2 aPos; void main(){ gl_Position = vec4(aPos,0.0,1.0); }";
   const es3 = FRAG.trimStart().startsWith("#version 300");
@@ -241,11 +405,77 @@ window.__ready = false; window.__err = null; window.__cost = null;
     const a = gl.getAttribLocation(p, "aPos");
     gl.enableVertexAttribArray(a);
     gl.vertexAttribPointer(a, 2, gl.FLOAT, false, 0, 0);
+
+    /* ── W6:先把涟漪跑满 N 步,再渲水面 ────────────────────────────────
+     * 放在 TEXTURES 绑定**之前**:求解 pass 会占用 TEXTURE0 并切走 program,
+     * 让下面那个 forEach 把单元 0..n-1 重新绑一遍,省得手工恢复。 */
+    let rippleSolver = null;
+    if (RIPPLE) {
+      rippleSolver = createRippleSolver(gl, RIPPLE_SOLVE_SRC, RIPPLE);
+      if (!rippleSolver) {
+        /* 优雅降级:拿不到 EXT_color_buffer_float 就当没有涟漪 —— 不黑屏、不抛。
+         * uRippleTexSize 留 (0,0),waterRipple 精确返回 0。 */
+        window.__rippleWarn = "EXT_color_buffer_float / RG16F FBO 不可用 —— 涟漪已降级为关闭";
+      } else {
+        const probes = [];
+        for (let i = 0; i < RIPPLE.steps; i++){
+          for (let j = 0; j < RIPPLE.impulses.length; j++){
+            const im = RIPPLE.impulses[j];
+            if (im.step === i) rippleSolver.injectImpulse([im.x, im.y], im.strength, im.radius);
+          }
+          rippleSolver.stepFixed(RIPPLE.dt);   // 越界抛,不悄悄夹 —— 黄金帧协议
+          if (RIPPLE.probe.indexOf(i + 1) >= 0){
+            const pr = rippleSolver.probe(RIPPLE.probeAt, RIPPLE.edgeThreshold);
+            pr.step = i + 1;
+            pr.t = +(RIPPLE.dt * (i + 1)).toFixed(4);
+            probes.push(pr);
+          }
+        }
+        window.__probes = probes;
+        window.__rippleInfo = {
+          courant: rippleSolver.courant(RIPPLE.dt),
+          texelM: rippleSolver.texelSize(),
+          maxDt: rippleSolver.maxDt(),
+          steps: rippleSolver.steps,
+          simTime: rippleSolver.simTime,
+        };
+        const unit = TEXTURES.length;
+        gl.activeTexture(gl.TEXTURE0 + unit);
+        gl.bindTexture(gl.TEXTURE_2D, rippleSolver.texture());
+        const rl = gl.getUniformLocation(p, "uRippleTex");
+        if (rl) { gl.useProgram(p); gl.uniform1i(rl, unit); }
+        if (UNIFORMS.uRippleTexSize) UNIFORMS.uRippleTexSize.value = [rippleSolver.size, rippleSolver.size];
+        window.__rippleCost = function(n){
+          const px = new Float32Array(4);
+          const t0 = performance.now();
+          for (let i = 0; i < n; i++) rippleSolver.stepFixed(RIPPLE.dt);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, rippleSolver.fbo[rippleSolver.cur]);
+          gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.FLOAT, px);
+          gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+          const ms = performance.now() - t0;
+          gl.useProgram(p); gl.viewport(0,0,${W},${H});
+          return { totalMs:+ms.toFixed(2), perStepMs:+(ms/n).toFixed(4), n:n };
+        };
+      }
+      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      gl.useProgram(p);
+    }
+
     const setAll = (t) => {
       for (const [name, u] of Object.entries(UNIFORMS)) {
         const loc = gl.getUniformLocation(p, name);
         if (!loc) continue;
         const v = (name === "uTime" && t != null) ? [t] : u.value;
+        if (u.array) {
+          // 数组 uniform:一次写整段(W5 的 uOrbSpots[K])
+          const a = new Float32Array(v);
+          if (u.type === "float") gl.uniform1fv(loc, a);
+          else if (u.type === "vec2") gl.uniform2fv(loc, a);
+          else if (u.type === "vec3") gl.uniform3fv(loc, a);
+          else if (u.type === "vec4") gl.uniform4fv(loc, a);
+          else if (u.type === "int") gl.uniform1iv(loc, new Int32Array(v));
+          continue;
+        }
         if (u.type === "float") gl.uniform1f(loc, v[0]);
         else if (u.type === "int") gl.uniform1i(loc, v[0]|0);
         else if (u.type === "vec2") gl.uniform2f(loc, v[0], v[1]);
@@ -324,8 +554,16 @@ if (err) {
 mkdirSync(path.dirname(outPath), { recursive: true });
 await page.locator("#c").screenshot({ path: outPath });
 
+const rippleWarn = await page.evaluate("window.__rippleWarn");
+const rippleInfo = await page.evaluate("window.__rippleInfo");
+const probes = await page.evaluate("window.__probes");
+
 let cost = null;
-if (wantCost) cost = await page.evaluate("window.__draw(40)");
+let rippleCost = null;
+if (wantCost) {
+  cost = await page.evaluate("window.__draw(40)");
+  if (rippleInfo) rippleCost = await page.evaluate("window.__rippleCost ? window.__rippleCost(200) : null");
+}
 
 await browser.close();
 
@@ -338,5 +576,38 @@ if (cost) {
   console.log(
     `  软件光栅相对成本: 中位 ${cost.medianMs} ms/帧 @${W}×${H} (n=${cost.n}) — 仅供路线间横向比较,不是 GPU 预算值`
   );
+}
+if (rippleWarn) console.log(`  [涟漪] ${rippleWarn}`);
+if (rippleInfo) {
+  console.log(
+    `  涟漪: ${ripple.size}² RG16F · ${rippleInfo.steps} 步 × dt=${ripple.dt}s = ${rippleInfo.simTime.toFixed(3)}s · ` +
+      `c=${ripple.waveSpeed} m/s · Δx=${rippleInfo.texelM.toFixed(5)} m · ` +
+      `**C=${rippleInfo.courant.toFixed(4)}**(CFL 上限 0.7,maxDt=${rippleInfo.maxDt.toFixed(5)}s) · ` +
+      `damping=${ripple.damping} · 覆盖 [${ripple.worldMin[0]}, ${ripple.worldMin[1]}] + ${ripple.worldSize}m`
+  );
+  if (rippleCost) {
+    console.log(
+      `  求解相对成本: ${rippleCost.perStepMs} ms/步 @${ripple.size}² (n=${rippleCost.n}) — 同样是软件光栅值,不是 GPU 预算`
+    );
+  }
+}
+if (probes && probes.length) {
+  /* 「恒速扩散」看的是 **edge(前沿)** 那一列,不是 front(环峰)。
+   * 环峰会被初始高斯的内支来回反弹带偏;d'Alembert 的前沿才是匀速的。 */
+  console.log("  波前探针(圆心 = 第一个冲击点):");
+  console.log("    步   t(s)   前沿(纹素) 前沿(m)  环峰(纹素) 环宽(纹素) 峰值|h|(m)    RMS(m)     NaN");
+  let prev = null;
+  for (const q of probes) {
+    const d = prev ? q.edgeTexels - prev.edgeTexels : NaN;
+    console.log(
+      `    ${String(q.step).padStart(4)} ${q.t.toFixed(3).padStart(6)} ` +
+        `${String(q.edgeTexels).padStart(9)} ${q.edgeMeters.toFixed(4).padStart(8)} ` +
+        `${String(q.frontTexels).padStart(9)} ${String(q.ringWidthTexels).padStart(9)} ` +
+        `${q.peakAbs.toExponential(3).padStart(12)} ` +
+        `${q.rms.toExponential(3).padStart(11)} ${String(q.nanCount).padStart(5)}` +
+        (prev ? `   Δ前沿=${d} 纹素` : "")
+    );
+    prev = q;
+  }
 }
 console.log("");

@@ -5,7 +5,8 @@
  */
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
+import { fileURLToPath } from "node:url";
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const [preset, ...combos] = process.argv.slice(2);
 console.log("  config".padEnd(46) + "总分  flat  coh  corr peak cov%  dash");
 for (const c of combos) {

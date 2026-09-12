@@ -1,0 +1,933 @@
+<title>水面预览台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* 单主题:画布是两色版画,浅色 chrome 会跟它打架。色板取自奥伯拉丁实测取样
+   (墨 #32331A 占 81.1%,纸 #E6FEFD 占 3.8%)。 */
+:root{
+  --sea:#1B1C14; --panel:#24251A; --sunk:#141509; --line:#3D3E2B; --hair:#2C2D20;
+  --foam:#E6FEFD; --muted:#9AA38C;
+  --reef:#8FCFC2; --spot:#E0BC70; --rust:#C08A6A;
+  --mono:"JetBrains Mono","PingFang SC",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --fell:"IM Fell English SC","Songti SC",serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--sea);color:var(--foam);font-family:var(--mono);font-size:13px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1460px;margin:0 auto;padding:28px 20px 64px}
+
+/* ── 两栏:左边旋钮(自己带滚轮),右边画布(钉住) ────────────────────────
+ * 旧版是一根 5157 px 的长条 —— 滚到「交互编排」去点按钮时画布早就出屏了,
+ * 于是点了按钮"没效果"(其实有,只是看不见)。左栏 max-height:100vh + overflow
+ * 把滚动关进它自己那个 div,页面本身几乎不滚,画布永远在视野里。 */
+.app{display:flex;flex-direction:column;gap:18px}
+/* 窄屏回退:画布**排在最前面**并钉在顶上,底下滚旋钮时它不走 */
+.stagecol{order:-1}
+@media(max-width:1079px){ .stage{position:sticky;top:0;z-index:2} }
+@media(min-width:1080px){
+  /* 桌面:整页不滚,两栏各自带滚轮。
+   * 高度用 flex 撑而不是 calc(100vh − 190px):头部高度会随字体/换行变,
+   * 减一个魔数迟早对不上(短窗口下画布被顶出屏就是这么来的)。 */
+  html,body{height:100%}
+  .wrap{height:100vh;display:flex;flex-direction:column;padding-top:20px;padding-bottom:14px}
+  .lede{margin:6px 0 14px}
+  .app{display:grid;grid-template-columns:minmax(340px,410px) 1fr;gap:24px;
+       align-items:stretch;flex:1 1 auto;min-height:0}
+  .stagecol{order:0;height:100%;overflow-y:auto;padding-right:4px}
+  .rail{height:100%;overflow-y:auto;
+        overscroll-behavior:contain;padding:0 14px 32px 0;border-right:1px solid var(--hair)}
+  .rail>h2.sec:first-child{margin-top:0}
+  /* 窄栏里回到单列,并把标签列收窄 —— 两列 + 9.4em 标签在 400px 里挤不下 */
+  .rail .grid{grid-template-columns:1fr;column-gap:0}
+  .rail .row{grid-template-columns:8.4em 1fr 3.8em;gap:10px}
+  .rail::-webkit-scrollbar{width:10px}
+  .rail::-webkit-scrollbar-track{background:var(--sunk)}
+  .rail::-webkit-scrollbar-thumb{background:var(--line)}
+  .rail::-webkit-scrollbar-thumb:hover{background:#4E4F38}
+  /* 画布按**高度**封顶再反推宽度,16:9 不被拉扁;
+   * 420px 留给 preset 条 + 说明 + 工具行 + 计数板,右栏因此一般也不用滚。 */
+  .stagecol{max-width:calc((100vh - 430px) * 16 / 9)}
+  /* 右栏自己也可能差几十像素装不下(计数板 8 格)。**画布在右栏里也钉住** ——
+   * 这样即使右栏滚了几十像素,水面也不会离开视野。这是本次改版的整条目的。 */
+  .stagecol .stage{position:sticky;top:0;z-index:2}
+  /* 右栏里 preset 说明不占固定三行 —— 那 3.6em 是给单栏版留的 */
+  .stagecol .note{min-height:0}
+  .stagecol .eq{margin-top:4px}
+  .stagecol::-webkit-scrollbar{width:10px}
+  .stagecol::-webkit-scrollbar-track{background:var(--sunk)}
+  .stagecol::-webkit-scrollbar-thumb{background:var(--line)}
+}
+header{display:flex;align-items:baseline;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+h1{font-family:var(--fell);font-weight:400;font-size:2.1rem;letter-spacing:.02em;margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:12px}
+.lede{color:var(--muted);max-width:68ch;margin:8px 0 22px;font-size:12.5px}
+.lede b{color:var(--foam);font-weight:500}
+
+/* 画布 —— 唯一被抬起的物件 */
+.stage{position:relative;border:1px solid var(--line);background:var(--sunk);box-shadow:0 2px 0 rgba(0,0,0,.35)}
+canvas{display:block;width:100%;aspect-ratio:16/9;background:var(--sunk)}
+.hud{position:absolute;left:10px;bottom:8px;font-size:10.5px;letter-spacing:.08em;color:var(--muted);
+     background:rgba(20,21,9,.78);padding:3px 8px;pointer-events:none;font-variant-numeric:tabular-nums}
+.hud b{color:var(--spot);font-weight:500}
+.hud .err{color:var(--rust)}
+
+/* preset 条 —— 三个相机高度,不是三种实现 */
+.presets{display:flex;gap:1px;background:var(--line);border:1px solid var(--line);border-top:0}
+.pz{flex:1 1 0;background:var(--panel);border:0;color:var(--muted);font-family:var(--mono);font-size:12px;
+    padding:11px 12px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:3px;min-width:0}
+.pz:hover{background:#2A2B1E;color:var(--foam)}
+.pz[aria-pressed="true"]{background:#2E2F20;color:var(--foam);box-shadow:inset 2px 0 0 var(--spot)}
+.pz .nm{font-weight:500}
+.pz .sc{font-size:10.5px;color:var(--reef);font-variant-numeric:tabular-nums;letter-spacing:.04em}
+.pz[aria-pressed="true"] .sc{color:var(--spot)}
+.pz:focus-visible{outline:2px solid var(--reef);outline-offset:-2px}
+.note{color:var(--muted);font-size:11.5px;padding:10px 2px 0;max-width:78ch;min-height:3.6em}
+
+/* 控件 */
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:16px 0 12px}
+.tools+.tools{padding-top:0;border-top:0}
+.lab{color:var(--muted);font-size:11px;letter-spacing:.1em;margin-right:2px}
+.tg{background:var(--panel);border:1px solid var(--line);color:var(--muted);font-family:var(--mono);font-size:11.5px;
+    padding:6px 12px;cursor:pointer}
+.tg:hover{color:var(--foam)}
+.tg[aria-pressed="true"]{color:var(--sea);background:var(--reef);border-color:var(--reef)}
+.tg.off[aria-pressed="true"]{background:var(--rust);border-color:var(--rust)}
+.tg:focus-visible{outline:2px solid var(--reef);outline-offset:2px}
+.spacer{flex:1}
+
+.grid{display:grid;gap:0;border-top:1px solid var(--hair)}
+@media(min-width:820px){.grid{grid-template-columns:1fr 1fr;column-gap:36px}}
+.row{display:grid;grid-template-columns:9.4em 1fr 4.4em;gap:14px;align-items:center;
+     padding:9px 0;border-bottom:1px solid var(--hair)}
+.row .k{font-size:11.5px;color:var(--foam);min-width:0}
+.row .k small{display:block;color:var(--muted);font-size:10px;line-height:1.35;margin-top:1px}
+.row output{font-variant-numeric:tabular-nums;text-align:right;color:var(--reef);font-size:12px}
+.row.dirty output{color:var(--spot)}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(--line);outline:none;margin:0}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;height:13px;background:var(--foam);
+  border:0;cursor:pointer;border-radius:0}
+input[type=range]::-moz-range-thumb{width:13px;height:13px;background:var(--foam);border:0;cursor:pointer;border-radius:0}
+input[type=range]:focus-visible::-webkit-slider-thumb{background:var(--reef);box-shadow:0 0 0 3px rgba(143,207,194,.3)}
+input[type=range]:focus-visible::-moz-range-thumb{background:var(--reef);box-shadow:0 0 0 3px rgba(143,207,194,.3)}
+
+/* 计数面板 —— 阈值与节流的**证据**,不是断言 */
+.cnt{display:grid;grid-template-columns:repeat(auto-fit,minmax(94px,1fr));gap:1px;
+     background:var(--line);border:1px solid var(--line);margin:12px 0 0}
+.cnt div{background:var(--panel);padding:8px 10px;min-width:0}
+.cnt .n{display:block;font-size:17px;line-height:1.25;color:var(--spot);font-variant-numeric:tabular-nums}
+.cnt div.dim .n{color:var(--muted)}
+.cnt div.good .n{color:var(--reef)}
+.cnt .l{display:block;font-size:10px;color:var(--muted);letter-spacing:.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eq{color:var(--muted);font-size:11px;margin:6px 0 0;font-variant-numeric:tabular-nums}
+.eq b{color:var(--foam);font-weight:500}
+.eq .bad{color:var(--rust)}
+.eq .ok{color:var(--reef)}
+
+h2.sec{font-family:var(--fell);font-weight:400;font-size:1.15rem;color:var(--foam);margin:26px 0 2px}
+h2.sec small{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.06em;margin-left:8px}
+code{font-size:11px;color:var(--reef)}
+footer{margin-top:30px;padding-top:16px;border-top:1px solid var(--hair);color:var(--muted);font-size:11.5px;line-height:1.8}
+footer h2{font-family:var(--fell);font-weight:400;font-size:1.15rem;color:var(--foam);margin:0 0 8px}
+footer p{margin:0 0 10px;max-width:78ch}
+footer b{color:var(--foam);font-weight:500}
+footer .no{color:var(--rust)}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>水面预览台</h1>
+  <span class="sub">W2 波场 · W3 着色 · W4 抖动 —— 跑在你的显卡上</span>
+</header>
+<p class="lede">这就是黄金帧背后那套 shader。三个 preset 是<b>同一套算法的三个相机高度</b>,不是三种实现:相机一降,逆投影把波长压缩得更狠,对比度带自己就跟着挪。画布内部锁死 <b>1920×1080</b>,与打分用的定格帧一致 —— 分辨率一变 LOD 就变,画面对不上。</p>
+
+<div class="app">
+
+<div class="rail">
+
+<h2 class="sec">怎么玩 <small>五件事,全在右边那块画布上</small></h2>
+<p class="note" style="min-height:0">
+<b>① 拖球</b> —— 在画布上<b>按住灯球那个圈</b>拖。拖的是<b>相对时间线的偏移</b>,
+夹在 ±0.35 / ±0.25 NDC 的矩形里,松手按二阶弹簧(ζ=0.8 ω=12)弹回。
+拖动中右边计数板的「注入」<b>保持 0</b> —— 球对水是辐射度的,不是力学的。<br>
+<b>② 退场</b> —— 点下面的「触发退场(HR-9)」。800 ms 里 energy 走 <code>(1−u)²</code>、
+光池后退走 <code>1−(1−u)²</code>:池心沿视线退到 4 倍距离、半径缩到 35%、同时变暗,
+而<b>月光路径自己回到满强度</b>(让位量绑 energy)。<b>再点一次复位。</b><br>
+<b>③ 聚焦</b> —— 切到 <b>mid</b>,把下面「mid 聚焦」里的「聚焦闸门」从 0 拖到 1。<br>
+<b>④ 涟漪</b> —— 在画布上<b>划一下</b>(&gt;0.15 px/ms 才注入,40 ms 节流)、
+或者<b>点一下</b>丢一发大冲击。near 没有涟漪。<br>
+<b>⑤ 滚动</b> —— 拖下面的「滚动进度」,相机与球位共用同一个进度量。<br>
+右边画布下的 HUD 与计数板是<b>证据</b>:相机高度、光斑数、energy、注入率都在那儿。</p>
+
+<div class="tools">
+  <span class="lab">消融</span>
+  <span id="ablate"></span>
+</div>
+
+<h2 class="sec">交互编排 <small>W7 · WaterDirector</small></h2>
+<p class="note" style="min-height:0"><b>把鼠标在画布上划一下,再点一下,然后看下面的计数。</b>
+划动不是每个 <code>pointermove</code> 都注入涟漪:低于 <b>0.15 px/ms</b> 的被阈值挡掉,
+距上一次注入不足 <b>40 ms</b> 的被节流挡掉 —— 「注入」那一格通常只有收到数的一成。
+鼠标移到<b>灯球那个圈</b>上,<code>uOrbEnergy</code> 会按二阶弹簧(ζ=0.8 ω=12)弹到 1.45。
+编排器<b>不拥有 rAF</b>,而且<b>每帧一次 DOM 都不读</b>:画布尺寸由 <code>ResizeObserver</code>
+的 <code>contentRect</code> 给(本页一次 <code>getBoundingClientRect</code> 都没有),
+指针位置取事件对象的 <code>offsetX/offsetY</code>,球位取时间线取值函数。</p>
+<div class="tools">
+  <span class="lab">矩阵</span>
+  <span id="dirflags"></span>
+</div>
+<div class="tools">
+  <button class="tg off" id="rm" aria-pressed="false" type="button">reduced-motion</button>
+  <button class="tg" id="sweep" aria-pressed="false" type="button">球扫掠</button>
+  <button class="tg" id="exit" type="button">触发退场(HR-9)</button>
+  <span class="spacer"></span>
+  <button class="tg" id="czero" type="button">计数清零</button>
+</div>
+<div class="grid" id="dirgrid"></div>
+
+
+<h2 class="sec">灯球照度通道 <small>W5 · 三条通道</small></h2>
+<p class="note" style="min-height:0">灯球在 DOM 层(HR-8 的反色凹槽要 <code>mix-blend-mode</code> 作用在 <code>img</code> 上,球不能进 canvas),水在 WebGL 层,只靠一个 <code>OrbState</code> 单向耦合。这里拖的就是那个结构体的字段 —— 和黄金帧跑的是<b>同一份求解代码</b>(函数源码直接内联进本页)。</p>
+<div class="grid" id="orbgrid"></div>
+
+
+<h2 class="sec">night 主光池 <small>W11a · 第五条通道(加法)</small></h2>
+<p class="note" style="min-height:0"><b>切到 night,把「主光池强度」在 0 和 0.04 之间来回拖。</b>
+0 就是 W5 那一版 —— 22 个离散镜片斑,全画面只改到 <b>0.13%</b> 的像素,这正是用户说
+「照射效果不明显」的那一版。<br>
+根因不是增益:<b>night 上灯球的镜面通道是几何性死的。</b>画面下缘那点水在 24.2 m 外,
+从那儿看相机的仰角 9.4°、看灯球 46.8°,半程向量偏离法线 36.7° ⇒
+<code>tan²θ_h = 0.554</code>,而水面坡度方差 σ² 只有 2e-4~1e-2 ⇒
+<code>exp(−0.554/σ²) ≈ e⁻⁵⁵ = 0</code>。月光能出那条路径是因为它在无穷远、仰角 0.18 rad,
+与视线的 9.4° 互为镜像。而且球的镜像点在水下 13.37 m(俯角 26.7°),<b>镜像本身就在画框外</b>;
+球挂在 NDC y=0.42 时即使推到无穷远,反射点也只收敛到 14.3 m,进不了 24.2 m 的画框。
+<b>所以在 night 上拖「镜面光路增益」是白拖</b> —— 自己试一下。<br>
+剩下唯一活着的是漫射那一路,W11a 在 22 个斑之外补一团「球体本身泼下来的弱光」。
+<b>把「池近侧拉长」从 0.55 拖到 2.6</b>(和远侧一样)看前景怎么崩:对称拉长会把池子的近边
+一起拖进前景,前景平坦度 0.155 → 0.286 直接 FAIL。参考图里「光在水上是一道竖着的路」,
+那条路是往<b>地平线</b>方向拖的,不是往脚下拖。<br>
+灯球满能量时月光镜面增益还会从 1e4 <b>让位到 4000</b>(拖「灯球 energy」看月光那条路径变窄)——
+用户选的是「灯球压过月光」,但 <code>energy = 0</code> 时必须逐字节回到定稿,所以让位量是 energy 的函数。</p>
+<div class="grid" id="poolgrid"></div>
+
+
+<h2 class="sec">mid 聚焦 <small>W10 · 第四条通道(乘法)</small></h2>
+<p class="note" style="min-height:0"><b>把「聚焦闸门」从 0 拖到 1。</b>mid 前景的 tonemap 输出算出来是
+<code>(0.62−0.48)×8+0.48+0.10 = 1.70</code>,<b>被 clamp 到 1</b> —— 头顶 70% 的余量全浪费,
+往饱和白上加光什么都不会发生(W5 的灯球在 mid 上只改到 0.12% 的像素,根因就是这个)。
+所以 B 态用<b>渐晕</b>:把没有光照的地方压暗,用<b>对比</b>而不是加法。
+<code>dim</code> 是<b>乘在 body 上</b>的,不是加在 <code>lum</code> 上 —— 加在 lum 上会打断
+W3 那条 <code>lum = (1−F)·body + F·(env+spec)</code> 的分层链。
+<b>再拖上面「球心 x」</b>:光池会跟着球在水面上滑过去,而且近边宽、远端压扁 ——
+它是逐像素逆投影之后按<b>米</b>算的世界空间距离,不是贴在屏幕上的椭圆。
+<b>只有 mid 有聚焦态</b>:near 已按用户要求冻结,night 归 W11。</p>
+<div class="grid" id="focusgrid"></div>
+
+
+<h2 class="sec">涟漪 <small>W6 · 真解波动方程</small></h2>
+<p class="note" style="min-height:0"><b>在画布上点一下就丢一个冲击。</b>256² 的 RG16F ping-pong 显式解 <code>h″ = c²∇²h</code>,纹理锚在**世界坐标**里 —— 拖「相机高度」涟漪不会跟着滑,这正是旧实现(屏幕 uv 上的驻波)做不到的。<b>near 没有涟漪</b>:用户要求它保持现状。</p>
+<div class="grid" id="ripgrid"></div>
+
+
+<h2 class="sec">水面 <small>W2 波场 · W3 着色 · W4 抖动</small></h2>
+<div class="grid" id="grid"></div>
+
+
+<footer>
+  <h2>三件事这个页面能看见,分数看不见</h2>
+  <p><b>先关掉抖动。</b>「连续灰度」直接看亮度场 —— 整个项目调物理时都先看这个,抖动会掩盖问题。1-bit 下的「前景平坦」是靠饱和换来的,参考照里那层细微纹理其实丢了。</p>
+  <p><b>斑块调的是波幅,不是亮度。</b>把「镜面区波幅」拖到 0,静下来的地方<b>自己就变亮变平</b>了 —— 因为斜率不够,反射方向再也扫不过环境列里那条岸线边界。直接调亮度会把这条物理链打断,前景平坦度和对比度带会一起失效。</p>
+  <p><b>波脊断裂决定「像不像水」。</b>把它拖到 0,mid 上部立刻退回一片**贯穿全幅的平行横线**——像梳子,不像水。根因不在抖动:方向散布压到 0.15 之后 24 个分量几乎共向,干涉图案退化成只随景深变化的一维函数,波脊长度实际上是无限的。断裂用一个沿波脊快变、跨波脊慢变的各向异性包络把它切成随机长度的划,完全不动波的方向,所以相干度与梯度角都保得住。</p>
+  <p><b>夜景的「死板」是 tonemap 的锅,不是抖动的锅。</b>关掉「地平线起伏」再把显示对比度拉到 8,地平线立刻变回一条刀切的实心白板 —— 对比度那么高时几乎每个像素都被顶到 0 或 1,抖动根本没有中间调可用,过渡带不到 1px。压到 2.5,那片溶解的网点带才出来。</p>
+  <p><span class="no">谱斜率是个反例。</span>原本指望用它把 near 的纹理调细。实测调小只会让墨变多、横划变粗,一点都没变细:near 峰值带上 32px ≈ 4cm 的水波,而 24 个分量的波长已经贴着 1.8cm 的重力-毛细过渡点了 —— 再细的波在物理上不存在,而且会被 LOD 直接剔掉。<b>near 的粗是构图问题,不是谱形状问题。</b>这条结论是拖动滑块看出来的,不是算出来的。</p>
+  <p><b>灯球的"亮"在 mid/near 上是要靠抢的。</b>把「灯球 energy」拖到 0 再拖回 1 —— 前景那一大片白几乎不动,因为它<b>本来就被 tonemap 顶到饱和白了</b>(mid 对比度 8、near 12),再往上加光什么也不会发生。光斑只能在<b>峰值带的暗划线</b>里显形:那里 F≈0.43,(1-F)·增益·照度 要超过 0.11 才把一条暗划翻成白。这就是「漫射池增益」要开到 3.0 的原因 —— 它是<b>显示量纲</b>,不是物理亮度。</p>
+  <p><b>球退远一点,光斑才落在该落的地方。</b>把「球屏幕半径」从 0.16 拖到 0.10:球只是变小了,但<b>光斑整体后退</b>(视线向下,球越远越低、光程越长),从"饱和白的前景"挪进"暗划线带"。实测照度通道改到的像素数从 817 涨到 20068。这条几何在三个 preset 上完全不同 —— night 甚至要球世界半径 1.8 m 才够远,因为夜景可见的水面从 24 米外才开始。</p>
+  <p><span class="no">「环境注入」在 near 上是个雷。</span>它把灯球倒影当远处光源注进环境列,而 near 解出来的注入仰角是 0.328,<b>正好压在产生暗划线的那条岸线边界(0.36±0.04)上</b>。只开这一项、三条着色通道全关,峰值带就从 5 被打到 3、覆盖率从 38 打到 73。所以 near 的这一档必须是 0。同一个机制在夜景上却是对的:那里注入仰角 0.449,离地平线远,只在天上给出那圈软晕。</p>
+  <p><b>月晕这一档就是「往环境里注入一个光源」的另一个用法。</b>切到夜景把它从 0 拖到 0.04,月亮周围那片溶解的网点晕就出来了 —— 和参考图 obra-dinn.jpg 一样。再往上拖到 0.055,前景平坦度会从 0.13 涨到 0.159 顶破门槛:环境列是天空与水面共用的,晕加宽加亮时掠射的水面也采得到。</p>
+</footer>
+</div>
+
+<div class="stagecol">
+<div class="stage">
+  <canvas id="cv" width="1920" height="1080"></canvas>
+  <div class="hud" id="hud">初始化…</div>
+</div>
+<div class="presets" id="presets"></div>
+<p class="note" id="note"></p>
+
+<div class="tools">
+  <button class="tg" id="qz" aria-pressed="true" type="button">1-bit 抖动</button>
+  <button class="tg" id="pl" aria-pressed="true" type="button">播放</button>
+  <button class="tg" id="gf" type="button">定格 t=2.5s</button>
+  <span class="spacer"></span>
+  <button class="tg" id="rs" type="button">恢复 preset 默认值</button>
+</div>
+<div class="cnt" id="counters"></div>
+<p class="eq" id="cnteq"></p>
+</div>
+
+</div>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const $ = (s) => document.querySelector(s);
+const hud = $("#hud");
+
+/* ── 状态 ─────────────────────────────────────────────────────────────── */
+let presetName = "mid";
+let overrides = {};          // 用户拖过的滑块
+let ablated = new Set();     // 关掉的模块
+let quantize = true;
+let playing = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+let t = 2.5, last = 0, fps = 0;
+
+/* ── W5:把 orb-light.ts / env-column.ts 的函数源码取出来 ──────────────────
+ * 生成脚本用 Function.prototype.toString() 原样内联,这里 eval 一次拿到句柄。
+ * 预览台跑的就是黄金帧那一份代码,不是抄的。 */
+const ORB = new Function(D.INLINE_JS +
+  "; return { orbFacetNormals, orbWorldCenter, computeOrbUniforms, envColumnValue, buildEnvColumnLut," +
+  " createRippleSolver, RIPPLE_SOLVE_SRC, WaterDirector };")();
+
+/* 灯球那一组滑块的 key → PRESETS[x].orb 里的字段名。名字不同是因为
+ * 前者是 OrbState 的字段(orbY/orbR…),后者是 preset 的球位覆盖(y/r…)。 */
+const ORB_KEYMAP = { orbY: "y", orbR: "r", orbWorldRadius: "worldRadius", envOrbGain: "envGain" };
+
+const valueOf = (k) => {
+  if (overrides[k] !== undefined) return overrides[k];
+  for (const [id, , patch] of D.ABLATE) if (ablated.has(id) && patch[k] !== undefined) return patch[k];
+  const po = D.ORB_PRESETS[presetName] || {};
+  const ok = ORB_KEYMAP[k] || k;
+  if (po[ok] !== undefined) return po[ok];
+  if (k === "envMoonHalo") return presetName === "night" ? D.MOON_HALO.gain : 0;
+  if (k === "orbEnergy") return 1.0;   // 预览台默认开着,不然没得看
+  if (k === "orbX") return D.ORB_POSE.x;
+  if (k === "orbSpin") return D.ORB_POSE.spin;
+  if (k === "orbY") return D.ORB_POSE.y;
+  if (k === "orbR") return D.ORB_POSE.r;
+  if (k === "orbWorldRadius") return D.ORB_POSE.worldRadius;
+  if (k === "envOrbGain") return 0;
+  /* W10 聚焦渐晕。`fp` 为 null = 这个 preset 没有 B 态(near 冻结 / night 归 W11):
+   * 闸门恒为 0,五个参数退回 DEFAULTS(拖了也只是拖空气,画面不动)。 */
+  const fp = D.FOCUS_PRESETS[presetName];
+  if (k === "uOrbFocus") return 0;   // 静息态恒为 0:展示态 A
+  if (fp && fp[k] !== undefined) return fp[k];
+  /* W11a 主光池。`pp` 为 null = 这个 preset 不开池(near 冻结 / mid 前景已饱和):
+   * 增益恒为 0,**形状仍走 DEFAULTS**(= presets.ts 的 NIGHT_POOL)——
+   * 借形状是为了不让 uOrbPoolRadius = 0 把 d 变成 inf,通道会悄悄失效不报错。 */
+  const pp = D.POOL_PRESETS[presetName];
+  if (k === "uOrbPoolGain") return pp ? pp.uOrbPoolGain : 0;
+  if (pp && pp[k] !== undefined) return pp[k];
+  /* W7 滚动进度。不是 uniform,是 `WaterDirector.setScroll()` 的目标值。
+   * 默认值跟着 preset 走:夜景 = 区间起点(0),中景/近景 = 区间终点(1)——
+   * 这样**静止时 director 解出来的相机与 preset 的相机逐位相同**,
+   * 换 preset 不会因为编排层接进来就悄悄改了画面。 */
+  if (k === "dirScroll") return presetName === "night" ? 0 : 1;
+  /* 涟漪:每个 preset 自己的一套(near 没有 → 全部归零/关闭)。
+   * 世界尺度必须跟着相机尺度走,这是 W6 最重要的一条经验,见 docs/water-ripple.md。 */
+  const rp = D.RIPPLE_PRESETS[presetName];
+  if (k === "uRippleAmp") return rp ? rp.amp : 0;
+  if (k === "ripSpeed") return rp ? rp.speed : 0.45;
+  if (k === "ripDamping") return rp ? rp.damping : 0.997;
+  if (k === "ripStrength") return rp ? Number(rp.impulse.split(",")[2]) : 0.006;
+  if (k === "ripRadius") return rp ? Number(rp.impulse.split(",")[3]) : 0.15;
+  const p = D.PRESETS[presetName].set;
+  return p[k] !== undefined ? p[k] : D.DEFAULTS[k];
+};
+
+/* ── W7 交互编排器 ────────────────────────────────────────────────────────
+ * 与 W8 组件跑的是同一个类(源码内联,不是抄的)。它不拥有 rAF —— 下面的
+ * frame() 每帧 `update(dt)` 一次,再 `getFrameState()` 取这一帧的水面状态。 */
+const cv = $("#cv");
+let sweeping = false;
+const director = new ORB.WaterDirector({
+  from: "night", to: "mid",
+  viewport: { left: 0, top: 0, width: cv.width, height: cv.height },
+  orbSource: (ts) => ({
+    // 「时间线取值函数」:预览台的时间线就是这几个滑块(+ 可选的扫掠)
+    screen: [sweeping ? Math.sin(ts * 1.6) * 0.8 : valueOf("orbX"), valueOf("orbY")],
+    radiusNdc: valueOf("orbR"),
+    energy: valueOf("orbEnergy"),
+    spinPhase: valueOf("orbSpin"),
+    lightmapFrame: Math.floor(valueOf("orbSpin") * 120),
+    worldRadius: valueOf("orbWorldRadius"),
+  }),
+});
+/* 系统设置 + 页面上的模拟开关,两条都要生效。matchMedia 的变化也监听着。 */
+director.bindReducedMotion();
+
+/* **画布尺寸的唯一来源**:ResizeObserver 的 contentRect —— 它是浏览器在布局
+ * 之后直接递给回调的,读它不触发任何强制回流。本页因此**一次
+ * `getBoundingClientRect()` 都没有**(W6 那版的点击处理里还有一次,已删)。
+ * 指针坐标用 `offsetX/offsetY`(相对画布 padding box),所以 left/top 恒为 0。 */
+const vpRO = new ResizeObserver((es) => {
+  const r = es[0].contentRect;
+  if (r.width > 0 && r.height > 0) director.setViewport({ left: 0, top: 0, width: r.width, height: r.height });
+});
+vpRO.observe(cv);
+
+/** 指针是否落在灯球那个圈里。半径以 NDC 纵向半高为单位 → x 方向要乘 aspect。 */
+function overOrb(nx, ny) {
+  const f = director.getFrameState();
+  const a = cv.width / cv.height;
+  const dx = (nx - f.orb.screen[0]) * a;
+  const dy = ny - f.orb.screen[1];
+  return dx * dx + dy * dy <= f.orb.radiusNdc * f.orb.radiusNdc;
+}
+
+let outsideField = 0;   // 冲击算出来了、但落在涟漪纹理覆盖区之外(求解器丢弃)
+let lastClick = null;
+
+cv.addEventListener("pointermove", (e) => {
+  /* 只用**缓存的** viewport(ResizeObserver 给的),不问 DOM 要 —— 用
+   * `cv.clientWidth` 就又是一次强制回流了,那正是这张卡要杜绝的东西。 */
+  const vp = director.viewport;
+  director.setOrbHover(overOrb((e.offsetX / vp.width) * 2 - 1, 1 - (e.offsetY / vp.height) * 2));
+  // 行⑩(W11b):拖拽中先喂偏移;pointerMove 内部看 dragging 把涟漪注入挡掉
+  director.dragMove(e.offsetX, e.offsetY);
+  director.pointerMove(e.offsetX, e.offsetY, e.timeStamp);
+});
+cv.addEventListener("pointerleave", () => { director.pointerLeave(); director.setOrbHover(false); });
+cv.addEventListener("pointerdown", (e) => {
+  /* 行⑩:按在球上 = 拖球,**不落水**。命中判定在这一层(编排器不做屏幕空间
+   * 碰撞检测)。setPointerCapture 之后拖出画布也还收得到 move/up。 */
+  const vp = director.viewport;
+  const nx = (e.offsetX / vp.width) * 2 - 1;
+  const ny = 1 - (e.offsetY / vp.height) * 2;
+  if (overOrb(nx, ny) && director.dragStart(e.offsetX, e.offsetY)) {
+    try { cv.setPointerCapture(e.pointerId); } catch (err) { /* 捕获失败不影响拖拽本身 */ }
+    return;
+  }
+  if (director.pointerDown(e.offsetX, e.offsetY)) lastClick = director.clientToWater(e.offsetX, e.offsetY);
+});
+const onDragEnd = (e) => {
+  director.dragEnd();
+  try { cv.releasePointerCapture(e.pointerId); } catch (err) { /* 没捕获过就没什么可释放 */ }
+};
+cv.addEventListener("pointerup", onDragEnd);
+cv.addEventListener("pointercancel", onDragEnd);
+
+const gl = cv.getContext("webgl2", { antialias: false, alpha: false });
+let prog = null, locs = {}, ready = false;
+
+function fail(msg) {
+  hud.innerHTML = '<span class="err">' + msg + "</span>";
+  ready = false;
+}
+
+function makeShader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+
+const VERT = `#version 300 es
+void main(){
+  vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+  gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+}`;
+
+function loadTex(url, wrap) {
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => {
+      const tx = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, tx);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, img);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, wrap);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, wrap);
+      res({ tx, w: img.width, h: img.height });
+    };
+    img.onerror = () => rej(new Error("纹理加载失败"));
+    img.src = url;
+  });
+}
+
+let noiseTex = null;
+const envTex = {};
+
+async function init() {
+  if (!gl) return fail("这个浏览器没有 WebGL2 —— 预览台需要它(浮点纹理与 texelFetch)。");
+  try {
+    prog = gl.createProgram();
+    gl.attachShader(prog, makeShader(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, makeShader(gl.FRAGMENT_SHADER, D.FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  } catch (e) {
+    return fail("着色器编译失败:" + String(e.message).slice(0, 200));
+  }
+  gl.useProgram(prog);
+  const n = gl.getProgramParameter(prog, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) {
+    const info = gl.getActiveUniform(prog, i);
+    locs[info.name] = gl.getUniformLocation(prog, info.name);
+  }
+  try {
+    noiseTex = await loadTex(D.NOISE, gl.REPEAT);
+    for (const k of ["mid", "near", "night"]) envTex[k] = await loadTex(D.ENV[k], gl.CLAMP_TO_EDGE);
+  } catch (e) {
+    return fail("纹理加载失败 —— 蓝噪声阈值图内联在页面里,不该失败。");
+  }
+  gl.bindVertexArray(gl.createVertexArray());
+  ready = true;
+  requestAnimationFrame(frame);
+}
+
+function setU(name, v) {
+  const l = locs[name];
+  if (!l) return;
+  if (Array.isArray(v)) v.length === 2 ? gl.uniform2f(l, v[0], v[1]) : gl.uniform3f(l, v[0], v[1], v[2]);
+  else gl.uniform1f(l, v);
+}
+
+/* 灯球每帧的求解 + 环境列注入。
+ * 求解是 O(镜片数),每帧一次;shader 里只做 K 次核求和(见 light.glsl.ts)。 */
+let envLutTex = null;
+function applyOrb() {
+  /* W7 起球位与 energy 都**过一遍编排器**:20 ms 跟随、悬停弹簧、退场闸门
+   * 全在 `getFrameState().orb` 里。相机同理 —— 滚动阻尼解出来的那一组。 */
+  const f = director.getFrameState();
+  const cam = {
+    camHeight: f.camHeight, camPitch: f.camPitch, fovY: f.fovY,
+    aspect: cv.width / cv.height,
+  };
+  const state = {
+    screen: [f.orb.screen[0], f.orb.screen[1]],
+    radiusNdc: f.orb.radiusNdc,
+    energy: f.orb.energy,
+    spinPhase: f.orb.spinPhase,
+    lightmapFrame: f.orb.lightmapFrame,
+    worldRadius: f.orb.worldRadius,
+  };
+  const cfg = Object.assign({}, D.ORB_CFG, { envGain: valueOf("envOrbGain") });
+  const u = ORB.computeOrbUniforms(state, cfg, cam);
+
+  setU("uOrbEnergy", state.energy);
+  if (locs.uOrbLightMode) gl.uniform1i(locs.uOrbLightMode, 0);
+  setU("uOrbCenter", u.center);
+  setU("uOrbRadius", state.worldRadius);
+  setU("uOrbPatchCenter", u.patchCenter);
+  setU("uOrbPatchRadius", u.patchRadius);
+  setU("uOrbOmega", u.omega);
+  setU("uOrbLightmapFrame", state.lightmapFrame);
+  if (locs.uOrbSpots) gl.uniform4fv(locs.uOrbSpots, u.spots);
+
+  /* W10:光池的落点是球心的**派生量**,每帧从 u.center 直接取 —— 不另存一份,
+   * 所以拖「球心 x」时池子同帧跟着走。碎粒跟着自转相位慢慢挪。
+   * near/night 没有 focus 块 → 闸门钉死在 0 → waterOrbFocusDim 精确返回 1.0。 */
+  setU("uOrbGround", [u.center[0], u.center[2]]);
+  setU("uOrbSpinPhase", state.spinPhase);
+  setU("uOrbFocus", D.FOCUS_PRESETS[presetName] ? valueOf("uOrbFocus") : 0);
+  /* 行⑪ 退场后退(W11b)。**每帧量,不是旋钮** —— 点上面「触发退场(HR-9)」
+   * 看池子往地平线退、缩小、变暗,同时月光路径回到满强度(让位量绑 energy)。
+   * 静息恒为 0 ⇒ shader 里 ×(1+0·K) 与 ×1.0 逐位恒等。 */
+  setU("uOrbPoolRetreat", f.orbRetreat || 0);
+
+  /* W11a 月光让位。**必须写在上面那条 `for (k of DEFAULTS) setU(k, valueOf(k))`
+   * 之后** —— 它就是要覆盖那一份。`lit` 为 null(near/mid)或 energy ≤ 0 时
+   * 原样返回,于是「不开灯球逐字节不变」那条红线不受影响。
+   * 式子与 presets.ts 的 moonSpecGainFor 一致:`base + (lit − base) · clamp(e,0,1)`。 */
+  const moonLit = D.MOON_LIT[presetName];
+  const moonBase = valueOf("uShadeSpecGain");
+  if (moonLit !== null && state.energy > 0) {
+    const e = state.energy > 1 ? 1 : state.energy;
+    setU("uShadeSpecGain", moonBase + (moonLit - moonBase) * e);
+  }
+
+  /* 环境列:底表 + 注入项(灯球倒影 + 夜景月晕),每帧重建一张 1×256 R8。
+   * 256 字节的上传,成本可以忽略;好处是"注入"这条通道在预览台里是活的。 */
+  const params = Object.assign({}, D.ENV_PRESETS[presetName]);
+  params.lights = [];
+  if (u.envLight) params.lights.push(u.envLight);
+  const halo = valueOf("envMoonHalo");
+  if (halo > 0) params.lights.push({ sinElev: D.MOON_HALO.sinElev, width: D.MOON_HALO.width, gain: halo });
+  const lut = ORB.buildEnvColumnLut(params, D.ENV_LUT.size);
+  gl.activeTexture(gl.TEXTURE1);
+  if (!envLutTex) {
+    envLutTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, envLutTex);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+  gl.bindTexture(gl.TEXTURE_2D, envLutTex);
+  gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, D.ENV_LUT.size, 1, 0, gl.RED, gl.UNSIGNED_BYTE, lut);
+  if (locs.uShadeEnvLut) gl.uniform1i(locs.uShadeEnvLut, 1);
+  setU("uShadeEnvLutSize", [D.ENV_LUT.size, 1]);
+  return u;
+}
+
+/* ── W6 涟漪 ──────────────────────────────────────────────────────────────
+ * 求解器跟着 preset 走:换 preset 要换覆盖区域,所以整个重建。
+ * 参数(波速/阻尼)是构造期的,拖滑块也重建 —— 256² 两张纹理,重建很便宜。 */
+let ripple = null, rippleKey = "";
+function ensureRipple() {
+  const rp = D.RIPPLE_PRESETS[presetName];
+  if (!rp) { ripple = null; rippleKey = ""; return; }
+  const w = rp.world.split(",").map(Number);
+  const key = [presetName, w.join(","), valueOf("ripSpeed"), valueOf("ripDamping")].join("|");
+  if (ripple && key === rippleKey) return;
+  ripple = ORB.createRippleSolver(gl, ORB.RIPPLE_SOLVE_SRC, {
+    worldMin: [w[0], w[1]], worldSize: w[2],
+    waveSpeed: valueOf("ripSpeed"), damping: valueOf("ripDamping"),
+  });
+  rippleKey = key;
+  /* 换 preset 时先丢一发,不然点之前画面上什么都没有 —— 预览台是给人看的。 */
+  if (ripple) {
+    const im = rp.impulse.split(",").map(Number);
+    ripple.injectImpulse([im[0], im[1]], im[2], im[3]);
+  }
+  gl.useProgram(prog);
+  gl.viewport(0, 0, cv.width, cv.height);
+}
+
+/* W6 那版这里还有一个 `ndcToWater()`,与 field.glsl.ts 的 `waterSurfacePoint`
+ * 是同一套式子的**第三份抄写**。W7 把它并进 `WaterDirector.clientToWater()`
+ * (还顺手用上了缓存的 viewport),这里不再留副本。 */
+
+function bindRipple() {
+  if (!ripple || valueOf("uRippleAmp") <= 0) { setU("uRippleTexSize", [0, 0]); return; }
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, ripple.texture());
+  if (locs.uRippleTex) gl.uniform1i(locs.uRippleTex, 2);
+  setU("uRippleTexSize", [ripple.size, ripple.size]);
+  setU("uRippleWorldMin", ripple.worldMin);
+  setU("uRippleWorldSize", ripple.worldSize);
+}
+
+function draw() {
+  gl.useProgram(prog);
+  gl.viewport(0, 0, cv.width, cv.height);
+  setU("uRes", [cv.width, cv.height]);
+  setU("uTime", t);
+  for (const k of Object.keys(D.DEFAULTS)) setU(k, valueOf(k));
+  setU("uDitherQuantize", quantize ? 1 : 0);
+
+  /* ── W7:编排器接管的四个 uniform ────────────────────────────────────────
+   * 相机三项来自滚动阻尼(静止在区间端点时与 preset 逐位相同),
+   * 风速来自「静置降风」,曝光来自「点击提亮」的包络(**加法**,不是倍率)。 */
+  const fst = director.getFrameState();
+  setU("uFieldCamHeight", fst.camHeight);
+  setU("uFieldCamPitch", fst.camPitch);
+  setU("uFieldFovY", fst.fovY);
+  setU("uFieldWindSpeed", valueOf("uFieldWindSpeed") * director.windFactor);
+  setU("uShadeExposure", valueOf("uShadeExposure") + (fst.exposureBoost || 0));
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, noiseTex.tx);
+  if (locs.uDitherNoise) gl.uniform1i(locs.uDitherNoise, 0);
+  setU("uDitherNoiseSize", [noiseTex.w, noiseTex.h]);
+
+  lastOrb = applyOrb();
+  bindRipple();
+
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+}
+let lastOrb = null;
+
+/* ── 验收钩子 ─────────────────────────────────────────────────────────────
+ * `scripts/water-director-check.mjs` 用它在 headless 里量三件事:
+ * 计数器实测值、每帧的布局读取次数、reduced-motion 下连续两帧的逐像素差。
+ * **只读,不改任何渲染行为** —— `want` 为 0 时 frame() 里那一行是个比较。
+ * readPixels 必须在 draw() 的**同一帧**里做:本页没开 preserveDrawingBuffer,
+ * 下一帧的 rAF 里读到的可能已经是清过的缓冲。 */
+let prevPx = null;
+function grabFrame() {
+  const n = 4 * cv.width * cv.height;
+  const px = new Uint8Array(n);
+  gl.readPixels(0, 0, cv.width, cv.height, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let diff = prevPx ? 0 : -1;
+  if (prevPx) {
+    for (let i = 0; i < n; i += 4) {
+      if (px[i] !== prevPx[i] || px[i + 1] !== prevPx[i + 1] || px[i + 2] !== prevPx[i + 2]) diff++;
+    }
+  }
+  prevPx = px;
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < n; i++) { h ^= px[i]; h = Math.imul(h, 16777619) >>> 0; }
+  return { hash: h >>> 0, diff, t: t };
+}
+window.__wd = {
+  director, want: 0, grabs: [],
+  reset() { prevPx = null; this.grabs = []; },
+  get counters() { return director.stats(); },
+  /* 只给验收脚本用:把**后备缓冲**降到小尺寸,好让 SwiftShader 上的主线程
+   * 腾出来处理输入事件。CSS 尺寸不变,所以 offsetX/offsetY 与 ResizeObserver
+   * 的 contentRect 都不受影响 —— 阈值/节流的计数与分辨率无关。 */
+  setSize(w, h) { cv.width = w; cv.height = h; prevPx = null; },
+  /* 只给验收脚本用:以**真实事件对象**按固定间隔连发 pointermove。
+   * 为什么需要它:本容器没有 GPU,1920×1080 软件光栅一帧 ~1 s,主线程被占死,
+   * Playwright 的每一发 `mouse.move` 要等 ~121 ms 才派发 —— 每发间隔本来就
+   * 超过 40 ms,**节流一次都咬不到**,量出来的"节流挡掉 4"毫无说服力。
+   * 真机上指针是 8~16 ms 一发。这里用忙等把间隔压到 gapMs,
+   * 事件对象与 `timeStamp` 都是浏览器给的真值,走的也是页面自己那个监听器。 */
+  synthDrag(n, gapMs, ax, ay, bx, by) {
+    for (let i = 0; i < n; i++) {
+      const u = n > 1 ? i / (n - 1) : 0;
+      cv.dispatchEvent(new PointerEvent("pointermove", {
+        bubbles: true, clientX: ax + (bx - ax) * u, clientY: ay + (by - ay) * u,
+      }));
+      const t0 = performance.now();
+      while (performance.now() - t0 < gapMs) { /* 忙等 —— timeStamp 必须真的隔开 */ }
+    }
+    return director.stats();
+  },
+};
+
+function frame(now) {
+  if (!ready) return;
+  const dt = last ? Math.min((now - last) / 1000, 0.1) : 0;
+  last = now;
+
+  /* ── W7:调用方拥有 rAF,编排器只被推一帧 ────────────────────────────── */
+  director.setScroll(valueOf("dirScroll"));
+  director.update(dt);
+  const frozen = director.reducedMotion;
+  if (frozen) t = D.DIR_TUNING.frozenTime;     // contract.ts:定格恒为 8.0
+  else if (playing) t += dt;
+
+  if (dt > 0) fps = fps ? fps * 0.9 + (1 / dt) * 0.1 : 1 / dt;
+  ensureRipple();
+  /* 编排器排好的冲击在这里才真的进求解器 —— director 不拥有 RippleSolver。
+   * 落在纹理覆盖区之外的会被 injectImpulse 丢掉,单独记一格。 */
+  /* **无论有没有求解器都要 drain**:near 没有涟漪(RIPPLE_PRESETS.near 为 null),
+   * 不 drain 的话队列会一直攒着,切回 mid 的那一帧会突然吐出一串陈旧冲击。 */
+  const queued = frozen ? [] : director.drainImpulses();
+  if (ripple) {
+    for (const im of queued) {
+      if (!ripple.injectImpulse(im.world, im.strength, im.radius)) outsideField++;
+    }
+  }
+  /* 固定 dt 步进,不吃真实帧间隔 —— CFL 是按固定 dt 算的,一卡帧就炸。
+   * reduced-motion 下和波场一起定格。 */
+  if (ripple && playing && !frozen) ripple.stepFixed(0.016);
+  draw();
+  if (window.__wd.want > 0) { window.__wd.want--; window.__wd.grabs.push(grabFrame()); }
+  drawCounters();
+  const fs = director.getFrameState();
+  hud.innerHTML =
+    "<b>" + presetName + "</b> · 相机 " + fs.camHeight.toFixed(2) + " m" +
+    " · t=" + t.toFixed(2) + "s · " + (quantize ? "1-bit" : "连续灰度") +
+    " · 1920×1080 · " + Math.round(fps) + " fps" +
+    (frozen ? " · <b>定格(reduced-motion)</b>" : "") +
+    (lastOrb ? " · 灯球 " + lastOrb.activeSpots + " 斑 · energy " + fs.orb.energy.toFixed(2) : "") +
+    (fs.orbRetreat > 0 ? " · <b>光池后退 " + (fs.orbRetreat * 100).toFixed(0) + "%</b>" : "") +
+    (director.dragging || director.dragOffX !== 0 || director.dragOffY !== 0
+      ? " · <b>拖拽 " + director.dragOffX.toFixed(2) + "/" + director.dragOffY.toFixed(2) + "</b>" : "") +
+    (ripple && valueOf("uRippleAmp") > 0
+      ? " · 涟漪 C=" + ripple.courant(0.016).toFixed(2) +
+        (lastClick ? " · 上次点在 " + lastClick.map((v) => v.toFixed(1)).join("/") + " m" : " · 点画布丢冲击")
+      : "");
+  requestAnimationFrame(frame);
+}
+
+/* ── UI ───────────────────────────────────────────────────────────────── */
+const rows = {};
+
+function buildPresets() {
+  const host = $("#presets");
+  for (const k of ["near", "mid", "night"]) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pz";
+    b.setAttribute("aria-pressed", String(k === presetName));
+    b.innerHTML = '<span class="nm">' + D.META[k].label + "</span>" +
+                  '<span class="sc">相机 ' + D.META[k].h + " · 跑分 " + D.META[k].score + "</span>";
+    b.addEventListener("click", () => { presetName = k; overrides = {}; syncAll(); });
+    host.appendChild(b);
+  }
+}
+
+function buildSliders(list, hostSel) {
+  const host = $(hostSel);
+  for (const [k, name, desc, min, max, step] of list) {
+    const row = document.createElement("label");
+    row.className = "row";
+    const id = "s_" + k;
+    row.innerHTML = '<span class="k">' + name + "<small>" + desc + "</small></span>" +
+      '<input type="range" id="' + id + '" min="' + min + '" max="' + max + '" step="' + step + '">' +
+      "<output></output>";
+    host.appendChild(row);
+    const inp = row.querySelector("input");
+    const out = row.querySelector("output");
+    inp.addEventListener("input", () => {
+      overrides[k] = parseFloat(inp.value);
+      syncRow(k);
+    });
+    rows[k] = { row, inp, out };
+  }
+}
+
+function syncRow(k) {
+  const r = rows[k];
+  if (!r) return;
+  const v = valueOf(k);
+  r.inp.value = String(v);
+  const a = Math.abs(v);
+  r.out.textContent = a >= 10 ? v.toFixed(1) : a >= 1 ? v.toFixed(2) : a >= 0.01 || v === 0 ? v.toFixed(3) : v.toFixed(4);
+  r.row.classList.toggle("dirty", overrides[k] !== undefined);
+}
+
+function syncAll() {
+  for (const b of document.querySelectorAll("#presets .pz"))
+    b.setAttribute("aria-pressed", String(b.querySelector(".nm").textContent === D.META[presetName].label));
+  $("#note").textContent = D.META[presetName].note;
+  /* 滚动映射区间跟着 preset 走。**默认是 night → mid**(任务书的默认区间);
+   * 选 near 时区间接续成 mid → near —— near 是一个合法的终点,但不是默认,
+   * 而且它一个参数都没为本卡动过。 */
+  const to = presetName === "night" ? "mid" : presetName;
+  const from = presetName === "near" ? "mid" : "night";
+  director.from = from;
+  director.to = to;
+  /* 换 preset 是**跳转**不是滚动:直接把阻尼量吸附到目标,
+   * 否则一切换 preset 画面会从上一个相机高度滑过去。拖滑块才走阻尼
+   * (滑块的 input 只调 syncRow,不进这里)。 */
+  director.setScroll(valueOf("dirScroll"));
+  director.scroll = director.scrollTarget;
+  const dr = rows.dirScroll;
+  if (dr) {
+    dr.row.querySelector("small").textContent =
+      from + " " + D.META[from].h + " → " + to + " " + D.META[to].h + ";松手后看阻尼 0.12 追过去";
+  }
+  for (const k of Object.keys(rows)) syncRow(k);
+}
+
+function buildAblate() {
+  const host = $("#ablate");
+  for (const [id, name] of D.ABLATE) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "tg off";
+    b.setAttribute("aria-pressed", "false");
+    b.textContent = "关 " + name;
+    b.addEventListener("click", () => {
+      ablated.has(id) ? ablated.delete(id) : ablated.add(id);
+      b.setAttribute("aria-pressed", String(ablated.has(id)));
+      syncAll();
+    });
+    host.appendChild(b);
+  }
+}
+
+$("#qz").addEventListener("click", (e) => {
+  quantize = !quantize;
+  e.currentTarget.setAttribute("aria-pressed", String(quantize));
+  e.currentTarget.textContent = quantize ? "1-bit 抖动" : "连续灰度";
+});
+$("#pl").addEventListener("click", (e) => {
+  playing = !playing;
+  e.currentTarget.setAttribute("aria-pressed", String(playing));
+  e.currentTarget.textContent = playing ? "播放" : "暂停中";
+});
+$("#gf").addEventListener("click", () => { t = 2.5; playing = false;
+  $("#pl").setAttribute("aria-pressed", "false"); $("#pl").textContent = "暂停中"; });
+$("#rs").addEventListener("click", () => { overrides = {}; ablated.clear();
+  for (const b of document.querySelectorAll("#ablate .tg")) b.setAttribute("aria-pressed", "false");
+  syncAll(); });
+
+/* ── W7 交互分区的 UI ─────────────────────────────────────────────────── */
+const CNT_CELLS = [
+  ["pointerEvents", "pointermove"],
+  ["injected", "注入"],
+  ["suppressedByThreshold", "阈值挡掉"],
+  ["suppressedByThrottle", "节流挡掉"],
+  ["suppressedOffSurface", "不在水面"],
+  ["suppressedByGate", "闸门挡掉"],
+  ["clicks", "点击"],
+];
+const cntHost = $("#counters");
+const cntCells = {};
+for (const [k, label] of CNT_CELLS) {
+  const d = document.createElement("div");
+  d.innerHTML = '<span class="n">0</span><span class="l">' + label + "</span>";
+  cntHost.appendChild(d);
+  cntCells[k] = { box: d, n: d.querySelector(".n") };
+}
+for (const [k, label] of [["outside", "落覆盖区外"], ["lag", "球位滞后 Δx"], ["windf", "风 ×"], ["idle", "静置 s"]]) {
+  const d = document.createElement("div");
+  d.className = "dim";
+  d.innerHTML = '<span class="n">0</span><span class="l">' + label + "</span>";
+  cntHost.appendChild(d);
+  cntCells[k] = { box: d, n: d.querySelector(".n") };
+}
+
+function drawCounters() {
+  const c = director.stats();
+  for (const [k] of CNT_CELLS) {
+    cntCells[k].n.textContent = String(c[k]);
+    cntCells[k].box.classList.toggle("good", k === "injected" && c.injected > 0);
+  }
+  const f = director.getFrameState();
+  const want = sweeping ? Math.sin(director.time * 1.6) * 0.8 : valueOf("orbX");
+  cntCells.outside.n.textContent = String(outsideField);
+  cntCells.lag.n.textContent = Math.abs(want - f.orb.screen[0]).toFixed(4);
+  cntCells.windf.n.textContent = director.windFactor.toFixed(3);
+  cntCells.idle.n.textContent = director.idleElapsed.toFixed(1);
+  const sum = c.injected + c.suppressedByThreshold + c.suppressedByThrottle +
+              c.suppressedOffSurface + c.suppressedByGate;
+  const ok = sum === c.pointerEvents;
+  $("#cnteq").innerHTML =
+    "不变式 <b>pointerEvents = injected + 阈值 + 节流 + 不在水面 + 闸门</b>:" +
+    c.pointerEvents + " = " + sum +
+    (ok ? ' <span class="ok">✓</span>' : ' <span class="bad">✗ 有事件落进了两个桶</span>') +
+    " · 注入率 " + (c.pointerEvents ? ((c.injected / c.pointerEvents) * 100).toFixed(1) : "0.0") + "%";
+}
+
+function buildDirFlags() {
+  const host = $("#dirflags");
+  for (const [key, name, desc] of D.DIRECTOR_ROWS) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "tg";
+    b.title = desc;
+    b.setAttribute("aria-pressed", "true");
+    b.textContent = name;
+    b.addEventListener("click", () => {
+      const on = !director.flags[key];
+      director.setFlag(key, on);
+      b.setAttribute("aria-pressed", String(on));
+    });
+    host.appendChild(b);
+  }
+}
+
+$("#rm").addEventListener("click", (e) => {
+  const on = !director.reducedMotion;
+  director.setReducedMotion(on);
+  e.currentTarget.setAttribute("aria-pressed", String(on));
+  if (on) { playing = false; $("#pl").setAttribute("aria-pressed", "false"); $("#pl").textContent = "暂停中"; }
+});
+$("#sweep").addEventListener("click", (e) => {
+  sweeping = !sweeping;
+  e.currentTarget.setAttribute("aria-pressed", String(sweeping));
+});
+$("#exit").addEventListener("click", (e) => {
+  /* 有状态:光看画面分不清"点了没反应"和"退场已经走完了"。文字与 aria-pressed
+   * 一起翻,按钮自己就是退场进行中的指示灯。 */
+  const exiting = director.exitElapsed >= 0;
+  if (exiting) director.cancelOrbExit(); else director.beginOrbExit();
+  const now = !exiting;
+  e.currentTarget.setAttribute("aria-pressed", String(now));
+  e.currentTarget.textContent = now ? "复位(取消退场)" : "触发退场(HR-9)";
+});
+$("#czero").addEventListener("click", () => { director.resetCounters(); outsideField = 0; });
+
+buildPresets();
+buildSliders(D.POOL_SLIDERS, "#poolgrid");
+buildSliders(D.FOCUS_SLIDERS, "#focusgrid");
+buildSliders(D.RIPPLE_SLIDERS, "#ripgrid");
+buildSliders(D.DIR_SLIDERS, "#dirgrid");
+buildSliders(D.ORB_SLIDERS, "#orbgrid");
+buildSliders(D.SLIDERS, "#grid");
+buildAblate();
+buildDirFlags();
+syncAll();
+if (!playing) { $("#pl").setAttribute("aria-pressed", "false"); $("#pl").textContent = "暂停中"; }
+init();
+</script>

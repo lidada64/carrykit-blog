@@ -4,9 +4,16 @@
 > 主题反色 / 顶部静止带 / 切换过渡等细节,**现已从首页移除**(`HeroWater` 删除、
 > layout 摘除),主页恢复为「只有标题、无背景」。
 >
-> **引擎 `WaterDither` 组件与 `/lab/water` 原型页仍保留在树里**(可继续调参预览),
+> **引擎 `WaterDither` 组件仍原地保留在树里**(`src/components/lab/water-dither.tsx`),
 > 本文件完整记录设计、参数与被删的首页集成源码,供日后在首页/别处重启复用。
 > 参照 [`pretext-scrolling-subtitle-flow.md`](pretext-scrolling-subtitle-flow.md) 的归档法。
+>
+> **2026-09-05(W8)更新**:`/lab/water` 已经换成 `WaterScene` —— W2~W7 那条
+> 「物理波场 + 环境列 + 灯球 + 涟漪 + 交互编排」的路线。本文件描述的
+> `WaterDither` 是 **W1 那条路**(单文件、程序化高度场、Bayer 8×8),
+> 它**不再被任何页面挂载**,但文件**原地不动**:它是"为什么不走那条路"的证据,
+> 删了下一个人只会再走一遍。两条路的分岔点见
+> [`water-reference-metrics.md`](water-reference-metrics.md) §1。
 
 ---
 
@@ -95,7 +102,7 @@
 
 ## 7. 完整源码
 
-### 7.1 引擎 `src/components/lab/water-dither.tsx`(快照,树内仍在)
+### 7.1 引擎 `src/components/lab/water-dither.tsx`(快照,树内仍在,W8 起不再被挂载)
 
 ```tsx
 "use client";

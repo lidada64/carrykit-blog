@@ -158,6 +158,79 @@ export const ENV_PRESETS: Record<"mid" | "near" | "night", EnvColumnParams> = {
     glowGain: 1.2,
     glowWidth: 0.005,
     glowElev: 0.0,
+    /* 空数组 = W3/W4 的定稿环境列,黄金帧逐字节可复现。
+     * 夜景的月晕(见下面的 NIGHT_MOON_HALO)与灯球倒影都是**注入项**,
+     * 由调用方按需 push 进来 —— 写死在这里会让 §5 的 md5 回归当场失效。 */
     lights: [],
   },
 };
+
+/**
+ * 夜景月亮的软晕(docs/water-reference-metrics.md §13.3 的遗留)。
+ *
+ * 参考图 `docs/water-refs/obra-dinn.jpg` 里月亮周围有一大片**溶解的网点光晕**,
+ * 我们的天空一直是均匀渐变。这本来就该由"往环境里注入一个光源"来做 ——
+ * 也就是 W5 的机制,夜景的月亮当成灯球的特例。
+ *
+ * 取值:
+ *  · `sinElev = sin(uShadeLightElev) = sin(0.18) ≈ 0.179` —— 与高光用的月亮仰角同一个,
+ *    月晕必须罩在月光路径的源头上,差一点就"晕和路径对不上"。
+ *  · `width 0.075` —— 高斯半宽(sin 仰角)。0.03 是地平线辉光那一档(≈53px),
+ *    月晕要比它宽一倍多才读得出"一大片"。
+ *  · `gain 0.04` —— 夜空本体只有 0.10~0.17,晕的峰值必须小于它的一半,
+ *    否则 tonemap(pivot 0.22 / contrast 2.5)之后会顶成一块实心白盘。
+ *
+ * **注意它同时作用于天空与水面**(环境列是同一张 LUT),而这正是 §9 坑 9 的
+ * 危险区。实测(gain, width)对前景平坦度的代价:
+ *
+ *   | gain,width  | 前景平坦度 | 总分  |   (基线:0.045 / 0.930)
+ *   |-------------|-----------|-------|
+ *   | 0.055,0.085 |   0.159   | 0.918 |  ← 超过 ≤0.15 的目标
+ *   | **0.04,0.075** | **0.130** | **0.930** |  ← 采用,总分一分不掉
+ *   | 0.03,0.10   |   0.141   | 0.927 |
+ *
+ * 所以"月晕在 0.179 仰角上、掠射水面采不到"这句话是**错的** —— 采得到,
+ * 前景平坦度从 0.045 抬到 0.13。只是在 0.04 这一档还没抬破门槛。
+ * 要再宽再亮就必须像 uShadeSkyGlowGain 那样改成只作用于天空像素。
+ */
+export const NIGHT_MOON_HALO: EnvLight = {
+  sinElev: 0.179,
+  width: 0.075,
+  gain: 0.04,
+};
+
+/**
+ * 两个 preset 的环境列参数按滚动进度插值(W8)。
+ *
+ * 为什么需要:滚动是在两个 preset 之间连续走的,相机、球位、uniform 都插了,
+ * 环境列不插的话从夜景滚到 mid 时**天还是夜里的**(sky 0.10 vs 0.92),
+ * 画面会在某一帧突然翻白。
+ *
+ * **端点原样返回,不许走插值** —— 浮点插值在 u=1 处会给出 0.9200000000000001
+ * 这类数,烘出来的 LUT 就可能和 `golden/w3/env-*.png` 差一个量化台阶,
+ * 于是"停在 preset 上与黄金帧逐字节相同"这条性质没了。
+ *
+ * `lights` 不插:注入项(灯球倒影 / 月晕)由调用方每帧按 `energy` 现算,
+ * 两端本来就都是空数组。返回的是**新对象**,调用方可以直接改它的 `lights`。
+ */
+export function blendEnvColumnParams(
+  from: EnvColumnParams,
+  to: EnvColumnParams,
+  u: number,
+): EnvColumnParams {
+  if (!(u > 0)) return { ...from, lights: [] };
+  if (u >= 1) return { ...to, lights: [] };
+  const mix = (a: number, b: number): number => a + (b - a) * u;
+  return {
+    shore: mix(from.shore, to.shore),
+    below: mix(from.below, to.below),
+    sky: mix(from.sky, to.sky),
+    skyHorizon: mix(from.skyHorizon, to.skyHorizon),
+    horizon: mix(from.horizon, to.horizon),
+    edge: mix(from.edge, to.edge),
+    glowGain: mix(from.glowGain, to.glowGain),
+    glowWidth: mix(from.glowWidth, to.glowWidth),
+    glowElev: mix(from.glowElev, to.glowElev),
+    lights: [],
+  };
+}

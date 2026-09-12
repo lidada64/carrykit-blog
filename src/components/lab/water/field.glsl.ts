@@ -12,8 +12,12 @@
  *      void  waterNormalRough(vec2 p, float t, float footprint, out vec3 N, out float sigma2)
  *  · `|∇h|` 的 p99 ≈ 0.12 —— W3 的桩法线按这个量级对齐,不要改。
  *
- * 唯一的例外是 `orbPatch()`:它是 **W5 的** 函数(`light.glsl.ts` 会导出同名同签名的
- * 真实实现),这里只放一个返回 0.0 的桩。合并时删掉这个桩即可,`waterPatchAmp` 不用动。
+ * 唯一的例外是 `orbPatch()`:它是 **W5 的** 函数,定义在 `light.glsl.ts`,
+ * 这里只留前置声明。`waterPatchAmp` 一个字都没动。
+ *
+ * **W6 的 `waterRipple()` 走的是另一条路**:RIPPLE 段拼在 FIELD **之前**,
+ * 所以这里既不需要前置声明,也能直接用它的 `uRippleAmp` 写关闭分支。
+ * 为什么不照 orbPatch 那样前向声明,见 `ripple.glsl.ts` 文件头。
  *
  * ── W2 相对 spike-a 的三处改动(「不呆板」三件套,全部在波幅上做,不碰亮度)──────
  *
@@ -68,6 +72,24 @@ uniform float uFieldTail;        // 0 = 各分量等权;1 = 全量重尾权重
 uniform float uFieldWander;      // 幅度(弧度),硬上限 0.15
 uniform float uFieldWanderScale; // 空间频率(1/m),越小尺度越大
 
+/* —— ④ 波脊断裂(短波脊)——
+ * ①②③ 全开之后 mid 上部仍然是一片**贯穿全幅的平行横线**(像梳子)。
+ * 根因:uFieldSpread=0.15 时 24 个分量几乎共向,干涉图案退化成只随 y 变化的
+ * 一维函数 —— 波脊长度实际上是无限的。真实风浪的波脊只有几个波长长。
+ *
+ * 修法不能靠加大方向散布(那会一起打掉相干度与梯度角)。这里用一个
+ * **各向异性包络**:沿波脊方向快变、跨波脊方向慢变,把每条横线切成
+ * 随机长度的划,而完全不动波的方向。 */
+uniform float uFieldChop;        // 0 = 关闭(长波脊,与 W2 等价);1 = 全量断裂
+uniform float uFieldChopLen;     // 沿波脊方向的断裂尺度(米)。0.55 ≈ 半米一断
+uniform float uFieldChopAniso;   // 跨波脊 / 沿波脊 的尺度比。
+                                 // >1 断口会沿传播方向连成竖帘;<1 才是短波脊
+uniform float uFieldChopMin;     // 断口处残留波幅(0 = 断得干净)
+uniform float uFieldChopMax;     // 未断处波幅。**必须 >1**,理由同 uFieldPatchMax
+uniform float uFieldChopEdge;    // 断口边界锐度(smoothstep 半宽)
+uniform float uFieldChopBias;    // 存活阈值。0.5 = 一半波脊留下;调大 = 划更短更疏。
+                                 // 实拍中景照里暗划的**空隙比划本身长**,所以要 >0.5
+
 const float WATER_PI    = 3.14159265;
 const float WATER_G     = 9.81;
 const float WATER_SIGMA = 7.28e-5;   // 表面张力 / 密度,毛细项用
@@ -87,12 +109,20 @@ float waterVNoise(vec2 p){
              mix(waterHash21(i + vec2(0,1)), waterHash21(i + vec2(1,1)), u.x), u.y);
 }
 
-/* ── W5 的桩 ────────────────────────────────────────────────────────────────
+/* ── W5 的前置声明 ──────────────────────────────────────────────────────────
  * 用户的构想:灯球照到的地方水面既更亮、也更「活」。亮度走 W5 的照度通道,
- * **波幅**走这里。W5 落地时 light.glsl.ts 会导出同名同签名的真实实现
- * (返回灯球光束落点处的波幅增益),把这个桩删掉即可,其余代码不用动。
- * 不要因为它没有 water 前缀就改名——名字是跟 W5 对齐的。 */
-float orbPatch(vec2 p, float t){ return 0.0; }
+ * **波幅**走这里。
+ *
+ * W5 已落地:定义在 light.glsl.ts,这里只留**前置声明**(GLSL ES 3.00 支持)。
+ * 拼装顺序 HEAD + FIELD + **LIGHT** + SHADE + DITHER + TAIL —— LIGHT 在 FIELD
+ * 之后,而 waterPatchAmp 在 FIELD 里就要调它,所以必须有这一行。
+ * 反过来把 LIGHT 提到 FIELD 前面不行:LIGHT 用的是 FIELD 的世界坐标约定,
+ * 而 SHADE 又要用 LIGHT 的照度 —— 一条链上只允许有一处前向声明,放最上游最省事。
+ *
+ * 不要因为它没有 water 前缀就改名——名字是跟 W5 对齐的。
+ * uOrbEnergy = 0 时 light.glsl.ts 的实现**精确返回 0.0**,于是下面
+ * amb + uFieldOrbPatchGain * 0.0 与灯球接入前逐位相同(见 §5 的 md5 回归)。 */
+float orbPatch(vec2 p, float t);
 
 /* ── ① 风阵斑块 ─────────────────────────────────────────────────────────────
  * smoothstep 是关键:留成平滑渐变就看不出「一块一块」,必须压成有边界的斑块。
@@ -139,6 +169,30 @@ float waterWander(vec2 p){
   return uFieldWander * (waterVNoise(p * uFieldWanderScale + 77.3) - 0.5) * 2.0;
 }
 
+/* ── ④ 波脊断裂 ─────────────────────────────────────────────────────────────
+ * 在**跟着风向转的坐标系**里采噪声:波沿 dir=(cos θ, sin θ) 传播,
+ * 波脊则沿 (sin θ, −cos θ)。沿波脊那一轴除以小尺度(快变 → 划被切断),
+ * 跨波脊那一轴除以更小的尺度 × aniso(<1,让相邻波脊的断口互相错开)。
+ *
+ * aniso 的取值是有物理意义的,不是随便调的:
+ *  · aniso > 1 → 断口沿传播方向连成**竖帘**,在屏幕上是向灭点收敛的竖条,
+ *    比原来的梳子还难看(和 W1 那个 uWindDir=0 的坑是同一类错误)
+ *  · aniso ≈ 0.4~0.6 → 跨波脊 2~4 个波长就换一套断口,才是「短波脊」
+ *
+ * 返回的同样是**波幅倍率**,和 waterPatchAmp 相乘 —— 两层调制,一层管
+ * 「哪片水面起风」(米级),一层管「每条波脊有多长」(分米级)。 */
+float waterChopAmp(vec2 p){
+  if (uFieldChop <= 0.0) return 1.0;
+  float s = sin(uFieldWindDir), c = cos(uFieldWindDir);
+  float along  = dot(p, vec2(s, -c));   // 沿波脊
+  float across = dot(p, vec2(c,  s));   // 跨波脊(= 传播方向)
+  float L = max(uFieldChopLen, 1e-3);
+  vec2 q = vec2(along / L, across / max(L * uFieldChopAniso, 1e-3));
+  float n = 0.62 * waterVNoise(q) + 0.38 * waterVNoise(q * 2.3 + 11.3);
+  float e = smoothstep(uFieldChopBias - uFieldChopEdge, uFieldChopBias + uFieldChopEdge, n);
+  return mix(1.0, mix(uFieldChopMin, uFieldChopMax, e), uFieldChop);
+}
+
 /**
  * 波场核心。返回高度,并输出斜率梯度与「被 LOD 淡掉的那部分」的斜率方差 sigma2。
  * footprint = 该像素在世界空间覆盖的尺度(米),由调用方用 fwidth 求出;
@@ -157,7 +211,8 @@ float waterWaveField(vec2 p, float t, float footprint, out vec2 grad, out float 
       waterVNoise(p * 4.0 + vec2(t * 0.05, 0.0)) - 0.5,
       waterVNoise(p * 4.0 + vec2(0.0, t * 0.04) + 31.4) - 0.5);
 
-  float gust = waterPatchAmp(p, t);   // 注意:不能叫 patch —— GLSL ES 3.00 保留字
+  // 两层波幅调制:斑块管「哪片水面起风」(米级),断裂管「每条波脊多长」(分米级)
+  float gust = waterPatchAmp(p, t) * waterChopAmp(p);   // 不能叫 patch —— GLSL ES 3.00 保留字
   float wander = waterWander(p);
 
   float h = 0.0;
@@ -191,6 +246,31 @@ float waterWaveField(vec2 p, float t, float footprint, out vec2 grad, out float 
     float ph = dot(dir, wp) * k - omega * t * uFieldWindSpeed + waterHash11(fi + 4.1) * 6.2831853;
     h += w * a * sin(ph);
     grad += w * a * k * cos(ph) * dir;
+  }
+
+  /* ── ⑤ 涟漪(W6)────────────────────────────────────────────────────────
+   * waterRipple 定义在 ripple.glsl.ts,拼装顺序里 RIPPLE 在 FIELD **之前**
+   * (不是 orbPatch 那种前向声明 —— 理由见 ripple.glsl.ts 文件头:涟漪这条链
+   * 没有环,而且 uRippleAmp 必须在这里之前声明,下面那个分支才写得出来)。
+   *
+   * 三条,每条都是有意的:
+   *  · **加在 gust 之外**。gust = 斑块×断裂,调的是**波幅倍率**;涟漪是
+   *    **加性高度**。石子砸进镜面般平静的水面照样有涟漪 —— 若相乘,
+   *    uFieldPatchMin=0 的镜面区里涟漪会整片消失,而那恰恰是最该看见它的地方。
+   *  · **用 p 不用 wp**。wp 是被低频域扭曲推过的坐标,那是波场自己的形状噪声;
+   *    涟漪钉在真实世界坐标上,不该跟着扭。
+   *  · **h 与 grad 同时加**。只加高度会出现"看得见涟漪但法线不动"——
+   *    W3 之后所有对比度都来自法线扫过环境列,不动法线等于什么也没发生。
+   *
+   * 这个分支是 §4.1「涟漪关闭时逐字节回归」的落点:uRippleAmp = 0 时
+   * 整段不进,h 与 grad 的求值序列与 W5 定稿**逐条指令相同**。
+   * 写成 h += waterRipple(...).x 在 IEEE 下也是恒等的(x + 0.0 == x),
+   * 但那要赌编译器不会因为循环后面多了指令而重排循环体 —— docs §11 坑 7
+   * 之后这种赌不值得打。 */
+  if (uRippleAmp > 0.0){
+    vec3 rip = waterRipple(p, footprint);
+    h += rip.x;
+    grad += rip.yz;
   }
   return h;
 }
