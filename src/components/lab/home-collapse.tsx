@@ -1,70 +1,106 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { useGSAP } from "@gsap/react";
-import { HomeScene, STAR_CLIP, WORDMARK_TOP_BASE } from "./home-scene";
+import { HomeScene } from "./home-scene";
 import { CursorMirror } from "./cursor-mirror";
+import { MidScene } from "./mid-scene";
+import { WaterScene } from "@/components/lab/water/water-scene";
+import type { WaterDirectorFlags } from "@/components/lab/water/water-director";
+import { DiscoBall } from "@/components/home/disco-ball";
 import { motionTokens } from "@/components/motion/tokens";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-/** 递归不动点 = 嵌套汇聚点。嵌套比例 r=0.55 映射 x'=0.225+0.55x、y'=0.1719+0.55y,
- *  不动点 = (L/(1−r), T/(1−r)) = (50%, 38.2%) → **屏幕上黄金线(上短下长)**;
- *  第一层 CarryKit 在正中(50%),越深越往上收进 38.2% 消失。
- *  帧以此为原点缩到 r(递退一级、递退向上黄金点);每张嵌套卡以此为原点放大到 1/r(填满父级)。 */
+/** 递归不动点 = 嵌套汇聚点(50%,38.2%)。整帧以此为原点 zoom-in = 瀑布的「前进」(往隧道深处钻)。 */
 const FIXED_ORIGIN = "50% 38.2%";
 
-/** 嵌套比例 r:子卡 = 父级 r。转场缩放目标由它派生(段1 帧→r 递退一级、段2 卡→1/r 去嵌套)。
- *  改比例须与子卡 left/top(= F·(1−r) = 22.5% / 22.5%)、FIXED_ORIGIN 联动。
- *  r 越小 = 层数密度越低(每层递缩步幅越大、隧道更疏)。 */
-const NEST_RATIO = 0.55;
+/** 递归收口层数(多几层 = 隧道更深、瀑布层次更多)。v3.2 加深:嵌套比例调大到 0.7(层间距更小、
+ *  更密)后每层步幅变小,需要更多层才收口到不动点;深层 opacity 0.8^d 隐入水面无穿帮。手感旋钮。 */
+const MAX_DEPTH = 18;
 
-/** 时间线时长(单位);end = 各段之和的百分比。
- *  段1 递退一级(整帧 →r);段2 依次去嵌套(内层卡 →1/r,深层先)与问答同步铺满;段3 隧道缩没(帧 →0)。 */
-const SEG1 = 1;
-const QA = 1;
-const FADE = 1; // 段3:末端隧道缩没入不动点的滚动配额
+/** 「前进」:整帧以不动点(golden point,偏上)统一 zoom-in 的目标缩放 —— 把隧道深处往观众面前推、
+ *  深层放大;**因原点偏上,前层(在中心下方)会随 zoom 快速往下 descend 冲出屏底 = 前层最快下坠**,
+ *  深层(近原点)则留在中心放大。zoom 空间梯度天然给出「前快远、后慢近、无挤团」的错落瀑布:
+ *  S=7 时 depth0→冲出屏底、depth1→84%、depth2→63%、深层→~40%(贴原点=只前进微坠)。
+ *  **v3.1 主驱动**:删掉加性逐卡下坠(已证伪=挤团),让 zoom 独当「前进+前快后慢」。
+ *  越大 = 前进越狠、下落时「前进」速度越大、前层排出越快。手感旋钮。 */
+const FRAME_ZOOM = 9;
 
-/** 段1 dolly 视差幅度:每层 counter-scale(越深越大 → 净递退越慢 = 越靠前越快)。手感旋钮。
- *  注:嵌套复合 → 幅度非线性放大,~0.06 时最深层净递退≈静止;再大最深层会「反涨」溢出(裁掉,可接受)。 */
-const PARALLAX = 0.06;
+/* ── 时间线全部按**滚动进度**(0..1)表达:时间线总时长归一为 1,scrub 线性映射到 `end` 的滚动配额,
+ *    于是 tween 的 position/duration 数值 = progress 值。所有数值均为**手感旋钮**,实测调。 ── */
 
-/** 段1 末尾灯球「吊起升出」:占段1 尾段的比例 + 上移量(orb 自身高的倍数,负=上)。
- *  −220% ≈ 从 top 19.5% 升过帧顶完全离场(orb 高 7.6cqw、帧高 56.25cqw 换算),第二幕开始前已离场。 */
-const HOIST_SPAN = 0.6; // 吊起动作占 SEG1 的后 60%(「末尾」)
-const HOIST_RISE = -220; // yPercent:升出顶部的目标位移
+/** 水面 night→mid 相机过渡到位的进度点(之后恒 mid)。这是「衔接动画」。 */
+const MORPH_END = 0.9;
 
-/** act2 逐条播报:问题(屏幕上方) + 答案(缩放画面左侧, Anton SC 大写)。答案为占位, 待填真文案。 */
+/** 灯球「吊起升出」的进度窗口 + 上移量(yPercent,负=上);窗口内 orbEnergy 同步 1→0(灯球↔水面光池)。 */
+const HOIST_START_P = 0.05;
+const HOIST_END_P = 0.4;
+const HOIST_RISE = -220;
+
+/** 镜像光标环隐藏的进度阈值(瀑布一开始就藏,回滚恢复)。 */
+const MIRROR_HIDE_P = 0.06;
+
+/** 前快后慢的层次瀑布(v3.2:**每层标题 word_d 各自独立坠落** —— 修正 v3.1「只 word0 坠、后层不动、
+ *  从第二层起才动且太晚 = 没层次感」)。
+ *  为何只驱动各层标题 word_d、不驱动 `[data-nested]` 卡:嵌套卡是所有更深层的 **DOM 祖先**,给它加
+ *  yPercent 会被逐层复合累加 → 深层净坠 > 前层 = 挤团(v3 已证伪)。而每层标题 word_d 是「其下更深子树」
+ *  的**兄弟**(渲染顺序:wordmark → nested 卡),彼此互不复合、又各自能独立淡出 → 可精确编排
+ *  「前层坠得快、深层坠得慢」的剪切式错落,不重蹈挤团。可见的瀑布「层」本就是这些标题(卡透明无框)。
+ *  · WORD_FALL_START≈0 + 小 STAGGER:一滑动就起、前层略领先(修正「从第二层起太晚」)。
+ *  · 时长 = FRONT_DUR + depth·DUR_STEP:前层短时长=坠得快、深层长时长=坠得慢(前快后慢核心)。
+ *  · WORD_FALL_YPCT:下坠量(相对各层自身字高;深层字号小 → 同 % 的绝对位移自动更小,再叠前快后慢)。 */
+const WORD_FALL_START = 0.0;
+const WORD_FALL_STAGGER = 0.025;
+const WORD_FALL_FRONT_DUR = 0.4;
+const WORD_FALL_DUR_STEP = 0.07;
+const WORD_FALL_YPCT = 520;
+
+/** mid 场景占位淡入的起始进度(随水面到位 + 嵌套坠离,末段承接)。 */
+const MID_AT = 0.55;
+
+/** act2 逐条播报(占位,SHOW_BROADCAST=false 时不渲染/不建时间线)。 */
 const QA_ITEMS: { q: string; a: string }[] = [
   { q: "What is CarryKit", a: "A KIT YOU CARRY" },
   { q: "Who am I", a: "STILL FINDING OUT" },
   { q: "What is the meaning of life?", a: "TO CARRY ON" },
 ];
+const SHOW_BROADCAST = false;
+
+/** 水面耦合闸门(值同 `hero-water.tsx`)。首页 canvas pointer-events-none,显式关掉只为语义清晰;其余默认 on。 */
+const HOME_FLAGS: Partial<WaterDirectorFlags> = {
+  pointerRipple: false,
+  clickImpulse: false,
+  orbDrag: false,
+};
+
+/** 空覆盖表。**必须是模块级常量** —— 每次 render 新建 `{}` 会让 props 每帧变。 */
+const NO_OVERRIDES: Readonly<Record<string, number>> = {};
 
 /**
- * HomeCollapse —— /lab/home 的**滚动收缩转场 + 问答播报**(见 docs/home-collapse-transition.md)。
+ * HomeCollapse —— /lab/home 的滚动转场(v3.2:**zoom 隧道前进 + 各层标题前快后慢瀑布 + 水面 night→mid**)。
  *
- * 一个 pin + scrub 时间线,拆成两段(+ 同步问答):
- * ① 段1 递退一级:hero 帧以不动点 scale→r(NEST_RATIO)收进下黄金比点 → 靠自相似合成,每层精确落到「后一层」
- *    footprint,整条隧道递退但**仍保持嵌套**(不摊平)。dolly 视差:深层 counter-scale 滞后 →
- *    越靠前越快、隧道被拉深。缓动引站点转场遮罩(revealer)同款 accelerate(popSettle)。
- *    灯球(orb)在覆盖层脱离缩放、不随收缩移动,仅段1 末尾以 swipe(慢快慢)「吊起升出」帧顶。
- * ② 段2 依次去嵌套(与问答同步):第一层卡(帧)保持 r 不动,内层嵌套卡逐张 scale→1/r 填满父级,
- *    **从最外浅层往深处**交错(外层先放大、深层加速跟进,末卡恰在段末收尾)。同时屏幕上方问题依次交叉淡切
- *    (What is CarryKit / Who am I / 生命的意义),答案在左侧(Anton SC 大写)切换;CarryKit 水印做背景。
- * ③ 段3 消失:段2 后隧道整帧从 r 继续 scale→0(about F)→ 缩向下黄金比不动点没入消失;问答/水印/星标
- *    (覆盖层)不缩、保留 → 末态 = 空背景 + 最后一条问答文字。
+ * 一条 pin + scrub 时间线(无「收缩居中」环节),并置四件事:
+ * ① 水面 night→mid 过渡:单张 `WaterScene` 作 z-0 持续背景,`scroll` 跟随进度 0→1(MORPH_END 到位 mid)。
+ * ② 层次瀑布:整帧以不动点 **zoom-in 前进**(往隧道深处钻、深层放大)做「前进」底座;之上,**每层标题
+ *    word_d 各自独立坠落 + 淡出** —— 前层早起短时长=坠得快、深层稍晚长时长=坠得慢,前层领先逐层拉开
+ *    = 剪切式倾斜错落(一滑就坠)。嵌套卡是深层 DOM 祖先,驱动会复合挤团(v3 已证伪),故不驱动、
+ *    纯随 zoom 前进 —— 层次全来自各层标题的速度差。突破页面(home-scene 已去 overflow-hidden)流入 mid。
+ * ③ 灯球吊起升出:前段单独沿 yPercent 升出,orbEnergy 同步淡出 → 水面灯球光池收掉(灯球↔水面交互)。
+ * ④ mid 承接:`MidScene` 占位末段 autoAlpha 淡入(progress→1 落在 mid)。
  *
- * 篝火(星标)、灯球(orb)脱离缩放:摘出缩放帧,改在 stage 覆盖层常驻原位(星标帧底部居中、
- * orb 帧顶部居中),不随收缩移动;orb 另在段1 末尾单独吊起升出。
- * 覆盖层(问题/答案/水印/星标/灯球)均 pointer-events-none、不随帧缩放。
- * reduced-motion 不建时间线:静态满屏 hero + 其下堆叠问答 + 静态星标兜底。
+ * z 分层:水面 z-0 < mid 场景占位 z-[1] < 递归 hero 帧 z-10 < 覆盖层 + 灯球 z-20。
+ * reduced-motion 不建时间线:静态满屏 hero 兜底(水面定格 night)。
  */
 export function HomeCollapse() {
   const rootRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
+  /** 水面滚动映射:0=night、1=mid。progress 到 MORPH_END 时到位,之后恒 1(mid)。 */
+  const [waterScroll, setWaterScroll] = useState(0);
+  /** 水面灯球光池闸门 0..1:灯球吊起窗口内 1→0(球离场 → 水里的光同步收)。 */
+  const [orbEnergy, setOrbEnergy] = useState(1);
 
   useGSAP(
     () => {
@@ -73,39 +109,49 @@ export function HomeCollapse() {
       if (!root || !frame) return;
 
       const stage = root.querySelector<HTMLElement>("[data-stage]");
-      const watermark = root.querySelector<HTMLElement>("[data-watermark]");
-      const nestedCards = gsap.utils.toArray<HTMLElement>("[data-nested]", frame);
-      const questions = gsap.utils.toArray<HTMLElement>("[data-question]", root);
-      const answers = gsap.utils.toArray<HTMLElement>("[data-answer]", root);
+      const midScene = root.querySelector<HTMLElement>("[data-midscene]");
+      const orb = root.querySelector<HTMLElement>("[data-orb]");
+      // 每层标题(DOM 顺序 = depth 0,1,2,… 由外往深)——瀑布的可见「层」。各层标题是其下更深子树的
+      // 兄弟,彼此不复合、可独立淡出,故逐个独立驱动(前快后慢)。嵌套卡 [data-nested] 是深层祖先,
+      // 若驱动会复合挤团(v3 已证伪),故**不**收集、纯随整帧 zoom 前进。
+      const words = gsap.utils.toArray<HTMLElement>('[data-key="wordmark"]', frame);
       if (!stage) return;
 
-      const accel = motionTokens.ease.accelerate;
-      const SEG2 = QA_ITEMS.length * QA; // 段2 = 问答总长,去嵌套与其同步
-      const SEG1_END = SEG1 / (SEG1 + SEG2 + FADE); // 段1 结束的滚动进度(镜像光标保留到此)
+      const swipe = motionTokens.ease.swipe;
+      const accel = motionTokens.ease.accelerate; // popSettle:冲刺感,给 zoom/下坠动感
+      const TL = 1; // 时间线归一总时长 = progress
+
       const mm = gsap.matchMedia();
       mm.add("(prefers-reduced-motion: no-preference)", () => {
         gsap.set(frame, { transformOrigin: FIXED_ORIGIN });
-        nestedCards.forEach((c) => gsap.set(c, { transformOrigin: FIXED_ORIGIN }));
 
-        // CursorMirror 门控:**段1 全程保留镜像环**(用户需随时知道鼠标位置)——环靠 CursorMirror
-        // 每帧用「最后鼠标屏幕坐标 ÷ 当前(缩放中)frame rect」重算 → 缩放时仍精确贴真实鼠标、不漂移。
-        // 段1 之后(段2 放大 / 段3 缩没)帧 rect 剧变 → 隐藏环(data-active=0),回滚进段1 再恢复。
+        // CursorMirror 门控:瀑布未起(p≤MIRROR_HIDE_P)保留镜像环;一旦开始下坠帧内 rect 剧变 → 隐藏,回滚恢复。
         let hiddenByScroll = false;
 
         const tl = gsap.timeline({
           scrollTrigger: {
             trigger: stage,
             start: "top top",
-            end: "+=500%", // 段1 递退(1) + 段2 去嵌套/问答(3) + 段3 缩没(1)
+            end: "+=400%", // 无收缩段,较 v2 缩短
             pin: true,
             scrub: 1,
             invalidateOnRefresh: true,
             onUpdate: (self) => {
               const p = self.progress;
-              if (p > SEG1_END && frame.dataset.active === "1") {
+              // ① 水面 night→mid:progress 归一到 [0,MORPH_END] → 到位后恒 1(mid)。
+              setWaterScroll(Math.min(1, p / MORPH_END));
+              // ③ 灯球光池随「吊起升出」同步淡出(灯球↔水面交互)。
+              setOrbEnergy(
+                p <= HOIST_START_P
+                  ? 1
+                  : p >= HOIST_END_P
+                    ? 0
+                    : 1 - (p - HOIST_START_P) / (HOIST_END_P - HOIST_START_P),
+              );
+              if (p > MIRROR_HIDE_P && frame.dataset.active === "1") {
                 frame.dataset.active = "0";
                 hiddenByScroll = true;
-              } else if (p <= SEG1_END && hiddenByScroll) {
+              } else if (p <= MIRROR_HIDE_P && hiddenByScroll) {
                 frame.dataset.active = "1";
                 hiddenByScroll = false;
               }
@@ -113,67 +159,33 @@ export function HomeCollapse() {
           },
         });
 
-        // ① 段1 递退一级:整帧 scale→NEST_RATIO(about F)→ 靠合成让每层精确落到「后一层」footprint,
-        //    隧道自相似递退、仍保持嵌套(不摊平)。此为「越靠前越快」的驱动层。
-        tl.to(frame, { scale: NEST_RATIO, ease: accel, duration: SEG1 }, 0);
-        // dolly 视差(front faster):给每张嵌套卡随深度递增的 counter-scale(i=0 最外层不加),
-        //    深层净递退更慢 → 段1 期间隧道被「拉深」。段1 末深层略 >1(几 %),段2 再从此值 →1/r。
-        nestedCards.forEach((c, i) =>
-          tl.to(c, { scale: 1 + i * PARALLAX, ease: "power2.in", duration: SEG1 }, 0),
-        );
-        // 灯球「吊起升出」:orb 在覆盖层脱离缩放 → **不随嵌套/收缩动画移动**,只在段1 尾段
-        //    (后 HOIST_SPAN)沿自身 yPercent 升过帧顶,缓动 swipe(power4.inOut = 慢快慢);
-        //    SEG1 收尾 → 第二幕开始前离场。之后停在顶外,不再可见,无需清理。
-        const orb = root.querySelector<HTMLElement>("[data-orb]");
+        // ②a 前进(主驱动):整帧以不动点 zoom-in(往隧道深处钻、深层放大),全程;缓动 accelerate
+        //    慢起快收 = 前段「层层堆叠推进」、后段「加速峰落」的瀑布手感。zoom 空间梯度天然造出
+        //    前快远、后慢近、深层只前进微坠 —— 独当「前进+前快后慢」的错落瀑布(替代已证伪的加性逐卡下坠)。
+        tl.to(frame, { scale: FRAME_ZOOM, ease: accel, duration: TL }, 0);
+
+        // ③ 灯球「吊起升出」:orb 在覆盖层脱离缩放,只做自身 yPercent 升过帧顶(swipe 慢快慢)。
         if (orb)
-          tl.to(
-            orb,
-            { yPercent: HOIST_RISE, ease: motionTokens.ease.swipe, duration: SEG1 * HOIST_SPAN },
-            SEG1 * (1 - HOIST_SPAN),
-          );
-        // CarryKit 水印:段1 淡入到低不透明度做背景(承接被覆盖的帧内 wordmark);
-        //    **进入段2 先消失**(t=SEG1 快速淡出)→ 段2 不再有水印背景。
-        if (watermark) {
-          tl.fromTo(
-            watermark,
-            { autoAlpha: 0 },
-            { autoAlpha: 0.14, ease: "none", duration: SEG1 },
-            0,
-          );
-          tl.to(watermark, { autoAlpha: 0, ease: "none", duration: QA * 0.3 }, SEG1);
-        }
+          tl.to(orb, { yPercent: HOIST_RISE, ease: swipe, duration: HOIST_END_P - HOIST_START_P }, HOIST_START_P);
 
-        // ② 段2 依次去嵌套(**浅层先/从外往深**)+ 与问答同步:帧不 tween → 保持 r;
-        //    内层卡逐张 scale→1/NEST_RATIO(about F、填满父级),按 DOM 序 **从最外浅层往深处交错**:
-        //    最外层先放大填满,随后深层「慢慢开始」并加速跟进——嵌套复合(深层内容被每个外层缩放
-        //    叠乘)→ 越深越放越快,像俯冲钻进隧道。
-        //    起始只铺开 span、dur=SEG2−span → **最后一张(最深)卡恰在 SEG1+SEG2 收尾**,
-        //    去嵌套完整落在 SEG2 内;各卡 dur 相同且大幅重叠 → 复合缩放平滑连续。
-        const n = nestedCards.length; // nestedCards DOM 序:[0]=最外浅层 … 末=最深层
-        const span = SEG2 * 0.4; // 各卡起始时间的总铺开(浅层先→深层后)
-        const dur = SEG2 - span; // 末(最深)卡在 SEG1+SEG2 收尾
-        nestedCards.forEach((card, k) => {
-          const at = SEG1 + (n > 1 ? (k / (n - 1)) * span : 0);
-          tl.to(card, { scale: 1 / NEST_RATIO, ease: accel, duration: dur }, at);
+        // ②b 前快后慢的层次瀑布:每层标题 word_d 各自坠落 + 淡出(yPercent 叠在 className 居中
+        //    translate 之上,不 clobber)。前层早起 + 短时长 = 坠得快;深层稍晚 + 长时长 = 坠得慢 →
+        //    前层领先、逐层拉开 = 剪切式倾斜错落。全部 p≈0 就起(一滑就坠)。时长封顶到 TL 内。
+        //    嵌套卡本身不驱动(会复合挤团),纯随 zoom 前进 —— 层次全来自各层标题的速度差。
+        words.forEach((word, i) => {
+          const at = WORD_FALL_START + i * WORD_FALL_STAGGER;
+          const dur = Math.min(WORD_FALL_FRONT_DUR + i * WORD_FALL_DUR_STEP, TL - at);
+          tl.to(word, { yPercent: WORD_FALL_YPCT, autoAlpha: 0, ease: accel, duration: dur }, at);
         });
 
-        // ③ 问答逐条交叉淡切(问题+答案同步),与段2 去嵌套同步推进。最后一条保持不淡出。
-        questions.forEach((q, i) => {
-          const pair = [q, answers[i]].filter(Boolean) as HTMLElement[];
-          const at = SEG1 + i * QA;
+        // ④ mid 场景占位:末段 autoAlpha 淡入承接(轻微上移到位)。
+        if (midScene)
           tl.fromTo(
-            pair,
-            { autoAlpha: 0 },
-            { autoAlpha: 1, ease: "none", duration: QA * 0.35 },
-            at,
+            midScene,
+            { autoAlpha: 0, yPercent: 6 },
+            { autoAlpha: 1, yPercent: 0, ease: "none", duration: TL - MID_AT },
+            MID_AT,
           );
-          if (i < questions.length - 1)
-            tl.to(pair, { autoAlpha: 0, ease: "none", duration: QA * 0.35 }, at + QA);
-        });
-
-        // ④ 段3 消失:段2 后,隧道整帧从 1/3 继续 scale→0(仍 about F)→ 整幅画面缩向右下不动点、
-        //    缩成一点没入消失。问答/水印/星标(覆盖层)不缩、保留 → 末态 = 空背景 + 最后一条问答文字。
-        tl.to(frame, { scale: 0, ease: accel, duration: FADE }, SEG1 + SEG2);
       });
 
       return () => mm.revert();
@@ -183,9 +195,35 @@ export function HomeCollapse() {
 
   return (
     <div ref={rootRef}>
-      <section data-stage className="relative h-svh overflow-hidden bg-background">
-        {/* 问题层:屏幕上方,3 条同位叠放交叉淡切(初始 opacity-0 → 时间线揭示) */}
-        {QA_ITEMS.map(({ q }, i) => (
+      {/* 去掉 bg-background:否则不透明底色盖住水面。兜底靠根 <main className="bg-background">
+          (app/lab/home/page.tsx)在水面未就绪 / WebGL 失败时透出。 */}
+      <section data-stage className="relative h-svh overflow-hidden">
+        {/* ① 水面(z-0 持续背景):preset night + scroll 0→1 = night→mid 过渡。**不随 hero 移动**。 */}
+        <WaterScene
+          className="pointer-events-none absolute inset-0 z-0 h-full w-full"
+          preset="night"
+          scroll={waterScroll}
+          orbEnergy={orbEnergy}
+          focus={0}
+          /* orbX=0:水面光池锁到水平居中的 DiscoBall(left-1/2)正下方(NDC 0)。 */
+          orbX={0}
+          orbSpin={0}
+          lightMode={0}
+          quantize
+          moonHalo={0}
+          overrides={NO_OVERRIDES}
+          flags={HOME_FLAGS}
+          timeOverride={null}
+          forceReducedMotion={false}
+        />
+
+        {/* ④ mid 场景占位(z-[1]):坐在水面之上、hero 帧之下。初始隐藏,末段淡入。 */}
+        <div data-midscene className="absolute inset-0 z-[1] opacity-0">
+          <MidScene />
+        </div>
+
+        {/* 问题层(占位,SHOW_BROADCAST=false 时不渲染) */}
+        {SHOW_BROADCAST && QA_ITEMS.map(({ q }, i) => (
           <span
             key={i}
             data-question
@@ -195,20 +233,11 @@ export function HomeCollapse() {
           </span>
         ))}
 
-        {/* 静止覆盖帧:与 hero 帧同尺寸(填满视口、去 16:9 锁)但不缩放;[container-type] 使 cqw 与 HomeScene 对齐 */}
+        {/* 覆盖层(z-20):[container-type] 使 cqw 与 HomeScene 对齐;承载灯球(+ 隐藏的答案层)。 */}
         <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center">
           <div className="relative h-full w-full [container-type:size]">
-            {/* 淡化 CarryKit 水印:与 scene wordmark 同(**水平居中**)位置/字体,收缩时淡入做背景 */}
-            <span
-              data-watermark
-              style={{ top: `${WORDMARK_TOP_BASE}%` }}
-              className="absolute left-1/2 origin-center -translate-x-1/2 -translate-y-1/2 scale-y-[1.25] whitespace-nowrap font-title text-[11cqw] font-normal italic leading-none tracking-[0.02em] text-foreground opacity-0"
-            >
-              CarryKit.
-            </span>
-
-            {/* 答案层:左侧,放大 + 大写,Anton SC(font-broadcast);3 条同位叠放交叉淡切 */}
-            {QA_ITEMS.map(({ a }, i) => (
+            {/* 答案层(占位,SHOW_BROADCAST=false 时不渲染) */}
+            {SHOW_BROADCAST && QA_ITEMS.map(({ a }, i) => (
               <span
                 key={i}
                 data-answer
@@ -218,29 +247,20 @@ export function HomeCollapse() {
               </span>
             ))}
 
-            {/* 篝火星标:脱离缩放,常驻原位(帧底部居中) */}
-            <div
-              className="absolute left-1/2 top-[91%] h-[3.2cqw] w-[3.2cqw] -translate-x-1/2 -translate-y-1/2 bg-muted"
-              style={{ clipPath: STAR_CLIP }}
-            />
-
-            {/* 灯球(disco orb 占位):脱离缩放、常驻原位(帧顶部居中,同 HomeScene 原位)→
-                **不随嵌套/收缩动画移动**。外壳定位居中,内圆 [data-orb] 是段1 末尾「吊起升出」的
-                GSAP 目标(动自身 yPercent,不扰居中)。日后内圆换 <DiscoBall size="100%" ... />。 */}
+            {/* 灯球(真 DiscoBall):脱离缩放、常驻覆盖层原位(帧顶居中)。[data-orb] 是「吊起升出」的
+                GSAP 目标(动自身 yPercent);升出同步淡出 orbEnergy → 水面灯球光池收掉(灯球↔水面交互)。 */}
             <div className="absolute left-1/2 top-[19.5%] h-[7.6cqw] w-[7.6cqw] -translate-x-1/2 -translate-y-1/2">
-              <div data-orb className="h-full w-full rounded-full bg-muted" />
+              <div data-orb className="h-full w-full">
+                <DiscoBall size="100%" glow={1} spinDuration={7} ringDuration={14} />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Hero 帧层:填满视口(去 16:9 锁),唯一参与缩放/视差;不再传 showCampfire(星标已独立) */}
+        {/* ② Hero 帧层(z-10):承载递归 hero(透明,浮在水面上)。递归各层标题/卡在此下坠成瀑布。 */}
         <div className="absolute inset-0 z-10 flex items-center justify-center">
-          <div
-            ref={frameRef}
-            data-active="0"
-            className="group/frame relative h-full w-full"
-          >
-            <HomeScene depth={0} />
+          <div ref={frameRef} data-active="0" className="group/frame relative h-full w-full">
+            <HomeScene depth={0} maxDepth={MAX_DEPTH} showCampfire />
           </div>
         </div>
         <CursorMirror frameRef={frameRef} />
@@ -248,7 +268,7 @@ export function HomeCollapse() {
 
       {/* reduced-motion 兜底:静态堆叠问答(仅在减弱动态时显示) */}
       <section className="hidden min-h-svh flex-col justify-center gap-12 px-[8vw] py-[12vh] motion-reduce:flex">
-        {QA_ITEMS.map(({ q, a }, i) => (
+        {SHOW_BROADCAST && QA_ITEMS.map(({ q, a }, i) => (
           <div key={i} className="flex flex-col gap-2">
             <span className="font-broadcast text-[1.3rem] uppercase tracking-[0.18em] text-muted">
               {q}

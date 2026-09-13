@@ -6,8 +6,9 @@ import { SceneNav } from "./scene-nav";
  * HomeScene —— /lab/home 极简 Hero 的**递归自相似单元**(复刻 Figma "page")。
  *
  * 自相似做法(方案 A):根元素声明 [container-type:size],所有位置用 %、所有
- * 尺寸/字号用 cqw/cqh(相对容器自身)。嵌套一个**比例 0.55** 尺寸(55cqw ×
- * 55cqh)的自身 → 内层 cqw 自动解析为父级 0.55,每层无需逐层调参、文字真实渲染不糊。
+ * 尺寸/字号用 cqw/cqh(相对容器自身)。嵌套一个**比例 0.7** 尺寸(70cqw ×
+ * 70cqh)的自身 → 内层 cqw 自动解析为父级 0.7,每层无需逐层调参、文字真实渲染不糊。
+ * (比例越大 = 每层递缩步幅越小 = 层间距越小、隧道越密;需配合更大 maxDepth 收口。)
  * 嵌套居中向**上黄金线**汇聚(不动点 50% / 38.2% = 上短下长);第一层 CarryKit 在**屏幕正中(50%)**、
  * 越深的层越往上收进 38.2%,层层往后叠 + 逐层淡出。
  *
@@ -46,7 +47,12 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSce
   return (
     <div
       className={[
-        "relative h-full w-full select-none overflow-hidden bg-background text-foreground [container-type:size]",
+        // 不设 bg —— 水面(HomeCollapse 的 z-0 WaterScene)透出做第一幕背景,递归各层 Hero 全透明,
+        //   标题/星标/镜像环浮在水上;原「隧道暗部」由水面取代,是刻意的(不是回归黑底)。
+        //   兜底:page.tsx 根 <main className="bg-background"> 在水面未就绪/WebGL 失败时透出。
+        // 不设 overflow-hidden:离场瀑布时递归各层标题要**下坠突破本层边界**流入 mid(见 home-collapse ③);
+        //   静止时递归内容本就落在各层 bounds 内,不裁剪也不穿帮;最外层由 stage 的 overflow-hidden(视口)兜底。
+        "relative h-full w-full select-none text-foreground [container-type:size]",
         // 嵌套内容先规定为不可选取/不可交互(后续再加"靠近坍缩成黑洞"效果)
         inner && "pointer-events-none",
       ]
@@ -80,16 +86,18 @@ export function HomeScene({ depth, showCampfire = false, maxDepth = 6 }: HomeSce
         />
       )}
 
-      {/* 自嵌套卡片:**比例 0.55** 尺寸,居中偏上定位 → 向**上黄金线不动点(50%/38.2%)**汇聚。
-          top = F_y·(1−r) = 0.382×0.45 = 17.19%。比例越小 = 每层递缩步幅越大 = 层数密度越低(隧道更疏)。
-          opacity-[0.7]:每层不透明度沿嵌套复合递减(depth d ≈ 0.7^d)→ 越往后越快淡向背景。
+      {/* 自嵌套卡片:**比例 0.7** 尺寸,居中偏上定位 → 向**上黄金线不动点(50%/38.2%)**汇聚。
+          left = F_x·(1−r) = 0.5×0.3 = 15%;top = F_y·(1−r) = 0.382×0.3 = 11.46%。
+          比例越大 = 每层递缩步幅越小 = 层间距越小、隧道越密(改 0.55→0.7 = 更密,配合更大 maxDepth)。
+          opacity-[0.8]:每层不透明度沿嵌套复合递减(depth d ≈ 0.8^d)→ 越往后越淡向背景;
+          比例调大后每层保留更多 = 提到 0.8 让更密的深层仍看得见(否则复合太快、密了也看不出)。
           不传 showCampfire → 篝火天然不下传。
-          注:不加边框——收缩时卡放大 1/0.55×、逐层复合,任何 border 都会被同步放大成
+          注:不加边框——收缩时卡放大 1/0.7×、逐层复合,任何 border 都会被同步放大成
           越往里越粗、在不动点堆成"灰疙瘩";无框才能让各层无缝重合。 */}
       {hasNested && (
         <div
           data-nested
-          className="absolute left-[22.5%] top-[17.19%] h-[55cqh] w-[55cqw] overflow-hidden opacity-[0.7]"
+          className="absolute left-[15%] top-[11.46%] h-[70cqh] w-[70cqw] opacity-[0.8]"
         >
           <HomeScene depth={depth + 1} maxDepth={maxDepth} />
         </div>
