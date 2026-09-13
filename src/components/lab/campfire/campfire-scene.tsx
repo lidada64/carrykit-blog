@@ -106,7 +106,7 @@ export function CampfireScene() {
   const [orbEnergy, setOrbEnergy] = useState(1);
   const [orbX, setOrbX] = useState(PLANET_ORBX_FROM);
   const [starGain, setStarGain] = useState(STAR_GAIN);
-  const [titleGain, setTitleGain] = useState(0);
+  const [titleGain, setTitleGain] = useState(TITLE_GAIN_MAX);
   const [skyMask, setSkyMask] = useState<HTMLCanvasElement | null>(null);
 
   // 生成遮罩画布(字体就绪后;resize 重建 → 换引用 → 水面重传纹理)。
@@ -173,10 +173,9 @@ export function CampfireScene() {
               const p = self.progress;
               setWaterScroll(Math.min(1, p / MORPH_END));
               setOrbX(PLANET_ORBX_FROM + (PLANET_ORBX_TO - PLANET_ORBX_FROM) * p);
-              // 标题星座:[0.05,0.5] 逐渐连亮,[0.7,0.9] 随入 mid 淡出。
-              const draw = p <= 0.05 ? 0 : p >= 0.5 ? 1 : (p - 0.05) / 0.45;
+              // 标题星座:首屏即点亮(landing 就能看到),[0.7,0.9] 随入 mid 淡出。
               const fade = p <= 0.7 ? 1 : p >= MORPH_END ? 0 : 1 - (p - 0.7) / (MORPH_END - 0.7);
-              setTitleGain(TITLE_GAIN_MAX * draw * fade);
+              setTitleGain(TITLE_GAIN_MAX * fade);
               setStarGain(STAR_GAIN * fade);
               // 光池随入 mid 淡出。
               setOrbEnergy(p <= 0.6 ? 1 : p >= MORPH_END ? 0 : 1 - (p - 0.6) / (MORPH_END - 0.6));
