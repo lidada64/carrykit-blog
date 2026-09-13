@@ -12,46 +12,36 @@ import { MidScene } from "@/components/lab/mid-scene";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
 
-/* ── 方向 1「月与倒影」——星际牛仔 noir + 艾迪芬奇 diegetic + 超现实 ──
- *  灯球=悬在夜色水面上的月;标题 CarryKit. 卧在地平线附近,被光池照亮;
- *  正下方水面里一份**垂直镜像倒影**,借 SVG 水波扭曲 + 向下淡出融进水面,随波荡漾。
- *  退掉了 /lab/home 的 18 层递归隧道 —— 只剩「月 · 字 · 倒影」三样,安静不杂。
- *  所有数值均为**手感旋钮**(scrub 时间线归一 0..1,position/duration 数值 = 滚动进度)。 */
+/* ── 方向 1「月与倒影」v2 —— 星际牛仔 noir + 艾迪芬奇 diegetic + 超现实 ──
+ *  灯球=悬在夜色水面上的月。补齐 v1 缺的两样:
+ *   ①**月的倒影** = 镜像月盘(翻转 DiscoBall) + 其下延展的**波光月华路径**(碎裂竖光带);
+ *   ②**朦胧雾感** = 月背光晕 bloom + 地平线雾带 + 近地平线一薄层 backdrop-blur。
+ *  都随水波荡漾(SVG 位移)+ 向下淡出融进水面。标题 CarryKit. 卧地平线,亦有其文字倒影。
+ *  颜色只用 var(--water-paper)/token;mask 里的黑/透明是遮罩通道非色值。手感旋钮(scrub 归一 0..1)。 */
 
-/** 水面 night→mid 相机过渡到位的进度点(之后恒 mid)。 */
 const MORPH_END = 0.9;
 
-/** 「月升」:灯球(月)在前段沿 yPercent 缓升 + orbEnergy 同步淡出(水面光池随之收)。 */
+/** 「月升」:灯球(月)前段沿 yPercent 缓升 + orbEnergy 同步淡出(水面光池收)。 */
 const HOIST_START_P = 0.05;
 const HOIST_END_P = 0.55;
-const HOIST_RISE = -90; // 负=上;月升幅度(比 home 的 -220 温和,月只是缓缓抬起)
+const HOIST_RISE = -90;
 
-/** 标题竖向锚点(屏幕 %):贴地平线附近(下三分之一),让倒影有水面可落。 */
-const TITLE_TOP_PCT = 60;
-/** 月晕注入增益(WaterScene moonHalo):给天空一圈月光,强化「月」的读法。 */
-const MOON_HALO = 0.6;
+const TITLE_TOP_PCT = 60; // 标题竖向锚点(屏幕 %),贴地平线
+const MOON_TOP_PCT = 24; // 月(灯球)竖向锚点,与倒影/光路对齐
+const MOON_HALO = 0.6; // 天空月晕(WaterScene moonHalo)
+const REFLECT_STRETCH = 1.6; // 文字倒影拉长量
 
-/** 倒影:随进度**拉长**(scaleY 1→STRETCH)+ 淡出;波动幅度也随进度加剧(水面被月升搅动)。 */
-const REFLECT_STRETCH = 1.6;
-
-/** 水面耦合闸门(首页 canvas pointer-events-none,显式关交互只为语义清晰)。 */
 const HOME_FLAGS: Partial<WaterDirectorFlags> = {
   pointerRipple: false,
   clickImpulse: false,
   orbDrag: false,
 };
-/** 空覆盖表。**必须模块级常量** —— 每次 render 新建 `{}` 会让 props 每帧变。 */
 const NO_OVERRIDES: Readonly<Record<string, number>> = {};
 
 /**
- * MoonReflectionScene —— /lab/home-moon 的滚动转场(方向 1)。
- *
- * 一条 pin + scrub 时间线,并置:
- * ① 水面 night→mid(单张 WaterScene 作 z-0 背景,scroll 0→1)。
- * ② 月升:DiscoBall(月)前段 yPercent 缓升,orbEnergy 同步淡出(水面光池收)。
- * ③ 倒影:标题镜像副本随进度拉长 + 波动加剧 + 淡出,溶散进水面;标题本体淡出。
- * ④ mid 承接:MidScene 末段 autoAlpha 淡入。
- * reduced-motion 不建时间线 → 静态月/字/倒影(水面定格 night)兜底。
+ * MoonReflectionScene v2 —— /lab/home-moon。
+ * pin+scrub:月升 → 倒影(月盘+光路+文字)拉长闪烁后淡散、雾渐浓 → night→mid → MidScene 承接。
+ * reduced-motion 不建时间线 → 静态月/倒影/雾(水面定格 night)。
  */
 export function MoonReflectionScene() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -66,16 +56,21 @@ export function MoonReflectionScene() {
       const orb = root.querySelector<HTMLElement>("[data-orb]");
       const title = root.querySelector<HTMLElement>("[data-title]");
       const reflect = root.querySelector<HTMLElement>("[data-reflect]");
+      const moonDisc = root.querySelector<HTMLElement>("[data-moon-disc]");
+      const moonPath = root.querySelector<HTMLElement>("[data-moon-path]");
+      const moonGlow = root.querySelector<HTMLElement>("[data-moon-glow]");
       const midScene = root.querySelector<HTMLElement>("[data-midscene]");
       const disp = root.querySelector<SVGFEDisplacementMapElement>("[data-ripple-scale]");
       if (!stage) return;
 
       const mm = gsap.matchMedia();
       mm.add("(prefers-reduced-motion: no-preference)", () => {
-        // 倒影「活起来」:持续微摆 + SVG 位移呼吸 = 水在动(与 scrub 无关,循环)。
+        // 荡漾:SVG 位移呼吸 + 文字倒影微摆 + 月光路径碎光闪烁(与 scrub 无关,循环)。
         const ambient = gsap.timeline({ repeat: -1, yoyo: true });
+        if (disp) ambient.to(disp, { attr: { scale: 16 }, duration: 3.2, ease: "sine.inOut" }, 0);
         if (reflect) ambient.to(reflect, { skewX: 1.6, duration: 3.2, ease: "sine.inOut" }, 0);
-        if (disp) ambient.to(disp, { attr: { scale: 14 }, duration: 3.2, ease: "sine.inOut" }, 0);
+        if (moonPath) ambient.to(moonPath, { opacity: 0.32, duration: 1.6, ease: "sine.inOut" }, 0);
+        if (moonDisc) ambient.to(moonDisc, { skewX: 2.2, duration: 2.6, ease: "sine.inOut" }, 0);
 
         const tl = gsap.timeline({
           scrollTrigger: {
@@ -99,11 +94,16 @@ export function MoonReflectionScene() {
           },
         });
 
-        // ② 月升:orb 自身 yPercent 缓抬(脱离任何缩放)。
+        // ② 月升:orb 自身 yPercent 缓抬。
         if (orb)
           tl.to(orb, { yPercent: HOIST_RISE, ease: "power1.inOut", duration: HOIST_END_P - HOIST_START_P }, HOIST_START_P);
 
-        // ③ 倒影:拉长 + 淡出(基准镜像 = -1.25 配标题的竖拉 1.25;拉伸时负号保持镜像)。
+        // ③ 月之倒影(月盘 + 光路)随月升拉长 + 淡出。
+        if (moonDisc) tl.to(moonDisc, { yPercent: -40, autoAlpha: 0, ease: "power1.in", duration: 0.7 }, 0.1);
+        if (moonPath) tl.to(moonPath, { scaleY: 1.5, autoAlpha: 0, ease: "power1.in", duration: 0.7 }, 0.1);
+        if (moonGlow) tl.to(moonGlow, { autoAlpha: 0, ease: "power1.in", duration: 0.6 }, 0.2);
+
+        // ③' 文字倒影:拉长 + 淡出(基准镜像 -1.25 配标题竖拉 1.25)。
         if (reflect)
           tl.fromTo(
             reflect,
@@ -111,17 +111,11 @@ export function MoonReflectionScene() {
             { scaleY: -1.25 * REFLECT_STRETCH, autoAlpha: 0, ease: "power1.in", duration: 0.85 },
             0.1,
           );
-        // 标题本体:后半程随月升离场淡出。
         if (title) tl.to(title, { autoAlpha: 0, ease: "power1.in", duration: 0.45 }, 0.45);
 
         // ④ mid 承接。
         if (midScene)
-          tl.fromTo(
-            midScene,
-            { autoAlpha: 0, yPercent: 6 },
-            { autoAlpha: 1, yPercent: 0, ease: "none", duration: 0.4 },
-            0.6,
-          );
+          tl.fromTo(midScene, { autoAlpha: 0, yPercent: 6 }, { autoAlpha: 1, yPercent: 0, ease: "none", duration: 0.4 }, 0.6);
 
         return () => ambient.kill();
       });
@@ -133,17 +127,16 @@ export function MoonReflectionScene() {
 
   return (
     <div ref={rootRef}>
-      {/* SVG 水波扭曲滤镜(供倒影 filter: url(#moon-ripple) 引用)。零尺寸、不占布局。
-          feTurbulence 生成水纹噪声,feDisplacementMap 用它扭曲倒影文字;scale 由 GSAP 呼吸。 */}
+      {/* SVG 水波扭曲滤镜(倒影/月盘/光路共用 filter:url(#moon-ripple))。scale 由 GSAP 呼吸。 */}
       <svg aria-hidden width="0" height="0" className="absolute">
-        <filter id="moon-ripple" x="-20%" y="-20%" width="140%" height="140%">
-          <feTurbulence type="fractalNoise" baseFrequency="0.012 0.04" numOctaves={2} seed={7} result="noise" />
-          <feDisplacementMap data-ripple-scale in="SourceGraphic" in2="noise" scale={8} xChannelSelector="R" yChannelSelector="G" />
+        <filter id="moon-ripple" x="-30%" y="-30%" width="160%" height="160%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.012 0.045" numOctaves={2} seed={7} result="noise" />
+          <feDisplacementMap data-ripple-scale in="SourceGraphic" in2="noise" scale={10} xChannelSelector="R" yChannelSelector="G" />
         </filter>
       </svg>
 
       <section data-stage className="relative h-svh overflow-hidden">
-        {/* ① 水面(z-0):night preset + moonHalo 月晕,scroll 0→1 = night→mid。 */}
+        {/* ① 水面(z-0):night + moonHalo,scroll 0→1 = night→mid。 */}
         <WaterScene
           className="pointer-events-none absolute inset-0 z-0 h-full w-full"
           preset="night"
@@ -161,16 +154,69 @@ export function MoonReflectionScene() {
           forceReducedMotion={false}
         />
 
-        {/* ④ mid 场景占位(z-[1]):初始隐藏,末段淡入。 */}
+        {/* 雾感(z-[1]):坐在水面之上、mid 之下,不抢主体。 */}
+        <div className="pointer-events-none absolute inset-0 z-[1]">
+          {/* 月背光晕 bloom:大半径柔光,压低透明度 */}
+          <div
+            data-moon-glow
+            style={{
+              top: `${MOON_TOP_PCT}%`,
+              background: "radial-gradient(closest-side, var(--water-paper), transparent)",
+              filter: "blur(14px)",
+            }}
+            className="absolute left-1/2 h-[42vh] w-[42vh] -translate-x-1/2 -translate-y-1/2 opacity-25"
+          />
+          {/* 地平线雾带:横向柔光,近地平线一层薄霾 */}
+          <div
+            style={{ top: "52%", background: "linear-gradient(to bottom, transparent, var(--water-paper) 55%, transparent)", filter: "blur(6px)" }}
+            className="absolute inset-x-0 h-[22vh] -translate-y-1/2 opacity-15"
+          />
+          {/* 近地平线薄层 backdrop-blur:梦幻化(subtle) */}
+          <div className="absolute inset-x-0 top-[46%] h-[14vh] backdrop-blur-[2px]" />
+        </div>
+
+        {/* ④ mid 场景占位(z-[1] 之上仍用 z-[1] 组;这里单列 z-[1] 保持与雾同层但后绘) */}
         <div data-midscene className="absolute inset-0 z-[1] opacity-0">
           <MidScene />
         </div>
 
-        {/* ② 标题 + 倒影层(z-10):贴地平线的 CarryKit. 与其水中镜像。
-            分工:居中定位交给外层 CSS(-translate-x-1/2),动画(scaleY/skew/autoAlpha)交给 GSAP,
-            两者作用在不同节点上 → GSAP 不会覆盖掉居中位移(否则 resize 会漂)。 */}
+        {/* ② 月之倒影(z-[2]):月盘镜像 + 波光路径,在水面上、标题层下。 */}
+        <div className="pointer-events-none absolute inset-0 z-[2]">
+          {/* 波光月华路径:碎裂竖光带(repeating-linear-gradient),clip 成上窄下宽三角,mask 上下淡出,
+              SVG 位移荡漾。颜色 var(--water-paper),mask 的黑/透明是通道。 */}
+          <div
+            data-moon-path
+            style={{
+              top: `${MOON_TOP_PCT + 10}%`,
+              height: "70%",
+              width: "16vw",
+              transformOrigin: "top center",
+              background:
+                "repeating-linear-gradient(to bottom, var(--water-paper) 0 2px, transparent 2px 9px)",
+              filter: "url(#moon-ripple)",
+              clipPath: "polygon(44% 0, 56% 0, 78% 100%, 22% 100%)",
+              WebkitMaskImage: "linear-gradient(to bottom, transparent, #000 14%, #000 60%, transparent 96%)",
+              maskImage: "linear-gradient(to bottom, transparent, #000 14%, #000 60%, transparent 96%)",
+            }}
+            className="absolute left-1/2 -translate-x-1/2 opacity-45"
+          />
+          {/* 镜像月盘:翻转 DiscoBall,低透明度,SVG 位移 + 向下淡出。 */}
+          <div
+            data-moon-disc
+            style={{
+              top: `${MOON_TOP_PCT + 20}%`,
+              filter: "url(#moon-ripple)",
+              WebkitMaskImage: "linear-gradient(to bottom, #000, transparent 88%)",
+              maskImage: "linear-gradient(to bottom, #000, transparent 88%)",
+            }}
+            className="absolute left-1/2 h-[9vh] w-[9vh] -translate-x-1/2 origin-top -scale-y-100 opacity-40"
+          >
+            <DiscoBall size="100%" glow={1} spinDuration={30} showRing={false} />
+          </div>
+        </div>
+
+        {/* ③ 标题 + 文字倒影(z-10)。 */}
         <div className="pointer-events-none absolute inset-0 z-10">
-          {/* 标题本体:GSAP 只动 autoAlpha(不碰 transform),故 className 的居中+竖拉 1.25 保留。 */}
           <span
             data-title
             style={{ top: `${TITLE_TOP_PCT}%` }}
@@ -178,8 +224,6 @@ export function MoonReflectionScene() {
           >
             CarryKit.
           </span>
-          {/* 倒影外层:纯 CSS 居中(translateX -50%)+ 向下淡出 mask + SVG 水波扭曲;不被 GSAP 触碰。
-              top 比标题略低 0.3em(随字号缩放的间隙),transform-origin 顶端 → 内层向下翻成倒影。 */}
           <div
             style={{
               top: `calc(${TITLE_TOP_PCT}% + 0.3em)`,
@@ -190,7 +234,6 @@ export function MoonReflectionScene() {
             className="absolute left-1/2 -translate-x-1/2 origin-top text-[clamp(2.5rem,11vw,9rem)]"
             aria-hidden
           >
-            {/* 内层:GSAP 独占 transform(初始 scaleY(-1.25) 镜像+竖拉,滚动时拉长;ambient 叠 skewX 荡漾)。 */}
             <span
               data-reflect
               className="block origin-top whitespace-nowrap font-title font-normal italic leading-none tracking-[0.02em] text-foreground"
@@ -201,14 +244,16 @@ export function MoonReflectionScene() {
           </div>
         </div>
 
-        {/* 覆盖层(z-20):[container-type:size] 使 SceneNav 的 cq 单位解析;承载顶栏 + 灯球(月)。 */}
+        {/* 覆盖层(z-20):container-type 供 SceneNav cq 解析;顶栏 + 灯球(月)。 */}
         <div className="pointer-events-none absolute inset-0 z-20">
           <div className="relative h-full w-full [container-type:size]">
             <div className="pointer-events-auto">
               <SceneNav interactive />
             </div>
-            {/* 灯球=月:居中偏上常驻,慢自转(月不该快转);段前 orb yPercent 缓升。 */}
-            <div className="absolute left-1/2 top-[24%] h-[9cqw] w-[9cqw] -translate-x-1/2 -translate-y-1/2">
+            <div
+              style={{ top: `${MOON_TOP_PCT}%` }}
+              className="absolute left-1/2 h-[9cqw] w-[9cqw] -translate-x-1/2 -translate-y-1/2"
+            >
               <div data-orb className="h-full w-full">
                 <DiscoBall size="100%" glow={1} spinDuration={30} showRing={false} />
               </div>
