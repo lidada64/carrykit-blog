@@ -1,16 +1,17 @@
-import { DiscoHero } from "@/components/home/disco-hero";
-import { Preloader } from "@/components/motion/preloader";
+import { HomeCollapse } from "@/components/lab/home-collapse";
 
 /**
- * 主页:迪斯科灯球叙事(docs/homepage-animation-plan.md)。
- * 旧设计的「精选作品 / 最新博客」区块已移除;work/blog/radar 的入口
- * 由后续 HR-9 三板块承接,站点其余内容(HR-10 之后)另行规划。
+ * 主页:改用原 /lab/home 的滚动收缩转场(HomeCollapse) —— 递归自相似 Hero +
+ * 水面 night→mid 过渡 + 灯球吊起升出。原迪斯科灯球叙事(DiscoHero)已下线。
+ *
+ * 站点布局的 `<main>` 有 max-w-[1120px] 约束,故套一层 `mx-[calc(50%-50vw)]
+ * w-screen` 破出到满视口宽(与旧 DiscoHero 的做法一致),让水面/递归帧满屏铺开。
+ * pin+scrub 走 ScrollTrigger,与站点布局的 ScrollSmoother 原生兼容。
  */
 export default function HomePage() {
   return (
-    <>
-      <Preloader />
-      <DiscoHero />
-    </>
+    <div className="mx-[calc(50%-50vw)] w-screen flex-1">
+      <HomeCollapse />
+    </div>
   );
 }

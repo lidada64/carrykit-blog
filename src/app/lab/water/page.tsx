@@ -358,7 +358,7 @@ export default function WaterLabPage() {
             size={`${(stats.orbRadiusNdc / ORB_DISC_RATIO) * 100}vh`}
             glow={Math.min(1, orbEnergy)}
             spinDuration={7}
-            ringDuration={14}
+            showRing={false}
           />
         </div>
       ) : null}

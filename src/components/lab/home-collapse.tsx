@@ -251,7 +251,7 @@ export function HomeCollapse() {
                 GSAP 目标(动自身 yPercent);升出同步淡出 orbEnergy → 水面灯球光池收掉(灯球↔水面交互)。 */}
             <div className="absolute left-1/2 top-[19.5%] h-[7.6cqw] w-[7.6cqw] -translate-x-1/2 -translate-y-1/2">
               <div data-orb className="h-full w-full">
-                <DiscoBall size="100%" glow={1} spinDuration={7} ringDuration={14} />
+                <DiscoBall size="100%" glow={1} spinDuration={7} showRing={false} />
               </div>
             </div>
           </div>
