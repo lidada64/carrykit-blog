@@ -15,6 +15,7 @@ import { SRC as FIELD } from "./field.glsl";
 import { SRC as LIGHT } from "./light.glsl";
 import { SRC as RIPPLE } from "./ripple.glsl";
 import { SRC as SHADE } from "./shade.glsl";
+import { SRC as SKYSTARS } from "./sky-stars.glsl";
 
 /** 版本声明 + 三个全局 uniform。所有模块都假定它在最前面。 */
 export const WATER_FRAG_HEAD = `#version 300 es
@@ -37,7 +38,8 @@ void main(){
   vec2 p; vec3 rd;
   float lum;
   if (!waterSurfacePoint(ndc, uRes.x / uRes.y, p, rd)) {
-    lum = waterTonemap(waterShadeSky(rd));
+    // 天空:环境辐射 + 星场/标题星座(B;两个增益默认 0 → 精确 0,闸门安全)。tonemap 前叠加。
+    lum = waterTonemap(waterShadeSky(rd) + waterSkyStars(frag));
   } else {
     float footprint = max(fwidth(p.x), fwidth(p.y));
     vec3 N; float sigma2;
@@ -51,7 +53,7 @@ void main(){
 /**
  * 拼出完整的片元着色器。**顺序不是随手排的**:
  *
- * `HEAD + RIPPLE + FIELD + LIGHT + SHADE + DITHER + TAIL`
+ * `HEAD + RIPPLE + FIELD + LIGHT + SHADE + SKYSTARS + DITHER + TAIL`
  *
  * · **RIPPLE 在 FIELD 之前**(W6):`waterWaveField` 末尾那段涟漪耦合要用
  *   `uRippleAmp` 写关闭分支,而 GLSL 不许同一个 uniform 声明两次 ——
@@ -61,9 +63,12 @@ void main(){
  *   LIGHT 的 `orbPatch` —— 这一处前向依赖用 `field.glsl.ts` 里的**前置声明**
  *   解决(GLSL ES 3.00 支持),其余顺序不动。
  * · **DITHER 必须在 TAIL 之前**(W4):`main()` 调 `waterDitherApply`。
+ * · **SKYSTARS 在 SHADE 之后、DITHER 之前**:`main()` 天空分支调 `waterSkyStars`,
+ *   它是叶子模块(只用 HEAD 的 uRes/uTime + 自己的 uniform),放哪都行,排在 SHADE 后语义清晰。
+ *   默认贡献 0(增益默认 0),不影响任何 preset 的金标帧(闸门安全)。
  */
 export function assembleWaterFragment(): string {
   return (
-    WATER_FRAG_HEAD + RIPPLE + FIELD + LIGHT + SHADE + DITHER + WATER_FRAG_TAIL
+    WATER_FRAG_HEAD + RIPPLE + FIELD + LIGHT + SHADE + SKYSTARS + DITHER + WATER_FRAG_TAIL
   );
 }

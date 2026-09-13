@@ -886,6 +886,50 @@ float waterTonemap(float lum){
   return clamp((lum - uShadePivot) * uShadeContrast + uShadePivot + uShadeExposure, 0.0, 1.0);
 }
 
+uniform float     uSkyStarGain;      // 环境星场增益(0 = 关,默认)
+uniform float     uSkyStarDensity;   // 星稀疏阈值 0..1(越大越稀;仅 gain>0 时有意义)
+uniform float     uSkyTitleGain;     // 标题/星座增益(0 = 关,默认)
+uniform sampler2D uSkyTitleMask;     // R=清空区 / G=标题星座
+uniform vec2      uSkyTitleMaskSize; // 纹理尺寸(CPU 写入;此处按 UV 采样不直接用,但保留契约)
+
+float waterSkyHash2(vec2 p){
+  p = fract(p * vec2(123.34, 345.45));
+  p += dot(p, p + 34.345);
+  return fract(p.x * p.y);
+}
+
+/* 稀疏亮星:屏幕按格划分,每格至多一颗随机小圆点,够小 → 抖动后成一粒墨点。
+ * density 决定多少格有星;圆点半径小 → 掠过阈值即闪。返回 [0, ~1] 的亮度(未乘增益)。 */
+float waterStarField(vec2 uv){
+  vec2 g  = uv * vec2(150.0, 95.0);            // 星格密度(手感旋钮)
+  vec2 id = floor(g);
+  vec2 f  = fract(g);
+  float h = waterSkyHash2(id);
+  if (h < uSkyStarDensity) return 0.0;          // 大多数格无星
+  vec2 c  = vec2(waterSkyHash2(id + 3.1), waterSkyHash2(id + 7.7));
+  float d = length(f - c);
+  float star = smoothstep(0.16, 0.0, d);        // 小圆点
+  float tw = 0.55 + 0.45 * sin(uTime * (0.8 + 2.6 * h) + h * 30.0); // 闪烁(uTime → RM 冻结)
+  return star * tw;
+}
+
+/* 叠加到天空辐射上的量。gain 全 0(默认)→ 精确 0.0(闸门安全)。 */
+float waterSkyStars(vec2 frag){
+  if (uSkyStarGain <= 0.0 && uSkyTitleGain <= 0.0) return 0.0;
+  vec2 uv = frag / uRes;
+  float clear = 0.0;
+  float glyph = 0.0;
+  if (uSkyTitleGain > 0.0){
+    vec2 muv = vec2(uv.x, 1.0 - uv.y);          // canvas 左上原点 → 采样翻 y
+    vec4 m = texture(uSkyTitleMask, muv);
+    clear = clamp(m.r, 0.0, 1.0);               // 留白区
+    glyph = clamp(m.g, 0.0, 1.0);               // 标题星座
+  }
+  float ambient = uSkyStarGain * waterStarField(uv) * (1.0 - clear);
+  float title   = uSkyTitleGain * glyph;
+  return ambient + title;
+}
+
 // —— 阈值图(void-and-cluster 蓝噪声,R8,NEAREST + REPEAT)——
 uniform sampler2D uDitherNoise;
 uniform vec2  uDitherNoiseSize;  // 由渲染台按纹理尺寸写入
@@ -924,7 +968,8 @@ void main(){
   vec2 p; vec3 rd;
   float lum;
   if (!waterSurfacePoint(ndc, uRes.x / uRes.y, p, rd)) {
-    lum = waterTonemap(waterShadeSky(rd));
+    // 天空:环境辐射 + 星场/标题星座(B;两个增益默认 0 → 精确 0,闸门安全)。tonemap 前叠加。
+    lum = waterTonemap(waterShadeSky(rd) + waterSkyStars(frag));
   } else {
     float footprint = max(fwidth(p.x), fwidth(p.y));
     vec3 N; float sigma2;

@@ -651,6 +651,13 @@ export const WATER_UNIFORM_DEFAULTS: Record<string, number> = {
   uRippleAmp: 0.0,
   uRippleLodBias: 1.5,
   uRippleEdgeFade: 8.0,
+  /* B 星空标题(sky-stars.glsl,/lab/home-campfire 专用):两个增益 = 0 就是"天空无星、无标题",
+   * 与关闭态逐字节相同(shader 里一切贡献 ×gain,gain=0 精确返回 0)。金标帧渲染器不传 overrides,
+   * 故不进任何 preset.set、不参与混合,四道闸门不受影响 —— 仅该变体经 overrides 推上去。
+   * density 给个稀疏默认值,变体只需翻两个 gain(gain=0 时 density 取什么都不生效)。 */
+  uSkyStarGain: 0.0,
+  uSkyStarDensity: 0.92,
+  uSkyTitleGain: 0.0,
 };
 
 /**

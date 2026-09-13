@@ -174,6 +174,13 @@ export interface WaterSceneProps {
    * `screen` 是 NDC(x∈[-1,1] 右正 / y∈[-1,1] 上正)。
    */
   onOrbFrame?: (screenX: number, screenY: number, energy: number, radiusNdc: number) => void;
+  /**
+   * **可选**天空星座遮罩(方向4「篝火与星座」/lab/home-campfire 专用)。
+   * 一张屏幕空间 canvas:R=清空区(留白抑星)、G=标题/星座亮度;shader 按屏幕 UV 采样(DPR 安全)。
+   * 默认 null → 不绑纹理,配合 `overrides.uSkyTitleGain` 默认 0 → 与关闭态逐字节相同(闸门安全)。
+   * 只在引用变化时重传纹理。开关/密度经 `overrides`(uSkyStarGain / uSkyTitleGain / uSkyStarDensity)。
+   */
+  skyMask?: HTMLCanvasElement | null;
   className?: string;
 }
 
@@ -443,6 +450,10 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
     let noiseTex: WebGLTexture | null = null;
     let noiseSize: [number, number] = [1, 1];
     let envLutTex: WebGLTexture | null = null;
+    /* B 星空标题遮罩(可选)。引用变化才重传;默认 null → 不创建、不绑。 */
+    let skyMaskTex: WebGLTexture | null = null;
+    let skyMaskSrc: HTMLCanvasElement | null = null;
+    let skyMaskSize: [number, number] = [1, 1];
     let solver: RippleSolver | null = null;
     /* W9:GPU 计时 + 降级阶梯。拿不到 timer query 扩展也照样能用(回落 CPU 帧间隔),
      * 所以这里**没有失败分支** —— 见 perf.ts 文件头。 */
@@ -749,6 +760,30 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
         set2("uRippleTexSize", 0, 0);
       }
 
+      /* ⑦ 星空标题遮罩(B,可选)。默认 null → 完全不碰,shader 靠 uSkyTitleGain>0(默认 0)守卫。
+       * 按屏幕 UV 采样 → 用 CLAMP + LINEAR;引用变了才 texImage2D 重传(canvas 内容变会换引用)。 */
+      const mask = p.skyMask ?? null;
+      if (mask && mask !== skyMaskSrc) {
+        if (!skyMaskTex) skyMaskTex = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, skyMaskTex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, mask);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        skyMaskSrc = mask;
+        skyMaskSize = [mask.width, mask.height];
+      }
+      if (skyMaskTex) {
+        gl.activeTexture(gl.TEXTURE3);
+        gl.bindTexture(gl.TEXTURE_2D, skyMaskTex);
+        const tl = locs.get("uSkyTitleMask");
+        if (tl) gl.uniform1i(tl, 3);
+        set2("uSkyTitleMaskSize", skyMaskSize[0], skyMaskSize[1]);
+      }
+
       if (perf) perf.begin("water");
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       if (perf) perf.end();
@@ -928,6 +963,7 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
       if (gl) {
         if (noiseTex) gl.deleteTexture(noiseTex);
         if (envLutTex) gl.deleteTexture(envLutTex);
+        if (skyMaskTex) gl.deleteTexture(skyMaskTex);
         if (vao) gl.deleteVertexArray(vao);
         if (prog) gl.deleteProgram(prog);
         /* 主动放掉 GPU 上下文 —— 浏览器同时只肯给几个 WebGL 上下文,
