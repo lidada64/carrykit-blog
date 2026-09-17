@@ -1,4 +1,5 @@
 import { Footer } from "@/components/layout/footer";
+import { HomeNav } from "@/components/home/home-nav";
 import { Nav } from "@/components/layout/nav";
 import { Revealer } from "@/components/motion/revealer";
 import { ScrollIndicator } from "@/components/motion/scroll-indicator";
@@ -20,6 +21,8 @@ export default function SiteLayout({
         </main>
         <Footer />
       </SmoothScroll>
+      {/* 首页专属导航(CARRY + 汉堡开合菜单):放在 SmoothScroll 之外才能真正 fixed;自门控仅 `/` 渲染 */}
+      <HomeNav />
       {/* 页面过渡遮罩(A1):仅公开站启用 */}
       <Revealer />
       {/* 右侧滚动进度矩形:替代原生滚动条,仅公开站启用 */}

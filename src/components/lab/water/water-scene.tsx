@@ -181,6 +181,17 @@ export interface WaterSceneProps {
    * 只在引用变化时重传纹理。开关/密度经 `overrides`(uSkyStarGain / uSkyTitleGain / uSkyStarDensity)。
    */
   skyMask?: HTMLCanvasElement | null;
+  /**
+   * **可选**天空「屏幕」动画图集(方向4 / /lab/sky-screen)。一张 1-bit 掩码 sprite sheet
+   * (bit-sprite:alpha=形状),shader 在 `uSkyScreenRect` 内按当前帧采样,当遮罩露出粒子。
+   * 默认 null → 不加载、不绑;未加载时 draw 会把 `uSkyScreenGain` 强钉 0(闸门安全)。
+   * 逐帧参数(相位/进度/增益/密度/帧数)走 `overrides`(uSkyScreenPhase/Progress/Gain/Density/Count)。
+   */
+  screenAtlasUrl?: string | null;
+  /** 图集网格 (cols, rows)。来自 manifest。null → 不设(配合 gain=0 完全惰性)。 */
+  screenGrid?: readonly [number, number] | null;
+  /** 屏幕矩形 (left, top, w, h),单位屏幕 UV,top 从上量。与标题遮罩里画的矩形一致。 */
+  screenRect?: readonly [number, number, number, number] | null;
   className?: string;
 }
 
@@ -238,6 +249,17 @@ function compile(gl: WebGL2RenderingContext, type: number, src: string): WebGLSh
 
 /** 蓝噪声阈值图。`public/water/blue-noise-128.png`,W4 的产物。 */
 const NOISE_URL = "/water/blue-noise-128.png";
+
+/**
+ * 模式 B 的照度图集(B-4 `ball-waterlight`,night 标定态)。
+ * `.webp` 是 12×10 灰度 sprite sheet,`.json` 给 rect / cols / rows。
+ * **只在 `lightMode === 1` 且纹理加载完成后才生效**;否则 `uOrbLightmapSize`
+ * 保持 (0,0),shader 自动回落模式 A(见 light.glsl.ts 的 waterOrbIrradiance)——
+ * 所以加载它对模式 A / 四道闸门零影响。图集是 night 标定的,**要看正确的耦合
+ * 请切到 night preset**;其它 preset 的球位落点与这块 rect 对不上(见 blender-assets.md B-4)。
+ */
+const LIGHTMAP_URL = "/orb/ball-waterlight.webp";
+const LIGHTMAP_META_URL = "/orb/ball-waterlight.json";
 
 /* ────────────────────────────────────────────────────────────────────────
  * 组件
@@ -454,6 +476,15 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
     let skyMaskTex: WebGLTexture | null = null;
     let skyMaskSrc: HTMLCanvasElement | null = null;
     let skyMaskSize: [number, number] = [1, 1];
+    /* 模式 B 照度图集(可选,B-4)。加载完成前 lightmapSize 保持 (0,0) → 回落模式 A。 */
+    let lightmapTex: WebGLTexture | null = null;
+    let lightmapSize: [number, number] = [0, 0];
+    let lightmapCols = 12;
+    let lightmapRows = 10;
+    let lightmapRect: [number, number, number, number] = [0, 0, 0, 0];
+    /* 天空屏幕动画图集(可选)。url 变化才重载;加载完成前 screenAtlasTex 保持 null → gain 强钉 0。 */
+    let screenAtlasTex: WebGLTexture | null = null;
+    let screenAtlasUrlLoaded: string | null = null;
     let solver: RippleSolver | null = null;
     /* W9:GPU 计时 + 降级阶梯。拿不到 timer query 扩展也照样能用(回落 CPU 帧间隔),
      * 所以这里**没有失败分支** —— 见 perf.ts 文件头。 */
@@ -476,6 +507,10 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
     const set3 = (name: string, v: RGB | [number, number, number]): void => {
       const l = locs.get(name);
       if (l && gl) gl.uniform3f(l, v[0], v[1], v[2]);
+    };
+    const set4 = (name: string, a: number, b: number, c: number, d: number): void => {
+      const l = locs.get(name);
+      if (l && gl) gl.uniform4f(l, a, b, c, d);
     };
 
     if (!gl) {
@@ -533,6 +568,74 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
       };
       img.src = NOISE_URL;
     }
+
+    /* 模式 B 照度图集:异步加载,加载失败**不报错**(模式 A 仍然完整)。
+     * 加载好之前 lightmapSize 是 (0,0) → shader 回落 A;好了之后切到 lightMode=1
+     * 才生效。用 LINEAR 采样(格内软斑,rect 有留白、格边照度≈0,跨格 bleed 可忽略)。 */
+    if (gl && prog) {
+      void fetch(LIGHTMAP_META_URL)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((meta) => {
+          if (!meta) return;
+          if (Array.isArray(meta.rect) && meta.rect.length === 4) lightmapRect = meta.rect;
+          if (meta.cols) lightmapCols = meta.cols;
+          if (meta.rows) lightmapRows = meta.rows;
+        })
+        .catch(() => {
+          /* 没有 .json 就用 preset 默认列/行,rect 保持 0 → 采样越界返回 0,无害 */
+        });
+      const lm = new Image();
+      lm.onload = () => {
+        if (disposed || !gl) return;
+        lightmapTex = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, lightmapTex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, lm);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        lightmapSize = [lm.width, lm.height];
+        requestFrame();
+      };
+      lm.onerror = () => {
+        /* 缺资产不是错误:模式 B 本就"资产未就绪自动回落 A"。 */
+      };
+      lm.src = LIGHTMAP_URL;
+    }
+
+    /* 天空屏幕图集:惰性加载(url 来自 prop,可能在 manifest fetch 后才到)。
+     * url 变了就重载;加载失败**不报错**(gain 会被钉 0,画面无害回落成纯标题/星场)。
+     * 用 NEAREST + CLAMP:1-bit 掩码不许插值(避免帧边渗色、保住颗粒硬边)。 */
+    let screenAtlasLoading = false;
+    const ensureScreenAtlas = (): void => {
+      if (!gl || !prog) return;
+      const url = propsRef.current.screenAtlasUrl ?? null;
+      if (!url || url === screenAtlasUrlLoaded || screenAtlasLoading) return;
+      screenAtlasLoading = true;
+      const im = new Image();
+      im.onload = () => {
+        screenAtlasLoading = false;
+        if (disposed || !gl) return;
+        if (!screenAtlasTex) screenAtlasTex = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, screenAtlasTex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, im);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        screenAtlasUrlLoaded = url;
+        requestFrame();
+      };
+      im.onerror = () => {
+        screenAtlasLoading = false;
+        /* 缺资产不是错误:gain 钉 0 → 回落纯标题/星场。 */
+      };
+      im.src = url;
+    };
 
     /* ── 涟漪求解器。preset / 波速 / 阻尼一变就整个重建(256² 两张纹理,便宜)。
      * 拿不到 `EXT_color_buffer_float` 时 `createRippleSolver` 返回 null ——
@@ -720,6 +823,22 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
       const sl = locs.get("uOrbSpots");
       if (sl) gl.uniform4fv(sl, orbU.spots);
 
+      /* ④''' 模式 B 照度图集(B-4)。纹理就绪才写真实尺寸 → shader 里
+       * `uOrbLightMode==1 && uOrbLightmapSize.x>=1` 才走 B;否则 (0,0) 回落 A。
+       * lightMode / energy 两条闸门在 shader 与上面已各自把关,这里只管绑纹理。 */
+      if (lightmapTex && lightmapSize[0] >= 1) {
+        gl.activeTexture(gl.TEXTURE4);
+        gl.bindTexture(gl.TEXTURE_2D, lightmapTex);
+        const lml = locs.get("uOrbLightmap");
+        if (lml) gl.uniform1i(lml, 4);
+        set2("uOrbLightmapSize", lightmapSize[0], lightmapSize[1]);
+        setF("uOrbLightmapCols", lightmapCols);
+        setF("uOrbLightmapRows", lightmapRows);
+        set4("uOrbLightmapRect", lightmapRect[0], lightmapRect[1], lightmapRect[2], lightmapRect[3]);
+      } else {
+        set2("uOrbLightmapSize", 0, 0);
+      }
+
       /* ④' 聚焦渐晕(W10)。**只有 mid 有 B 态** —— near 冻结、night 归 W11,
        * 它们的 `focus` 块是 null,这里就把闸门钉死在 0(= 逐字节回到 A 态)。
        * 五个参数走 `WATER_UNIFORM_DEFAULTS`(= presets.ts 的 MID_FOCUS)打底 +
@@ -782,6 +901,22 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
         const tl = locs.get("uSkyTitleMask");
         if (tl) gl.uniform1i(tl, 3);
         set2("uSkyTitleMaskSize", skyMaskSize[0], skyMaskSize[1]);
+      }
+
+      /* ⑧ 天空「屏幕」动画图集(A,可选)。grid/rect 是静态几何(prop);相位/进度/增益走 overrides。
+       * 未加载 or 缺 grid/rect → 强钉 uSkyScreenGain=0(在 ① overrides 之后,覆盖之)→ shader 精确回落。 */
+      ensureScreenAtlas();
+      const scGrid = p.screenGrid ?? null;
+      const scRect = p.screenRect ?? null;
+      if (screenAtlasTex && scGrid && scRect) {
+        gl.activeTexture(gl.TEXTURE5);
+        gl.bindTexture(gl.TEXTURE_2D, screenAtlasTex);
+        const sl = locs.get("uSkyScreenAtlas");
+        if (sl) gl.uniform1i(sl, 5);
+        set2("uSkyScreenGrid", scGrid[0], scGrid[1]);
+        set4("uSkyScreenRect", scRect[0], scRect[1], scRect[2], scRect[3]);
+      } else {
+        setF("uSkyScreenGain", 0);
       }
 
       if (perf) perf.begin("water");
@@ -964,6 +1099,8 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
         if (noiseTex) gl.deleteTexture(noiseTex);
         if (envLutTex) gl.deleteTexture(envLutTex);
         if (skyMaskTex) gl.deleteTexture(skyMaskTex);
+        if (lightmapTex) gl.deleteTexture(lightmapTex);
+        if (screenAtlasTex) gl.deleteTexture(screenAtlasTex);
         if (vao) gl.deleteVertexArray(vao);
         if (prog) gl.deleteProgram(prog);
         /* 主动放掉 GPU 上下文 —— 浏览器同时只肯给几个 WebGL 上下文,

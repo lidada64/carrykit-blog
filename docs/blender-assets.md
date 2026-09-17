@@ -52,9 +52,19 @@ Blender 主控场景(模型 + 灯光rig + HDRI + 材质库 + 渲染预设)
 ### B-4 · `ball-waterlight`(水面照度序列)—— 规格
 
 > 服务对象:`docs/water-orb-coupling.md` §6 的**模式 B**。
-> **这张资产还没渲。** 前端已经把接口留好(`uOrbLightMode = 1`),
-> 纹理缺失时自动回落到模式 A(程序化),不会黑屏、不会报错 —— 所以它不阻塞上线,
-> 但没有它就没法验收"A/B 同帧亮度分布相关 ≥0.7"那一条。
+> **✅ 2026-09-14 已交付并验收(night 标定态)。** 资产
+> `public/orb/ball-waterlight.webp` + `.json`(120 帧 / 12×10 / 256² / 146 KB /
+> 灰度照度图集)。A/B 同帧亮度分布皮尔逊相关 **0.82(grid 256,12 帧均值,逐帧 ≥0.80)**
+> —— 见下面「交付记录」。前端接口早已留好(`uOrbLightMode`,纹理缺失自动回落 A),
+> 生产仍走模式 A;开启模式 B 是集成层(联动卡)的事,不属于本卡。
+>
+> 复现:`node scripts/waterlight-verify.mjs emit night --rect <rect>` 吐配置 →
+> `blender -b -P blender/waterlight-build.py -- <配置>` 建场景 →
+> `blender -b waterlight.blend -P blender/render_waterlight.py -- 1 120 wl` 渲 →
+> `node scripts/waterlight-pack.mjs wl public/orb/ball-waterlight --cols 12 --rows 10 --rect <rect>` 打包 →
+> `node scripts/waterlight-verify.mjs corr night <atlas> --rect <rect> ...` 验收。
+> **本机不需要 Blender MCP** —— `blender -b` 无头一条命令渲完(MCP 是云容器隔着
+> socket 的老路,30s 超时且崩过一次;见 `blender/render_range.py` 头注)。
 
 **场景**
 
@@ -101,7 +111,42 @@ n_i = (cos θ · r,  y,  sin θ · r)
 **验收**(前端侧,`docs/water-orb-coupling.md` §6)
 
 同一帧、同一球位下,模式 A 与模式 B 的亮度分布皮尔逊相关 **≥0.7**。
-资产到位前这一条**未验证**,不要在 PR 里编数字。
+✅ 实测 **0.82**(night、grid 256、12 帧均值,逐帧 0.807~0.838)。由
+`scripts/waterlight-verify.mjs corr` 算,它复用 `orb-light.ts` 的
+`computeOrbUniforms` 作为 mode A 的唯一物理定义、复刻 `light.glsl.ts` 的
+`waterOrbLightmapSample` 作为 mode B 的采样,不另写物理。
+
+---
+
+### B-4 · 交付记录(2026-09-14,与上面「规格」的出入都在这)
+
+**① 不是「64 片镜子 + 一颗太阳」,是「64 盏聚光灯」。**
+规格里写的「摆 64 片球面 Fibonacci 镜面、渲平面接到的焦散」试过,**匹配不上**:
+真镜子摆成球壳会**自遮挡** —— 朝太阳的上半球把光往下反射,却被下半球的面片挡住,
+平面只看得到球底漏过来的一小坨,与 mode A 的皮尔逊相关 **0.02**。根因是
+`orb-light.ts` 的 mode A **根本不建模自遮挡**:它把 64 片镜子当成球心处互不遮挡的
+点反射器。而「一片镜子反射准直主光」在数学上就是一束方向 `d = 2(L·n)n − L` 的
+定向光束 = 一盏聚光灯。所以改用 **64 盏位于球心的聚光灯**,精确复现 mode A 的模型,
+又拿到 Cycles 的真实 `1/t²` 衰减与软半影(正是 mode B 相对解析软斑要给的那份软)。
+太阳不动、镜片随自转变朝向,所以每盏灯的方向/强度**逐帧重算并打关键帧**(不能刚性
+绕轴转,那等于太阳也跟着转)。筛选逐字复刻 `computeOrbUniforms`:`L·n>0`、`d.y<0`、
+`t≤400`、`inten>1e-5`、按 inten 降序取前 24。聚光锥 `spot_size = 0.6·2atan(spotSpread)`
+是扫参拟合 `(1−d²)³` 核形挑的(1.0→0.73、0.6→0.90)。全流程在
+`blender/waterlight-build.py`,一个数都不靠手工操作沉淀。
+
+**② 实际用的 `uOrbLightmapRect`(night):`(−45.2, 4.9, 90, 90)`。**
+规格里的默认 `(−8, 0, 16, 24)` 只对得上 near 的尺度。三个 preset 的光斑落点差一个
+数量级(near 分米级 / mid ~4.5 m / **night ~90 m**),一张绝对场坐标的图集只能服务
+一个 preset。选 night 是因为:那是灯球照水**真正是视觉主角**的 preset,且远场
+(R/t≈3~13%)下 mode A 的「所有镜片在球心」点近似最成立 —— near/mid 是近场,
+mode A 的球心近似本身就松(mid 实测 R/t≈25%,匹配只到 ~0.3,是 mode A 的近似
+上限,不是渲染的错)。要 near/mid 的图集,同一套脚本换 `emit <preset>` 的 rect 重渲即可。
+
+**③ 输出 8-bit 灰度、全局归一,不透明背景改纯黑。** 下游 `sharp` 读 16-bit PNG 会
+降成 8-bit,所以直接出 8-bit + 合适曝光(`BASE` 调到峰值 ~0.6);打包按 120 帧
+**全局**最大值统一缩放(逐帧会闪),缩放因子记在 `.json` 的 `globalMax8`。图集是
+**连续灰度**不是 1-bit 掩码(那是 `orb-pack.mjs` 给 DOM 灯球的);抖动是水面着色器
+最后对整幅 lum 做的,不是这张图的事。
 
 **B-1 取舍**:接触不良闪烁有两条实现——
 - (a) Blender 直接渲入 `ball-intro`:亮灭由灯光动画烘死,质感最真,但闪烁节奏不可后期调;

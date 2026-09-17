@@ -38,8 +38,10 @@ void main(){
   vec2 p; vec3 rd;
   float lum;
   if (!waterSurfacePoint(ndc, uRes.x / uRes.y, p, rd)) {
-    // 天空:环境辐射 + 星场/标题星座(B;两个增益默认 0 → 精确 0,闸门安全)。tonemap 前叠加。
-    lum = waterTonemap(waterShadeSky(rd) + waterSkyStars(frag));
+    // 天空:sky-stars 返回 (clear, signal) —— clear 在中间清出干净负空间(**乘暗**基础天空,连它自身的
+    // 抖动颗粒一并压掉),signal 是前景粒子(均匀星场 + 标题 + 悬停矩形/动画)。增益默认 0 → (0,0) → 原样。
+    vec2 sky = waterSkyLayer(frag);
+    lum = waterTonemap(waterShadeSky(rd) * (1.0 - sky.x) + sky.y);
   } else {
     float footprint = max(fwidth(p.x), fwidth(p.y));
     vec3 N; float sigma2;
@@ -63,7 +65,7 @@ void main(){
  *   LIGHT 的 `orbPatch` —— 这一处前向依赖用 `field.glsl.ts` 里的**前置声明**
  *   解决(GLSL ES 3.00 支持),其余顺序不动。
  * · **DITHER 必须在 TAIL 之前**(W4):`main()` 调 `waterDitherApply`。
- * · **SKYSTARS 在 SHADE 之后、DITHER 之前**:`main()` 天空分支调 `waterSkyStars`,
+ * · **SKYSTARS 在 SHADE 之后、DITHER 之前**:`main()` 天空分支调 `waterSkyLayer`,
  *   它是叶子模块(只用 HEAD 的 uRes/uTime + 自己的 uniform),放哪都行,排在 SHADE 后语义清晰。
  *   默认贡献 0(增益默认 0),不影响任何 preset 的金标帧(闸门安全)。
  */

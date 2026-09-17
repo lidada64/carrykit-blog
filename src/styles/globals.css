@@ -106,3 +106,42 @@ body {
   line-height: 1.7;
   transition: background-color 0.4s ease, color 0.4s ease;
 }
+
+/*
+ * 首页导航(components/home/home-nav.tsx,参考 vintage.agency)汉堡按钮 hover:
+ * 一道黑色条纹从左到右**扫过并离开**(hover 触发一次动画)。菜单大字链接的填入揭示改用
+ * Tailwind utility(-translate-x-full → group-hover:translate-x-0),不在此处。
+ */
+.home-nav-swipe {
+  transform: translateX(-140%);
+}
+.home-nav-burger:hover .home-nav-swipe {
+  /* 放慢:条纹缓慢扫过图标(尺寸已收到图标框内,见 home-nav.tsx 的 overflow-hidden) */
+  animation: home-nav-swipe 1.15s ease-in-out;
+}
+@keyframes home-nav-swipe {
+  0% { transform: translateX(-140%); }
+  100% { transform: translateX(260%); }
+}
+
+/*
+ * CursorMirror 会注入 `*{cursor:none!important}` 隐藏原生光标(自定义环仅在 hero 帧内可见)。
+ * 首页导航(顶栏 + 全屏菜单)必须夺回可见光标,否则悬浮无反馈、打开菜单后鼠标彻底消失。
+ * 用 `!important` + 更高特异性压过注入的通配规则。
+ */
+.home-nav-root,
+.home-nav-root * {
+  cursor: auto !important;
+}
+.home-nav-root a,
+.home-nav-root a *,
+.home-nav-root button,
+.home-nav-root button * {
+  cursor: pointer !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-nav-burger:hover .home-nav-swipe {
+    animation: none;
+  }
+}

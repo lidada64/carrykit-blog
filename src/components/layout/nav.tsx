@@ -27,6 +27,9 @@ export function Nav() {
     return () => clearTimeout(timer);
   }, []);
 
+  // 首页改用专属导航(components/home/home-nav.tsx:CARRY + 汉堡开合菜单),此处不渲染全站 Nav。
+  if (pathname === "/") return null;
+
   return (
     <header className="w-full px-4 sm:px-6 lg:px-8">
       <nav className="flex items-center justify-between gap-4 py-5 text-caption font-mono uppercase">
