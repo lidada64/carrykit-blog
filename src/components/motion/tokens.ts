@@ -21,6 +21,24 @@ const popSettle = (p: number): number => {
 };
 
 export const motionTokens = {
+  heroPrototype: {
+    orb: { brightness: 100, density: 55 },
+    transition: {
+      duration: 2.4, shrinkStart: .1, shrinkEnd: .6,
+      lightStart: .35, lightEnd: .75, liftStart: .55, liftEnd: .95,
+      finalDiameter: 190, finalHeight: .28,
+      ropeStart: .5, ropeEnd: .7, titleEnd: .25, releaseDelay: 450,
+    },
+    scrollScreens: 2.5, coverStart: 62, feather: 9, blur: 22, titleLift: 12,
+    camera: {
+      defaultOrbit: -34,
+      defaultElevation: 12,
+      centered: { yaw: .05, pitch: .055, distance: 6.8, target: [.15, -.1, .95] },
+      opening: { yaw: .85, pitch: .18, distance: 6.8, target: [-.65, -.2, .6] },
+      right: { yaw: .05, pitch: .055, distance: 5.4, target: [.15, -.1, .95] },
+      left: { yaw: Math.PI + .06, pitch: .045, distance: 4.8, target: [.15, -.1, .95] },
+    },
+  },
   /** 时长(秒):fast=hover 类、base=常规入场、slow=大区块入场 */
   duration: { fast: 0.2, base: 0.5, slow: 0.8 },
   /** 惯性滚动(ScrollSmoother):内容追赶原生滚动位置的时长(秒),越大惯性越明显 */

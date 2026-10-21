@@ -647,6 +647,16 @@ export const WATER_UNIFORM_DEFAULTS: Record<string, number> = {
   /* W11b 退场后退。**不是 preset 参数,是编排器行⑪的每帧量** ——
    * 列在这里只为「缺一个键就拿到 0」那条兜底;0 恰好也是静息值。 */
   uOrbPoolRetreat: 0.0,
+  /* 隐藏字彩蛋(light.glsl.ts 的 waterOrbText):uOrbTextGain = 0 就是"没有隐藏字",
+   * shade 里 orbText = 0·T·E = 0.0,加上去逐位不变(同 uOrbEnergy / uOrbFocus 那两条闸门)。
+   * 只有 /lab/water-text 与首页彩蛋经 overrides 推上去;金标帧渲染器不传,四道闸门不受影响。
+   * uOrbText / uOrbTextSize / uOrbTextRect 是纹理与 vec4,由 CPU 侧每帧写(同 uOrbLightmap*)。 */
+  uOrbTextGain: 0.0,
+  /* 字乘法调制的两个美术值(gain=0 时不生效,列在这里只为"缺键拿 0"兜底):
+   * dark 0.32 = 字压暗成墨;lit 0.05 = 照度到 0.05 才显字。 */
+  uOrbTextDark: 0.32,
+  uOrbTextLit: 0.05,
+  uOrbTextDebug: 0.0, // /lab/water-text 验证台调试闸门;默认 0 → shade 里那条 if 不走,逐字节不变
   /* W6 涟漪:uRippleAmp = 0 就是"没有涟漪",与关闭时逐字节相同 */
   uRippleAmp: 0.0,
   uRippleLodBias: 1.5,
@@ -658,6 +668,7 @@ export const WATER_UNIFORM_DEFAULTS: Record<string, number> = {
   uSkyStarGain: 0.0,
   uSkyStarDensity: 0.92,
   uSkyTitleGain: 0.0,
+  uSkyDim: 0.0,
 };
 
 /**

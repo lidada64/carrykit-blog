@@ -1,9 +1,9 @@
 "use client";
 
 import { useRef, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-// @ts-expect-error GSAP club plugin types are ambient
 import { ScrollSmoother } from "@/lib/gsap/ScrollSmoother";
 import { useGSAP } from "@gsap/react";
 import { motionTokens } from "./tokens";
@@ -19,20 +19,22 @@ gsap.registerPlugin(ScrollTrigger, ScrollSmoother, useGSAP);
  * 触屏保持原生惯性(smoothTouch 不开);reduced-motion 不创建,普通滚动。
  */
 export function SmoothScroll({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
   useGSAP(
     () => {
-      if (prefersReducedMotion()) return;
+      if (pathname === "/" || prefersReducedMotion()) return;
       if (!wrapperRef.current || !contentRef.current) return;
-      ScrollSmoother.create({
+      const smoother = ScrollSmoother.create({
         wrapper: wrapperRef.current,
         content: contentRef.current,
         smooth: motionTokens.inertia,
       });
+      return () => smoother.kill();
     },
-    { scope: wrapperRef },
+    { scope: wrapperRef, dependencies: [pathname], revertOnUpdate: true },
   );
 
   return (

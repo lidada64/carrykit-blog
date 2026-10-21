@@ -6,6 +6,7 @@
  * 禁止出现字面量色值。
  */
 :root {
+  --hero-title-size: clamp(5rem, 22vw, 24rem);
   --background: #fafaf8;
   --foreground: #1a1a1a;
   --muted: #6b6b6b;

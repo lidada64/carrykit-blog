@@ -185,9 +185,17 @@ float waterFresnel(float ndv){
  *    (为什么不乘见 light.glsl.ts 的 waterOrbSpecular)。
  *  · env 里还有一份:灯球倒影/光晕由 env-column.ts 的 lights 注入 LUT,这里不写代码。
  *
- * ── W10 修订:第四条通道是**乘法** ──────────────────────────────────────
- * waterOrbFocusDim(p) 乘在 body 上(不是加在 lum 上):
- *      lum = (1−F)·(body + BodyGain·E)·**dim** + F·(env + spec + SpecGain·D_orb)
+ * ── 隐藏字彩蛋:**乘法调制**,不是加法 ──────────────────────────────────────
+ * textReveal = waterOrbText(p) · smoothstep(0, Lit, E) —— 字笔画 × 该点被照到。
+ * textMul = mix(1, Dark, textReveal) 乘在 body 上(Dark<1 = 暗墨字 / >1 = 亮字)。
+ * **为什么不是加法**:加法(orbText 加进 body)在饱和白上零收益 —— 照度强到能让字浮出
+ * 暗场时,那块 body 已被 tonemap 顶成白,加光什么都不发生(第一轮实测,idea/灯球彩蛋.md 七;
+ * 与 W10 mid 放弃加法改渐晕同一堵墙)。乘法只要光斑先把水照到过渡带,字就能靠对比显。
+ * gain=0 或 energy=0 时 textReveal=0 → textMul 精确 =1.0,body×1.0 逐字节不变。
+ *
+ * ── W10 修订:聚焦渐晕也是**乘法** ────────────────────────────────────────
+ * waterOrbFocusDim(p) 与 textMul 一起乘在 body 上(不是加在 lum 上):
+ *      lum = (1−F)·(body + BodyGain·E)·**dim·textMul** + F·(env + spec + SpecGain·D_orb)
  * mid 的前景 tonemap 输出算出来是 1.70、被 clamp 到 1 —— 往饱和白上加光是零
  * 收益,只有把没被照到的地方**压暗**才有对比。理由与四条约束见 light.glsl.ts。
  * uOrbFocus = 0 时它精确返回 1.0,整条链逐位不变。
@@ -197,19 +205,30 @@ float waterFresnel(float ndv){
  * 这是 §5 那条"md5 逐字节相同"验收的落点。
  */
 float waterShadeSurface(vec3 nField, vec3 rd, float sigma2, vec2 p){
+  /* /lab/water-text 验证台:绕过照度/分层,纯看字模世界铺开(默认 uOrbTextDebug=0 → 不走)。 */
+  if (uOrbTextDebug > 0.5) return waterOrbText(p);
   vec3 N = normalize(waterFieldToView(nField));
   vec3 V = -rd;
   float F = waterFresnel(dot(N, V));
   vec3  R = reflect(-V, N);
   float env  = waterEnvColumn(R.y + waterHorizonJitter(R));
   float spec = waterSpecular(N, V, waterLightDir(), sigma2);
-  float orbBody = uOrbBodyGain * waterOrbIrradiance(p);
+  /* 灯球照度取一次两处用:orbBody 是漫射池;隐藏字走**乘法调制**,不是加法 ——
+   * 加法在饱和白上零收益(W10 那堵墙,idea/灯球彩蛋.md 七),乘法只要光斑先把水照到
+   * tonemap 过渡带,字就能靠对比显形。字 × 照度 gate:光到则显、光过则隐,没有硬边开关。 */
+  float orbE = waterOrbIrradiance(p);
+  float orbBody = uOrbBodyGain * orbE;
   float orbSpec = uOrbSpecGain * waterOrbSpecular(N, V, waterOrbLightDir(p), sigma2);
+  /* 字显形量 = 字笔画覆盖度 × 该点被照到(照度 smoothstep 闸门)。
+   * uOrbTextGain=0(waterOrbText 返回 0)或 orbE=0(灯球没能量)→ textReveal=0 →
+   * 下面 textMul = mix(1.0, dark, 0.0) 精确 = 1.0,body×1.0 逐字节不变(闸门安全)。 */
+  float textReveal = waterOrbText(p) * smoothstep(0.0, uOrbTextLit, orbE);
+  float textMul = mix(1.0, uOrbTextDark, textReveal); // <1 = 暗墨字(墨写在发光水上)/ >1 = 亮字
   /* W10 聚焦渐晕:**乘在 body 上**,不加在 lum 上。
    * 加在 lum 上会把这条式子摊平成 lum = 分层 + 一坨常数,菲涅耳分层立刻不再是
    * 对比度曲线的唯一来源(见上面 ①)——前景平坦度与对比度带会一起失效。
    * uOrbFocus = 0 时 waterOrbFocusDim 精确返回 1.0,x × 1.0 ≡ x,逐位不变。 */
-  float body = (uShadeBody + orbBody) * waterOrbFocusDim(p);
+  float body = (uShadeBody + orbBody) * waterOrbFocusDim(p) * textMul;
   return (1.0 - F) * body + F * (env + spec + orbSpec);
 }
 

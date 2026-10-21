@@ -1,5 +1,3 @@
-import { Girassol, Geist, Geist_Mono, Anton_SC, IM_Fell_English_SC } from "next/font/google";
-
 import localFont from "next/font/local";
 
 /**
@@ -15,37 +13,39 @@ export const newFont = localFont({
   display: "swap",
 });
 
-export const fontDisplay = Girassol({
+export const fontDisplay = localFont({
+  src: "../assets/fonts/girassol.woff2",
   weight: "400",
-  subsets: ["latin"],
   variable: "--font-display",
   display: "swap",
 });
 
-export const fontBody = Geist({
-  subsets: ["latin"],
+export const fontBody = localFont({
+  src: "../assets/fonts/geist.woff2",
+  weight: "100 900",
   variable: "--font-body",
   display: "swap",
 });
 
-export const fontMono = Geist_Mono({
-  subsets: ["latin"],
+export const fontMono = localFont({
+  src: "../assets/fonts/geist-mono.woff2",
+  weight: "100 900",
   variable: "--font-mono",
   display: "swap",
 });
 
 /** 背景播报文字墙(HR-BG)专用字体 Anton SC(次级文字,区别于标题/正文) */
-export const fontBroadcast = Anton_SC({
+export const fontBroadcast = localFont({
+  src: "../assets/fonts/anton-sc.woff2",
   weight: "400",
-  subsets: ["latin"],
   variable: "--font-broadcast",
   display: "swap",
 });
 
 /** 主页矢量大标题专用字体 IM Fell English SC(古典衬线小型大写) */
-export const fontTitle = IM_Fell_English_SC({
+export const fontTitle = localFont({
+  src: "../assets/fonts/im-fell-english-sc.woff2",
   weight: "400",
-  subsets: ["latin"],
   variable: "--font-title",
   display: "swap",
 });

@@ -144,6 +144,25 @@ uniform float uOrbLightmapCols;   // sprite sheet 的列数 / 行数
 uniform float uOrbLightmapRows;
 uniform vec4  uOrbLightmapRect;   // 照度图覆盖的场坐标矩形 (minX, minY, sizeX, sizeY)
 
+/* —— 隐藏字模(灯球手电筒彩蛋)————————————————————————————————————————————
+ * 水下藏着一句 "CarryKit is not just CarryKit",平常不可见,只在灯球照度里显形。
+ * 字**不是叠层**:它按世界坐标平铺在水平面的一个矩形里,取出的覆盖度在 shade 里
+ * 乘 waterOrbIrradiance(p) 后加进 body —— tonemap + 抖动之前,所以字天生长在水里、
+ * 透视正确(逆投影自己给近大远小)、墨点与水波同源。见 idea/灯球彩蛋.md 二、四。
+ *
+ * uOrbTextGain / uOrbTextSize 任一为 0(关闭 / 纹理未绑)时 waterOrbText 精确返回
+ * 0.0 —— 上游 (uShadeBody + orbBody + 0.0) 与接入前逐位相同(同 uOrbEnergy 那条闸门)。 */
+uniform sampler2D uOrbText;       // 世界坐标字模贴图。R = 字覆盖度 0..1
+uniform vec2  uOrbTextSize;       // 纹理尺寸;(0,0) = 未绑 → waterOrbText 返回 0
+uniform vec4  uOrbTextRect;       // 字铺在水面的场坐标矩形 (minX, minY, sizeX, sizeY)
+uniform float uOrbTextGain;       // 0 = 关闭(waterOrbText 精确返回 0 → 字项闸门关)
+uniform float uOrbTextDark;       // 字笔画处 body 的乘法系数。<1 = 暗墨字 / >1 = 亮字
+uniform float uOrbTextLit;        // 照度显形阈值:smoothstep(0, 这个, orbE),照度到这才显字
+/* /lab/water-text 验证台专用调试闸门。>0.5 时水面分支直接输出字模覆盖度(绕过照度/
+ * 分层/tonemap 前的一切),纯看字模按世界坐标铺开的形状、透视、有没有缝。默认 0 →
+ * shade 里那条 if 为 false,lum 表达式逐字节不变(闸门安全,同 uOrbEnergy 那条)。 */
+uniform float uOrbTextDebug;
+
 /* ── W10 聚焦渐晕(mid 的 B 态)────────────────────────────────────────────
  * **为什么是"压暗"而不是"加亮"。** mid 前景的 tonemap 输出是
  * (0.62 − 0.48) × 8 + 0.48 + 0.10 = 1.70,**被 clamp 到 1**。头顶 70% 的余量
@@ -298,17 +317,33 @@ float waterOrbMainPool(vec2 p){
   return uOrbPoolGain * (1.0 - smoothstep(clamp(uOrbPoolFlat, 0.0, 0.99), 1.0, d));
 }
 
-/** 模式 B:从 sprite sheet 里取第 frame 帧,按场坐标映射到那一格的 uv。 */
+/** 取某一整数帧 f 在 uvp 处的照度(sprite sheet 行从上往下排,uvp.y 已翻好)。 */
+float waterOrbLightmapFrameAt(float f, vec2 uvp, float cols, float rows){
+  vec2 cell = vec2(mod(f, cols), floor(f / cols));
+  vec2 t = (cell + uvp) / vec2(cols, rows);
+  return texture(uOrbLightmap, vec2(t.x, 1.0 - t.y)).r;
+}
+
+/** 模式 B:从 sprite sheet 取当前帧,按场坐标映射到那一格的 uv。 */
 float waterOrbLightmapSample(vec2 p){
   vec2 uv = (p - uOrbLightmapRect.xy) / max(uOrbLightmapRect.zw, vec2(1e-4));
   if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 0.0;
   float cols = max(uOrbLightmapCols, 1.0);
   float rows = max(uOrbLightmapRows, 1.0);
-  float f    = mod(floor(uOrbLightmapFrame), cols * rows);
-  vec2  cell = vec2(mod(f, cols), floor(f / cols));
-  // sprite sheet 的行是从上往下排的,uv.y 向上,所以行号要翻过来
-  vec2 t = (cell + vec2(uv.x, 1.0 - uv.y)) / vec2(cols, rows);
-  return texture(uOrbLightmap, vec2(t.x, 1.0 - t.y)).r;
+  float total = cols * rows;
+  // uv.y 向上,sprite 行从上往下,翻过来
+  vec2 uvp = vec2(uv.x, 1.0 - uv.y);
+  // uOrbLightmapFrame 现在是**连续量**(spinPhase*120)。B-4 是 360°/120 帧、9s 一圈 ~13fps,
+  // 直接 floor 取一帧会一段一段跳格 —— 这里取相邻两帧按小数部分线性混合(末帧 119→0 无缝,
+  // 见 waterlight-build.py)把光斑游走补连续。整数帧时 w=0,与旧单帧取样逐字节相同(金标不受影响)。
+  float ff = mod(uOrbLightmapFrame, total);
+  if (ff < 0.0) ff += total;
+  float f0 = floor(ff);
+  float f1 = mod(f0 + 1.0, total);
+  float w  = ff - f0;
+  float s0 = waterOrbLightmapFrameAt(f0, uvp, cols, rows);
+  float s1 = waterOrbLightmapFrameAt(f1, uvp, cols, rows);
+  return mix(s0, s1, w);
 }
 
 /**
@@ -328,6 +363,26 @@ float waterOrbIrradiance(vec2 p){
   /* W11a:镜片斑 + 主光池。模式 B 不加池 —— B 的照度图本来就该把球体本身泼下来
    * 的那份弱光一起烘进去(docs/blender-assets.md B-4),再加一遍就是算两次。 */
   return uOrbEnergy * (waterOrbSpotSum(p) + waterOrbMainPool(p));
+}
+
+/**
+ * 隐藏字模在水面 p 处的**覆盖度**(0..1)。**不含照度、不含增益** —— 那两样在
+ * shade 里乘,好处见文件头那段:字 × 照度 + tonemap 前入 body = 不分层。
+ *
+ * uOrbTextGain <= 0(关闭)或 uOrbTextSize.x < 1(纹理未绑)时**精确返回 0.0**:
+ * 上游 (uShadeBody + orbBody + uOrbTextGain·0.0·E) 的第三项恒为 0.0,与字模接入前
+ * 逐位相同。判尺寸不判采样值 —— 未绑定的 sampler2D 采出来是 0,和"这里没字"分不开
+ * (同 waterOrbLightmapSample 的模式 B 回落)。
+ *
+ * 映射:字铺在水平面的世界矩形 uOrbTextRect 内。贴图 u→场坐标 x(句子横排),
+ * v→场坐标 y_field(离相机的纵深)。sprite 行从上往下,v 翻过来。矩形外返回 0
+ * —— 光斑扫不到的地方本来就该黑,这一层只是省掉一次越界采样。
+ */
+float waterOrbText(vec2 p){
+  if (uOrbTextGain <= 0.0 || uOrbTextSize.x < 1.0) return 0.0;
+  vec2 uv = (p - uOrbTextRect.xy) / max(uOrbTextRect.zw, vec2(1e-4));
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) return 0.0;
+  return texture(uOrbText, vec2(uv.x, 1.0 - uv.y)).r;
 }
 
 /**

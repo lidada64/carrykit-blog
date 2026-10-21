@@ -1,5 +1,7 @@
 # 主页迪斯科灯球动画 — 需求规划 (Homepage Disco Ball Animation)
 
+> 2026-10-11：本文保留旧方案。下一轮 Hero 的待实施方向为「哈利坐在巨大灯球上烤棉花糖 → 整组缩小并吊起 → 顶部停靠」，见 [哈利与灯球 Hero 滚动计划](../idea/harry-orb-hero-plan.md)。本轮已搭建独立 Lab，正式首页尚未切换。
+
 > 唯一准绳:[`idea/disco_ball_animation_feasibility.md`](../idea/disco_ball_animation_feasibility.md)
 > 技术路线:**路线 2 — Blender 预渲染序列 + GSAP/CSS/DOM 编排**(灯球是「一段透明背景、径向对称、可无缝循环的预渲染素材」,叙事编排全在屏幕 2D 空间用 GSAP + CSS 完成)
 > 资产依赖:见 [`docs/blender-assets.md`](blender-assets.md)

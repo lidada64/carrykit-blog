@@ -29,13 +29,18 @@ export function CursorRing({ stageRef }: { stageRef: RefObject<HTMLElement | nul
     let cx = -1;
     let cy = -1;
     let inside = false;
+    let lastOpacity = "";
     let raf = 0;
 
+    /* 只记指针坐标 + 用 `contains` 判 inside —— **不读任何布局**。原来每次 pointermove 都
+     * `stage.getBoundingClientRect()` 求 inside,那是一次强制同步回流;鼠标一动就回流,
+     * 高刷鼠标 120+ 次/秒 → 主线程被反复打断 → 水面 rAF 被饿着 = 肉眼「一卡一卡」。
+     * `stage.contains(target)` 是 DOM 树包含判断,不触发回流,且首帧鼠标已在舞台内也对。 */
     const onMove = (e: PointerEvent) => {
       lx = e.clientX;
       ly = e.clientY;
-      const r = stage.getBoundingClientRect();
-      inside = lx >= r.left && lx <= r.right && ly >= r.top && ly <= r.bottom;
+      const t = e.target;
+      inside = t instanceof Node && stage.contains(t);
     };
 
     const tick = () => {
@@ -48,10 +53,14 @@ export function CursorRing({ stageRef }: { stageRef: RefObject<HTMLElement | nul
       cx += (lx - cx) * 0.25; // 缓动跟随
       cy += (ly - cy) * 0.25;
       ring.style.transform = `translate(${cx}px, ${cy}px) translate(-50%, -50%)`;
-      ring.style.opacity = inside ? "1" : "0";
+      const op = inside ? "1" : "0";
+      if (op !== lastOpacity) {
+        ring.style.opacity = op; // 只在变化时写(不每帧重置,免得 transition 抖)
+        lastOpacity = op;
+      }
     };
 
-    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointermove", onMove, { passive: true });
     raf = requestAnimationFrame(tick);
 
     return () => {

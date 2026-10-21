@@ -226,3 +226,10 @@ src/i18n/index.ts  # LocaleProvider(client)+ useT() hook;locale 存 localStorage
 | 主分支 | `main`(默认分支,开发与部署基准) |
 | `First-version` | 第一版历史归档,**只读**,禁止推送/合并/删除 |
 | 提交规范 | Conventional Commits(`feat:` / `fix:` / `docs:` / `chore:`) |
+
+
+2026-10-19 首页使用 motion/campfire-hero.tsx，最新修订为单屏固定居中镜头；SmoothScroll在首页不创建ScrollSmoother，单屏场景不需要惯性滚动，其他页面保留惯性滚动并在路由变化时清理重建。Lab通过preview参数显示控制面板，渲染器共用。
+
+2026-10-19 字体构建可靠性：既有英文字体随仓库分发并经src/config/fonts.ts的next/font/local加载，保留字体家族、变量与字重；许可证随资源保存。开发及构建不依赖Google字体网络请求。
+
+2026-10-19 `/lab/hero-archive`归档原HomeHero星空灯球页面（noindex）；当前首页镜头由两个滑块显式控制，原色/1-bit复用同一渲染器与主题token。配色历史快照见hero-color-archive.md。

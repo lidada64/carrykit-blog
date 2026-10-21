@@ -27,17 +27,22 @@ const HOLD_MS = 2000; // 长按触发倒流的阈值(2 秒)
 
 // ── 节奏(时间驱动)──
 const EXPLODE_MS = 720; // 爆开时长(easeOutExpo:原点高速射出 → 减速漂停);放慢一点让「粒子拉成线条」的速度感看得清
-const REWIND_MS = 1300; // 倒流时长
-const REWIND_POW = 3; // 倒流「反向惯性」加速度:越大越「先几乎不动、最后一刻猛冲到家」(更接近 easeOutExpo 的严格倒放)
+/* 倒流分**两段串行**(用户要求:动画回溯完标题再回溯)。原来 open 单参数同驱粒子与视频,
+ * 并行时标题重构比视频倒放快 —— 视频还没退完标题就已成形。拆成:
+ *   段1 REWIND_VIDEO_MS:中央 3D 视频倒放回首帧,粒子**保持散开**;
+ *   段2 REWIND_TITLE_MS:粒子飞回重构,视频**停在首帧**。 */
+const REWIND_VIDEO_MS = 1300; // 段1:视频倒放回首帧。**拉长** → 加速档位变化更缓、更看得清换挡
+const REWIND_TITLE_MS = 500; // 段2:标题粒子飞回重构(收尾加快)
 
 const easeOutExpo = (u: number): number => (u >= 1 ? 1 : 1 - Math.pow(2, -10 * u));
 
-/** 倒流缓动 0→1(已飞回的比例)= **爆炸的时间倒放**:ease-in —— 从四散处近乎静止起步,朝原点**持续加速**,
- *  到家那一刻速度最大,随后 u=1 硬急停(戛然定住)。惯性/加速度都是反的,不再有中段减速。 */
+/** 倒流缓动 0→1(已飞回的比例)。**加速回溯**:速度从 1 倍渐渐升到 2^4=16 倍,到终点仍是最高速 → 骤停
+ *  (用户要求「一开始一倍速,慢慢加速」;收尾部分速度更快)。
+ *  末端骤停不残留拖影:速度线包络 env 是 progress 的纯函数,pN→0 时 env→0 仍收成点,完成时 setNonce 落定。 */
 function rewindEase(u: number): number {
   if (u <= 0) return 0;
   if (u >= 1) return 1;
-  return Math.pow(u, REWIND_POW);
+  return (Math.pow(2, 4 * u) - 1) / 15;
 }
 
 const ATLAS_URL = "/orb/sky-screen.png";
@@ -58,7 +63,7 @@ function computeRect(w: number, h: number): Rect {
 /** 点击热区:比标题略宽的横带(覆盖整条 CarryKit)。固定在标题原位。 */
 const HOT: Rect = [0.2, SCREEN_CY - 0.14, 0.6, 0.28];
 
-const TITLE_FONT = (fs: number) => `italic ${fs}px "IM Fell English SC", Georgia, serif`;
+const TITLE_FONT = (fs: number) => `italic ${fs}px ${getComputedStyle(document.documentElement).getPropertyValue("--font-title").trim()}`;
 
 /** 冷色回落(拿不到 CSS 变量时;≈ --water-paper 的冷调纸白)。 */
 const PAPER_FALLBACK: readonly [number, number, number] = [0.9, 0.99, 0.99];
@@ -103,19 +108,102 @@ function drawTitle(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   ctx.fillText("CarryKit", w * 0.5, SCREEN_CY * h);
 }
 
+/* ── 水下隐藏字彩蛋(idea/灯球彩蛋.md;A 方案:night 暗墨、朝地平线压扁)──────────
+ * 平常看不见;点灯球点亮灯球照度(orbLit>0)时,白光斑打在水面把字压成暗墨浮现。
+ * 参数 = 验证台 /lab/water-text 的 night TUNE。字模贴图按**世界坐标**铺在水平面。 */
+const HIDDEN_TEXT = "CarryKit is not just CarryKit";
+// 往前拉近(minY 28→18)并拉长(height 12→32)，消除斜视角导致的极致纵向压缩，
+// 在 3D 平面上自然形成“前大后小”的强烈透视感。
+const HIDDEN_RECT: readonly [number, number, number, number] = [-60, 15, 120, 120]; 
+
+/** 画一张 R=字覆盖度的字模贴图 → dataURL(白字黑底,shader 取 .r)。 */
+function drawHiddenText(): string {
+  const w = 2048;
+  const h = 2048;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d");
+  if (!ctx) return "";
+  
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, w, h);
+  
+  // 纵向拉伸，抵消 3D 物理透视的极度压扁
+  const scaleY = 4.5;
+  ctx.scale(1, scaleY);
+  
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const sentence = "CarryKit IS NOT JUST";
+  
+  const logicalH = h / scaleY;
+
+  // 用一个辅助函数来画层，通过不同字号、透明度、发光和密度，人造出“深水区、浅水区、水面”的物理体积感
+  const drawLayer = (
+    fontSize: number,
+    alpha: number,
+    blur: number,
+    rowCount: number,
+    offsetSpeed: number,
+    yOffsetRatio: number
+  ) => {
+    ctx.font = `${fontSize}px ${getComputedStyle(document.documentElement).getPropertyValue("--font-title").trim()}`;
+    ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+    ctx.shadowColor = `rgba(255, 255, 255, ${alpha})`;
+    ctx.shadowBlur = blur;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 4;
+    
+    const measure = ctx.measureText(sentence + " ").width;
+    const rowHeight = logicalH / rowCount;
+    
+    for (let i = 0; i < rowCount; i++) {
+      // 通过 yOffsetRatio 错开不同层的 Y 轴位置，避免完全重叠
+      const y = i * rowHeight + rowHeight * yOffsetRatio;
+      const offsetX = (i % 2 === 0) ? 0 : -(measure / 2);
+      // 每一层的相位波动不同，形成漂浮交错感
+      const jitterX = Math.sin(i * offsetSpeed) * (measure * 0.4);
+      
+      for (let x = offsetX + jitterX - measure; x < w + measure; x += measure) {
+        ctx.fillText(sentence, x, y);
+      }
+    }
+  };
+
+  // 1. 底层：深水巨物感（字极大，非常模糊，极淡，排布稀疏）
+  drawLayer(140, 0.15, 25, 3, 7.3, 0.5);
+
+  // 2. 中层：悬浮层（字中等，边缘微亮，半透明）
+  drawLayer(75, 0.35, 12, 6, 11.2, 0.25);
+
+  // 3. 表层：水面浮沫（字小，边缘清晰锐利，亮度高，排布密集）
+  drawLayer(40, 0.85, 4, 11, 19.5, 0.8);
+
+  return c.toDataURL();
+}
+
 /**
  * SkyScreenScene —— /lab/sky-screen。open 单参数同驱粒子(progress)+ 中央挖空/视频;不建滚动时间线。
  * reduced-motion:静止(粒子在 home、视频隐藏、不自动播放)。
- * `waterScroll`(0..1):喂给 water 的滚动进度 = 夜空 night→mid 过渡(首页下滑用;默认 0=恒 night)。
- * `openOverride`(0..1|null):非 null 时由外部(首页滚动)驱动标题爆开/中央开合,并关掉内部点击/长按交互;
- *   null(默认,/lab/sky-screen)= 内部点击爆开 / 长按倒流。
+ * `waterScroll`(0..1):喂给 water 的滚动进度 = 夜空 night→mid 过渡(默认 0=恒 night)。
+ * `titleDim`(0..1):**压暗「天空元素」**——星场增益 ×(1-dim) + 标题粒子溶解 → 星点/标题消失。
+ *   首页下滑到 mid(其他元素消失)与点球坠落(盖标题)都驱动它。标题不爆开(爆开只由点击 open 驱动)。默认 0。
+ * `baseSkyDim`(0..1):**压暗「基础 night 天空」**(uSkyDim,连水面自身抖动颗粒一起压)。**只点球坠落用**,
+ *   下滑到 mid 不用(mid 保留 preset 自然过渡出的天空)。默认 0。
+ * `orbLit`(0..1):灯球对水面的照度 → 照出水下隐藏字(随灯球坠落点亮)。默认 0。
+ * `locked`(bool):true = 禁用点击热区(坠落中/已落定,用户不能操作)。默认 false。
  */
 export function SkyScreenScene({
   waterScroll = 0,
-  openOverride = null,
-}: { waterScroll?: number; openOverride?: number | null } = {}) {
+  titleDim = 0,
+  baseSkyDim = 0,
+  orbLit = 0,
+  locked = false,
+}: { waterScroll?: number; titleDim?: number; baseSkyDim?: number; orbLit?: number; locked?: boolean } = {}) {
   const [skyMask, setSkyMask] = useState<HTMLCanvasElement | null>(null);
   const [rect, setRect] = useState<Rect>(() => computeRect(1280, 720));
+  const [textUrl, setTextUrl] = useState<string | null>(null); // 水下隐藏字模贴图(dataURL)
 
   const [atlasReady, setAtlasReady] = useState(false);
   const [grid, setGrid] = useState<readonly [number, number] | null>(null);
@@ -127,6 +215,7 @@ export function SkyScreenScene({
   const [nonce, setNonce] = useState(0); // 动画停下时 +1 → 逼 ParticleBurst 落定成实心圆点(修发灰)
   const openRef = useRef(0);
   const phaseRef = useRef(0);
+  const rewindPhaseStartRef = useRef(0); // 倒流起始时的视频相位 → 相位随 open 同步退回 0(标题与动画同时收束)
   // 时间驱动的动画段:kind=当前在爆开/倒流/无;start=起始时间戳;from=起始 open 值(支持中途反向)。
   const animRef = useRef<{ kind: "explode" | "rewind" | null; start: number; from: number }>({
     kind: null,
@@ -170,6 +259,20 @@ export function SkyScreenScene({
     return () => {
       cancelled = true;
       window.removeEventListener("resize", build);
+    };
+  }, []);
+
+  // 水下隐藏字模贴图:立即画一次(fallback 字体也够),字体就绪后重画(度量更准)。
+  useEffect(() => {
+    let cancelled = false;
+    const build = () => {
+      if (!cancelled) setTextUrl(drawHiddenText());
+    };
+    build();
+    const fonts = (document as Document & { fonts?: FontFaceSet }).fonts;
+    if (fonts?.ready) fonts.ready.then(() => !cancelled && build());
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -224,7 +327,7 @@ export function SkyScreenScene({
     const dt = lastRef.current ? Math.min(0.05, (t - lastRef.current) / 1000) : 0;
     lastRef.current = t;
 
-    // ① open:时间驱动。爆开 = easeOutExpo(猛炸);倒流 = rewindEase(慢-快-慢-骤停)。粒子位置纯由 open
+    // ① open:时间驱动。爆开 = easeOutExpo(猛炸);倒流 = rewindEase(加速 1→8 倍,末端骤停)。粒子位置纯由 open
     //    决定 → 倒流沿原轨迹精确飞回。from 支持中途反向(如爆开途中触发倒流)。
     const a = animRef.current;
     if (a.kind === "explode") {
@@ -237,31 +340,46 @@ export function SkyScreenScene({
       }
       setOpen(openRef.current);
     } else if (a.kind === "rewind") {
-      const u = Math.min(1, (t - a.start) / REWIND_MS);
-      openRef.current = a.from * (1 - rewindEase(u));
-      if (u >= 1) {
-        openRef.current = 0;
-        a.kind = null;
-        rewindingRef.current = false;
-        videoPlayingRef.current = false;
-        stateRef.current = "idle";
-        setNonce((n) => n + 1); // 倒流停下 → 落定成实心圆点(不残留发灰拖影)
+      /* 两段串行(见 REWIND_VIDEO_MS/TITLE_MS 那段)。有视频(count>0)才有段1;没视频直接段2。 */
+      const hasVideo = countRef.current > 0;
+      const el = t - a.start;
+      if (hasVideo && el < REWIND_VIDEO_MS) {
+        // 段1:视频 vphase→0 倒放,粒子保持散开(open=from)。缓动同标题:加速回溯(1→8 倍,末端骤停)。
+        const u = Math.min(1, el / REWIND_VIDEO_MS);
+        openRef.current = a.from;
+        phaseRef.current = rewindPhaseStartRef.current * (1 - rewindEase(u));
+        setVphase(phaseRef.current);
+        setOpen(openRef.current);
+      } else {
+        // 段2:粒子 open→0 飞回重构,视频停在首帧(vphase=0)。
+        const base = hasVideo ? REWIND_VIDEO_MS : 0;
+        const u = Math.min(1, (el - base) / REWIND_TITLE_MS);
+        openRef.current = a.from * (1 - rewindEase(u));
+        if (phaseRef.current !== 0) {
+          phaseRef.current = 0;
+          setVphase(0);
+        }
+        if (u >= 1) {
+          openRef.current = 0;
+          a.kind = null;
+          rewindingRef.current = false;
+          videoPlayingRef.current = false;
+          stateRef.current = "idle";
+          phaseRef.current = 0; // 相位精确归 0 = 动画回到首帧
+          setVphase(0);
+          setNonce((n) => n + 1); // 倒流停下 → 落定成实心圆点(不残留发灰拖影)
+        }
+        setOpen(openRef.current);
       }
-      setOpen(openRef.current);
     }
 
-    // ② 视频相位:倒流→倒放(递减);播放中且已开→前进循环;否则冻结。
-    if (countRef.current > 0) {
+    // ② 视频相位:倒流的 vphase 已在上面 rewind 分支两段各自算好(段1 倒放/段2 钉 0),这里只管
+    //    正常播放:已爆开(open>0.85)且播放中 → 前进循环;否则冻结。
+    if (countRef.current > 0 && !rewindingRef.current && videoPlayingRef.current && openRef.current > 0.85) {
       const d = (dt * fpsRef.current) / countRef.current;
-      if (rewindingRef.current) {
-        const np = phaseRef.current - d;
-        phaseRef.current = np - Math.floor(np);
-        setVphase(phaseRef.current);
-      } else if (videoPlayingRef.current && openRef.current > 0.85) {
-        const np = phaseRef.current + d;
-        phaseRef.current = np - Math.floor(np);
-        setVphase(phaseRef.current);
-      }
+      const np = phaseRef.current + d;
+      phaseRef.current = np - Math.floor(np);
+      setVphase(phaseRef.current);
     }
 
     const busy = a.kind !== null || (videoPlayingRef.current && openRef.current > 0.85);
@@ -301,6 +419,7 @@ export function SkyScreenScene({
   const beginRewind = () => {
     rewindingRef.current = true;
     videoPlayingRef.current = false;
+    rewindPhaseStartRef.current = phaseRef.current; // 记住当前相位 → 倒流时线性退回 0,与标题同步收束
     animRef.current = { kind: "rewind", start: performance.now(), from: openRef.current };
     startLoop();
   };
@@ -336,16 +455,33 @@ export function SkyScreenScene({
     clearHold();
   };
 
-  // openOverride 非 null(首页转场:滚动驱动)→ 接管 open,关掉点击交互;null(/lab)→ 内部点击/长按驱动。
-  const effectiveOpen = openOverride != null ? openOverride : open;
+  // 爆开只由点击(open,含 3D 视频/倒流)驱动;下滑转场不再爆开,而是 titleDim 把成形标题压暗遮住。
+  const particleProgress = open;
+  const videoOpen = open; // 中央挖空/视频开合量:只由点击驱动
+  const dim = Math.min(1, Math.max(0, titleDim)); // 「天空元素」压暗量(星点 + 标题粒子)
+  const skyDim = Math.min(1, Math.max(0, baseSkyDim)); // 「基础 night 天空」压暗量(只点球坠落用)
 
   const overrides: Record<string, number> = {
-    uSkyStarGain: STAR_GAIN,
+    uSkyStarGain: STAR_GAIN * (1 - dim), // 额外星点随压暗归 0(下滑到 mid / 点球坠落 都触发)
+    uSkyDim: skyDim * 0.85, // 只点球坠落时把**基础 night 天空**乘暗(压掉水面自身抖动颗粒);mid 不用 → 保留自然天空
     uSkyStarDensity: STAR_DENSITY,
-    uSkyScreenProgress: effectiveOpen, // 中央开合量(0=标题态挖空, 1=视频矩形)
+    uSkyScreenProgress: videoOpen, // 中央开合量(0=标题态挖空, 1=视频矩形)
+    uSkyTitleFade: 0, // 保留标题暗底(压暗靠 dim 溶粒子,不用 fade 填回星星)
     uSkyScreenGain: atlasReady ? VIDEO_GAIN : 0,
     uSkyScreenCount: count,
     uSkyScreenPhase: vphase,
+    /* 水下字彩蛋(A 方案):灯球坠落点亮 orbEnergy(=orbLit)>0 时,白光斑把字压成暗墨。
+     * orbLit=0 时 shader 里 waterOrbIrradiance/waterOrbText 精确归 0 → 无字无光(闸门,逐字节回到现状)。 */
+    uOrbTextGain: 1,
+    /* **night 标定值**(与 /lab/water-text?preset=night 一致):水面恒 night(不抬高),字带落在地平线附近那条
+     * 可见水带 —— 光池必须往近景大范围铺(near/far 3.0、poolR 48)把整片可见水照白,字才压成暗墨浮现。
+     * 加强了字的对比度：调深了暗墨深度，增加了光池亮度，让字更明显。 */
+    uOrbTextDark: 0.12,
+    uOrbTextLit: 0.03,
+    uOrbPoolGain: 0.55,
+    uOrbPoolRadius: 100,
+    uOrbPoolNear: 5.0,
+    uOrbPoolFar: 5.0,
   };
 
   return (
@@ -359,7 +495,7 @@ export function SkyScreenScene({
           className="pointer-events-none absolute inset-0 z-0 h-full w-full"
           preset="night"
           scroll={waterScroll}
-          orbEnergy={0}
+          orbEnergy={orbLit}
           focus={0}
           orbX={0}
           orbSpin={0}
@@ -374,44 +510,46 @@ export function SkyScreenScene({
           screenAtlasUrl={atlasReady ? ATLAS_URL : null}
           screenGrid={grid}
           screenRect={rect}
+          textAtlasUrl={textUrl}
+          textRect={HIDDEN_RECT}
         />
 
         {/* 标题粒子层(z-5):真粒子,open 驱动爆开/倒流。pointer-events-none → 点击落到热区。 */}
         <ParticleBurst
           className="pointer-events-none absolute inset-0 z-[5] h-full w-full"
-          progress={effectiveOpen}
+          progress={particleProgress}
           draw={drawTitle}
           centerUv={[0.5, SCREEN_CY]}
           gridStep={4}
-          dotSize={3.0}
+          dotSize={3.6}
           spread={0.5}
           gravity={0.12}
           angleRandomness={0.5}
-          streak={4.0}
+          streak={0.4}
           color={paper}
+          dim={dim}
           frozen={reduced}
           renderNonce={nonce}
         />
 
-        {/* 交互层(z-10):透明热区。点击=爆开/暂停;长按 2s=倒流。openOverride(首页滚动驱动)时不挂,交给滚动。 */}
-        {openOverride == null && (
-          <div
-            role="button"
-            tabIndex={0}
-            aria-label="Explode the title / play the sky screen"
-            className="absolute z-10 cursor-pointer select-none"
-            style={{
-              left: `${HOT[0] * 100}%`,
-              top: `${HOT[1] * 100}%`,
-              width: `${HOT[2] * 100}%`,
-              height: `${HOT[3] * 100}%`,
-            }}
-            onPointerDown={onPointerDown}
-            onPointerUp={onPointerUp}
-            onPointerLeave={onPointerCancel}
-            onPointerCancel={onPointerCancel}
-          />
-        )}
+        {/* 交互层(z-10):透明热区。点击=爆开+展示 3D 视频/暂停;长按 2s=倒流。
+            locked(转场中/灯球已落定)时 pointer-events-none → 用户不能操作。 */}
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Explode the title / play the sky screen"
+          className={`absolute z-10 select-none ${locked ? "pointer-events-none" : "cursor-pointer"}`}
+          style={{
+            left: `${HOT[0] * 100}%`,
+            top: `${HOT[1] * 100}%`,
+            width: `${HOT[2] * 100}%`,
+            height: `${HOT[3] * 100}%`,
+          }}
+          onPointerDown={onPointerDown}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerCancel}
+          onPointerCancel={onPointerCancel}
+        />
       </section>
     </div>
   );

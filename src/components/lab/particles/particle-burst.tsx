@@ -37,13 +37,16 @@ export interface ParticleBurstProps {
   gravity?: number;
   /** 外向方向里掺入的随机比例 0..1(0=纯外向, 1=纯随机角度)。默认 0.55。 */
   angleRandomness?: number;
-  /** 拉丝倍率:每帧位移 × streak = 线条长度。越大速度线越长。默认 2.5。 */
+  /** 速度线强度:峰值线长 = 该颗散射距离 × streak(飞行途中拉成线段的最大长度占比)。默认 0.35。 */
   streak?: number;
   /** >0 时进入**静态线条模式**:每颗粒子画成一段沿其散射方向、长度=staticLen(CSS px)的定长线条,
    *  不随 progress 变(用于「线条组成的字体」保留变体 /lab/line-title)。默认 0=正常拉丝。 */
   staticLen?: number;
   /** 点颜色(0..1 RGB)。夜空上默认近纸白。 */
   color?: readonly [number, number, number];
+  /** 整体溶解 0..1(默认 0=全显)。→1 时有效 alpha→0,蓝噪声阈值把粒子逐点溶掉到「几乎没有」
+   *  (用于下滑转场「把天空粒子压暗遮住标题」;与 1-bit 蓝噪声抖动同源,不显「整层淡出」)。 */
+  dim?: number;
   /** true = 爆开到最开时淡成星尘消失;false(默认) = **停在爆炸终点位置不消失**(回溯再沿原轨迹飞回)。 */
   fade?: boolean;
   /** true 时冻结在 progress=0(reduced-motion)。 */
@@ -54,52 +57,59 @@ export interface ParticleBurstProps {
   style?: React.CSSProperties;
 }
 
-/* 实例化胶囊(motion blur 拉丝):每颗粒子画一段从「上一帧位置」到「当前帧位置」的胶囊。
- * 长度 = 每帧真实位移 × streak → 快则拖成线条、慢则短、静止≈0 退化成锋利圆点。位置对 progress **线性**
- * (节奏全交父级 open(time) 控);仍是 progress 纯函数 → 倒放精确逆轨迹。 */
+/* 实例化菱形/纺锤(速度线拉丝):每颗粒子是一个两头尖的菱形。
+ * 静止时 = 小菱形(四个尖角)→ 比圆点「尖」;爆开时沿运动方向纵向拉长成纺锤 = 速度线。
+ * 线长由**速度线包络** env(progress) 驱动:成形(p=0)线长 0,launch 后迅速拉成线段,
+ * 随减速渐渐收回圆点(p=1)。位置对 progress 是纯函数(节奏全交父级 open(time) 控)→ 倒放精确逆轨迹,
+ * 而 env 也是 progress 的纯函数 → 倒流时同样拉出速度线,收尾自然定格成尖点(零残影,不再需要补画)。 */
 const VERT_SRC = `#version 300 es
 layout(location=0) in vec2 aHome;    // CSS px
-layout(location=1) in vec2 aVel;     // CSS px @ progress=1
+layout(location=1) in vec2 aVel;     // CSS px @ progress=1(= 该颗的总散射位移)
 layout(location=2) in vec3 aMisc;    // x=宽度(CSS px) y=grav(CSS px) z=(未用)
 layout(location=3) in vec2 aCorner;  // along 0..1, side -1..1(非实例单位 quad)
 uniform float uProgress;
-uniform float uProgressPrev;
-uniform float uStreak;   // 拉丝倍率(放大每帧位移 → 速度感)
+uniform float uStreak;   // 速度线强度:峰值线长 = 该颗散射距离 × uStreak
 uniform float uStaticLen; // >0 = 静态线条模式(每颗沿散射方向画定长线,不随 progress)
 uniform vec2  uRes;      // CSS 宽高
 uniform float uFade;
 out float vAlpha;
-out vec2  vPx;    // 沿轴 px(0..vLen) / 侧向 px
-out float vLen;   // 用到的段长(px)
+out vec2  vPx;    // 沿轴 px(-halfW..travel+halfW) / 侧向 px
+out float vLen;   // 段长(px,不含两端锥尖延伸)
 out float vHalf;  // 半宽(px)
 vec2 posAt(float p){
   return aHome + aVel * p + vec2(0.0, aMisc.y * p * p);  // 线性 + 轻微重力弧
 }
+vec2 velAt(float p){
+  return aVel + vec2(0.0, 2.0 * aMisc.y * p);            // d posAt/dp = 瞬时运动方向
+}
 void main(){
   float pN = clamp(uProgress, 0.0, 1.0);
-  float pP = clamp(uProgressPrev, 0.0, 1.0);
   vec2 a, b;
   if (uStaticLen > 0.0) {                       // 静态线条:以 home 为中心,沿散射方向画定长线
     vec2 vd = normalize(aVel + vec2(1e-4, 1e-4));
     a = aHome + vd * (uStaticLen * 0.5);
     b = aHome - vd * (uStaticLen * 0.5);
   } else {
-    a = posAt(pN);          // 当前帧
-    b = posAt(pP);          // 上一帧
+    a = posAt(pN);                              // 当前帧位置 = 线段头(粒子本体)
+    // 速度线包络:**两端对称**都平滑归 0 —— p=0(成形/归位)与 p=1(四散定格)都是点,
+    // 增大了边缘的过渡区间(0.35),让收缩成点的时间变长,从而缩短线段保持最长状态的时间。
+    float env = smoothstep(0.0, 0.35, pN) * smoothstep(0.0, 0.35, 1.0 - pN);
+    float lenS = length(aVel) * uStreak * env;
+    vec2 vd = normalize(velAt(pN) + vec2(1e-4, 1e-4));
+    b = a - vd * lenS;                          // 线尾拖在运动后方 = motion blur
   }
   vec2 axis = a - b;
   float travel = length(axis);
-  float lenUsed = travel * uStreak;
-  vec2 dir = travel > 1e-4 ? axis / travel : vec2(1.0, 0.0);
+  vec2 dir = travel > 1e-4 ? axis / travel : normalize(aVel + vec2(1e-4, 1e-4));
   vec2 perp = vec2(-dir.y, dir.x);
   float halfW = aMisc.x * 0.5;                          // CSS px(half 是 GLSL 保留字,勿用)
-  float alongPx = mix(-halfW, lenUsed + halfW, aCorner.x); // 两端各延 halfW = 圆帽
+  float alongPx = mix(-halfW, travel + halfW, aCorner.x); // 两端各延 halfW = 菱形锥尖
   float sidePx = aCorner.y * halfW;
-  vec2 posPx = b + dir * alongPx + perp * sidePx;     // 尾在上一帧位置 b
+  vec2 posPx = b + dir * alongPx + perp * sidePx;     // 尾在后方位置 b
   vec2 clip = vec2(posPx.x / uRes.x * 2.0 - 1.0, 1.0 - posPx.y / uRes.y * 2.0);
   gl_Position = vec4(clip, 0.0, 1.0);
   vPx = vec2(alongPx, sidePx);
-  vLen = lenUsed;
+  vLen = travel;
   vHalf = halfW;
   vAlpha = 1.0 - uFade * smoothstep(0.5, 1.0, pN);
 }`;
@@ -113,16 +123,21 @@ in float vHalf;
 uniform sampler2D uNoise;
 uniform vec2  uNoiseSize;
 uniform vec3  uColor;
+uniform float uDim;   // 整体溶解 0..1:有效 alpha 乘 (1-uDim),→1 时全部溶掉(几乎没有粒子)
 out vec4 o;
 void main(){
-  float cx = clamp(vPx.x, 0.0, vLen);                 // 中心线最近点
-  float d = length(vec2(vPx.x - cx, vPx.y));          // 到胶囊中心线距离
-  if (d > vHalf) discard;                             // 胶囊外
+  // 菱形/纺锤场:沿轴中心 vLen*0.5,半长 = vLen*0.5+vHalf;|x'|/halfLen + |y|/halfW <= 1 为内部。
+  // 静止=小菱形(四尖角,比圆点「尖」);拉丝=两头尖的纺锤(速度线)。
+  float halfLen = vLen * 0.5 + vHalf;
+  float ax = abs(vPx.x - vLen * 0.5);
+  float dm = ax / max(halfLen, 1e-4) + abs(vPx.y) / max(vHalf, 1e-4);
+  if (dm > 1.0) discard;                              // 菱形外
   float n = texture(uNoise, gl_FragCoord.xy / uNoiseSize).r;
-  // **实心核 + 只抖最外 ~1px 缘** → 每颗都是实心亮点,不发灰(修 dim bug);核心恒不 discard。
-  float rim = smoothstep(vHalf - 1.0, vHalf, d);
-  if (rim > 1.0 - n) discard;                         // 只在外缘按蓝噪声抖动 = 1-bit 锋利边
-  if (vAlpha < n) discard;                            // fade 淡出(vAlpha=1 时不 discard)
+  // 实心核 + 外缘按蓝噪声抖动 = 1-bit 颗粒边;尖角自然碎成墨点,更「尖」。核心恒不 discard。
+  float rim = smoothstep(0.7, 1.0, dm);
+  if (rim > 1.0 - n) discard;
+  float aeff = vAlpha * (1.0 - clamp(uDim, 0.0, 1.0)); // fade 淡出 + dim 溶解叠加
+  if (aeff < n) discard;                              // aeff=1 时不 discard;→0 时按蓝噪声逐点溶掉
   o = vec4(uColor, 1.0);
 }`;
 
@@ -152,7 +167,6 @@ interface GLState {
   render?: () => void;
   u: {
     progress: WebGLUniformLocation | null;
-    progressPrev: WebGLUniformLocation | null;
     streak: WebGLUniformLocation | null;
     staticLen: WebGLUniformLocation | null;
     res: WebGLUniformLocation | null;
@@ -160,6 +174,7 @@ interface GLState {
     noise: WebGLUniformLocation | null;
     noiseSize: WebGLUniformLocation | null;
     color: WebGLUniformLocation | null;
+    dim: WebGLUniformLocation | null;
   };
 }
 
@@ -173,9 +188,10 @@ export function ParticleBurst({
   spread = 0.55,
   gravity = 0.14,
   angleRandomness = 0.55,
-  streak = 2.5,
+  streak = 0.35,
   staticLen = 0,
   color = [0.96, 0.96, 0.93],
+  dim = 0,
   fade = false,
   frozen = false,
   renderNonce = 0,
@@ -185,12 +201,10 @@ export function ParticleBurst({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const stateRef = useRef<GLState | null>(null);
   const progressRef = useRef(progress);
-  const lastProgressRef = useRef(progress); // 上一帧 progress → 拉丝(motion blur)
-  const settleRafRef = useRef(0); // 运动停止后补画一帧 prev==cur(零拖影)→ 定格回锋利圆点,不留残影线条
   // 逐帧变化的参数用 ref 让 draw/render 闭包读最新值(避免重建 GL)。commit 后同步(不能 render 中写 ref)。
-  const propsRef = useRef({ draw, centerUv, gridStep, jitter, dotSize, spread, gravity, angleRandomness, streak, staticLen, color, fade });
+  const propsRef = useRef({ draw, centerUv, gridStep, jitter, dotSize, spread, gravity, angleRandomness, streak, staticLen, color, dim, fade });
   useEffect(() => {
-    propsRef.current = { draw, centerUv, gridStep, jitter, dotSize, spread, gravity, angleRandomness, streak, staticLen, color, fade };
+    propsRef.current = { draw, centerUv, gridStep, jitter, dotSize, spread, gravity, angleRandomness, streak, staticLen, color, dim, fade };
   });
 
   // ── 建 GL(一次)+ 载噪声 + ResizeObserver 重新播种。 ──
@@ -238,7 +252,6 @@ export function ParticleBurst({
       dpr: Math.min(window.devicePixelRatio || 1, 2),
       u: {
         progress: gl.getUniformLocation(prog, "uProgress"),
-        progressPrev: gl.getUniformLocation(prog, "uProgressPrev"),
         streak: gl.getUniformLocation(prog, "uStreak"),
         staticLen: gl.getUniformLocation(prog, "uStaticLen"),
         res: gl.getUniformLocation(prog, "uRes"),
@@ -246,6 +259,7 @@ export function ParticleBurst({
         noise: gl.getUniformLocation(prog, "uNoise"),
         noiseSize: gl.getUniformLocation(prog, "uNoiseSize"),
         color: gl.getUniformLocation(prog, "uColor"),
+        dim: gl.getUniformLocation(prog, "uDim"),
       },
     };
     stateRef.current = st;
@@ -353,12 +367,7 @@ export function ParticleBurst({
     };
 
     const render = (): void => {
-      if (settleRafRef.current) {
-        cancelAnimationFrame(settleRafRef.current);
-        settleRafRef.current = 0;
-      }
       if (disposed || !st.noiseTex || st.count === 0) return;
-      const prevAtStart = lastProgressRef.current;
       gl.viewport(0, 0, canvas.width, canvas.height);
       gl.clearColor(0, 0, 0, 0);
       gl.clear(gl.COLOR_BUFFER_BIT);
@@ -375,20 +384,11 @@ export function ParticleBurst({
       if (st.u.staticLen) gl.uniform1f(st.u.staticLen, propsRef.current.staticLen);
       const c = propsRef.current.color;
       if (st.u.color) gl.uniform3f(st.u.color, c[0], c[1], c[2]);
+      if (st.u.dim) gl.uniform1f(st.u.dim, propsRef.current.dim);
       if (st.u.progress) gl.uniform1f(st.u.progress, progressRef.current);
-      if (st.u.progressPrev) gl.uniform1f(st.u.progressPrev, prevAtStart);
       gl.bindVertexArray(vao);
       gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, st.count);
       gl.bindVertexArray(null);
-      lastProgressRef.current = progressRef.current; // 记录本帧 → 下帧拉丝
-      // 本帧有位移(拉丝)→ 排一帧「补画」:若之后没有新 render(运动已停),它会以 prev==cur 零拖影重画,
-      // 把定格状态还原成锋利圆点(修 bug:倒流骤停后残留线条)。有新 render 会先 cancel 掉它,动画中不闪。
-      if (progressRef.current !== prevAtStart && propsRef.current.staticLen <= 0) {
-        settleRafRef.current = requestAnimationFrame(() => {
-          settleRafRef.current = 0;
-          render();
-        });
-      }
     };
     st.render = render;
 
@@ -401,7 +401,6 @@ export function ParticleBurst({
 
     return () => {
       disposed = true;
-      if (settleRafRef.current) cancelAnimationFrame(settleRafRef.current);
       ro.disconnect();
       stateRef.current = null;
       gl.deleteBuffer(buf);
@@ -412,11 +411,12 @@ export function ParticleBurst({
     };
   }, []);
 
-  // progress / nonce 变化 → 只重画,不重建。nonce 变化时 prev==cur → 零拖影落定成实心圆点。
+  // progress / dim / nonce 变化 → 只重画,不重建。nonce 变化时 prev==cur → 零拖影落定成实心圆点。
+  // dim 走 propsRef(上面的 commit-effect 先于此 effect 同步),这里入依赖只为触发一次重画。
   useEffect(() => {
     progressRef.current = frozen ? 0 : progress;
     stateRef.current?.render?.();
-  }, [progress, frozen, renderNonce]);
+  }, [progress, dim, frozen, renderNonce]);
 
   return (
     <canvas

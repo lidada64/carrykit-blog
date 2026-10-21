@@ -145,6 +145,13 @@ export interface WaterSceneProps {
   orbX: number;
   /** 自转相位 0..1 */
   orbSpin: number;
+  /**
+   * **可选**灯球自动自转速率(圈/秒)。>0 时组件用**自己每帧的时钟**推进自转相位
+   * (忽略 `orbSpin`),这样 B-4 照度图集(360°/120 帧)的帧号是连续量、由 shader 相邻帧
+   * 混合 → 光斑连续游走不跳格(否则 9s 一圈只 ~13fps,肉眼一段一段卡);而且**零 React 重渲**
+   * (自转不经 props/state)。0 或缺省 = 用外部 `orbSpin`(金标/预览台走这条,逐字节不受影响)。
+   */
+  orbAutoSpin?: number;
   /** 0 = 模式 A 程序化;1 = 模式 B 预渲染序列(资产未就绪时自动回落 A) */
   lightMode: 0 | 1;
   /** 1-bit 抖动 / 连续灰度 */
@@ -192,6 +199,16 @@ export interface WaterSceneProps {
   screenGrid?: readonly [number, number] | null;
   /** 屏幕矩形 (left, top, w, h),单位屏幕 UV,top 从上量。与标题遮罩里画的矩形一致。 */
   screenRect?: readonly [number, number, number, number] | null;
+  /**
+   * **可选**水下隐藏字模贴图 URL(灯球手电筒彩蛋)。一张 R=字覆盖度的图,
+   * shader 按**世界坐标**铺在水平面的 `textRect` 矩形内、乘灯球照度后加进 body ——
+   * 字长在水里、透视天然、无叠层缝(见 idea/灯球彩蛋.md)。
+   * 默认 null → 不加载、不绑;`uOrbTextGain`(走 overrides,默认 0)是总闸门,
+   * 未绑或 gain=0 时 shader 的 waterOrbText 精确返回 0,四道闸门不受影响。
+   */
+  textAtlasUrl?: string | null;
+  /** 字模铺开的**场坐标**矩形 (minX, minY, sizeX, sizeY),单位米。null → 不绑(尺寸钉 0)。 */
+  textRect?: readonly [number, number, number, number] | null;
   className?: string;
 }
 
@@ -318,18 +335,22 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
     };
 
     /* ── 编排器 ───────────────────────────────────────────────────────── */
+    /* 自动自转相位:orbAutoSpin>0 时由 step() 每帧从 dt 推进(不经 props)。见 orbAutoSpin 的注释。 */
+    let autoSpinPhase = 0;
     const orbSource = (): OrbState => {
       const p = propsRef.current;
       /* 球位的 y / 两个半径由编排器的行⑧从滚动进度插出来(见 water-director.ts);
        * 时间线只管**横穿**与 energy / 自转。这里给的 y/半径是行⑧关掉时的回退值,
        * 取当前 preset 的球位 —— 那时组件的行为就退回 W7。 */
       const pose = WATER_PRESET_ORB_POSES[p.preset];
+      const spin = (p.orbAutoSpin ?? 0) > 0 ? autoSpinPhase : p.orbSpin;
       return {
         screen: [p.orbX, pose.screenY],
         radiusNdc: pose.radiusNdc,
         energy: p.orbEnergy,
-        spinPhase: p.orbSpin,
-        lightmapFrame: Math.floor(p.orbSpin * 120),
+        spinPhase: spin,
+        /* **连续帧号**(不 floor):shader 的 waterOrbLightmapSample 自己 floor + 相邻帧混合。 */
+        lightmapFrame: spin * 120,
         worldRadius: pose.worldRadius,
       };
     };
@@ -485,6 +506,10 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
     /* 天空屏幕动画图集(可选)。url 变化才重载;加载完成前 screenAtlasTex 保持 null → gain 强钉 0。 */
     let screenAtlasTex: WebGLTexture | null = null;
     let screenAtlasUrlLoaded: string | null = null;
+    /* 隐藏字模贴图(可选,灯球彩蛋)。url 变化才重载;加载完成前 textAtlasSize 保持 (0,0) → shader 回落 0。 */
+    let textAtlasTex: WebGLTexture | null = null;
+    let textAtlasUrlLoaded: string | null = null;
+    let textAtlasSize: [number, number] = [0, 0];
     let solver: RippleSolver | null = null;
     /* W9:GPU 计时 + 降级阶梯。拿不到 timer query 扩展也照样能用(回落 CPU 帧间隔),
      * 所以这里**没有失败分支** —— 见 perf.ts 文件头。 */
@@ -633,6 +658,39 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
       im.onerror = () => {
         screenAtlasLoading = false;
         /* 缺资产不是错误:gain 钉 0 → 回落纯标题/星场。 */
+      };
+      im.src = url;
+    };
+
+    /* 隐藏字模贴图(灯球彩蛋):惰性加载,url 变了重载;失败**不报错**(size 保持 (0,0) →
+     * shader 的 waterOrbText 回落 0)。用 LINEAR + CLAMP:字覆盖度进 body 后还要过
+     * tonemap + 抖动量化,让边缘先软过渡、交给蓝噪声去颗粒化,与水波同一种语言。 */
+    let textAtlasLoading = false;
+    const ensureTextAtlas = (): void => {
+      if (!gl || !prog) return;
+      const url = propsRef.current.textAtlasUrl ?? null;
+      if (!url || url === textAtlasUrlLoaded || textAtlasLoading) return;
+      textAtlasLoading = true;
+      const im = new Image();
+      im.onload = () => {
+        textAtlasLoading = false;
+        if (disposed || !gl) return;
+        if (!textAtlasTex) textAtlasTex = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE6);
+        gl.bindTexture(gl.TEXTURE_2D, textAtlasTex);
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, im);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        textAtlasSize = [im.width, im.height];
+        textAtlasUrlLoaded = url;
+        requestFrame();
+      };
+      im.onerror = () => {
+        textAtlasLoading = false;
+        /* 缺资产不是错误:size 保持 (0,0) → waterOrbText 回落 0。 */
       };
       im.src = url;
     };
@@ -919,6 +977,22 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
         setF("uSkyScreenGain", 0);
       }
 
+      /* ⑨ 隐藏字模(灯球彩蛋,可选)。纹理就绪且给了 rect 才绑 → shader 里
+       * `uOrbTextGain>0 && uOrbTextSize.x>=1` 才显字;否则尺寸钉 (0,0),waterOrbText
+       * 回落 0。总闸门 uOrbTextGain 走 overrides(默认 0),已在 ① 里写过。 */
+      ensureTextAtlas();
+      const txRect = p.textRect ?? null;
+      if (textAtlasTex && textAtlasSize[0] >= 1 && txRect) {
+        gl.activeTexture(gl.TEXTURE6);
+        gl.bindTexture(gl.TEXTURE_2D, textAtlasTex);
+        const txl = locs.get("uOrbText");
+        if (txl) gl.uniform1i(txl, 6);
+        set2("uOrbTextSize", textAtlasSize[0], textAtlasSize[1]);
+        set4("uOrbTextRect", txRect[0], txRect[1], txRect[2], txRect[3]);
+      } else {
+        set2("uOrbTextSize", 0, 0);
+      }
+
       if (perf) perf.begin("water");
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       if (perf) perf.end();
@@ -983,6 +1057,14 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
        * 不绑滚动、不绑 IntersectionObserver。目标没变时 setFocus 直接 return,
        * 所以每帧调用不会重启那条 800 ms 的过渡。 */
       director.setFocus(p.focus);
+
+      /* 灯球自动自转:用组件自己的每帧时钟推进(不经 props → 零 React 重渲、连续不跳格)。
+       * 定格(reduced-motion)时 dt=0 不推进。orbSource() 读它当自转相位。 */
+      const autoSpin = p.orbAutoSpin ?? 0;
+      if (autoSpin > 0 && dt > 0 && !director.reducedMotion) {
+        autoSpinPhase = (autoSpinPhase + autoSpin * dt) % 1;
+        if (autoSpinPhase < 0) autoSpinPhase += 1;
+      }
 
       director.update(dt);
 
@@ -1101,6 +1183,7 @@ export function WaterScene(props: WaterSceneProps): ReactElement {
         if (skyMaskTex) gl.deleteTexture(skyMaskTex);
         if (lightmapTex) gl.deleteTexture(lightmapTex);
         if (screenAtlasTex) gl.deleteTexture(screenAtlasTex);
+        if (textAtlasTex) gl.deleteTexture(textAtlasTex);
         if (vao) gl.deleteVertexArray(vao);
         if (prog) gl.deleteProgram(prog);
         /* 主动放掉 GPU 上下文 —— 浏览器同时只肯给几个 WebGL 上下文,

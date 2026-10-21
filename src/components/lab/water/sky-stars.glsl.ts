@@ -21,8 +21,10 @@
 export const SRC = `
 uniform float     uSkyStarGain;      // 均匀星场增益(0 = 关,默认)
 uniform float     uSkyStarDensity;   // 星场稀疏阈值 0..1(越大越稀)
+uniform float     uSkyDim;           // 全局压暗 0..1(灯球坠落:抬高 clear 乘暗基础天空 → 天空自身抖动颗粒变稀;默认 0=不变,闸门安全)
 uniform float     uSkyTitleGain;     // 标题/画面粒子增益(0 = 关,默认)
 uniform float     uSkyTitleDensity;  // 标题/画面粒子稀疏阈值 0..1(越大越稀 → 标题更疏)
+uniform float     uSkyTitleFade;     // 标题暗底淡出 0..1(默认 0=显示;下滑爆开时 →1 让暗底随粒子散去,不显视频)
 uniform sampler2D uSkyTitleMask;     // R = gap 负空间 / G = 标题字形
 uniform vec2      uSkyTitleMaskSize; // 纹理尺寸(保留契约)
 
@@ -84,7 +86,7 @@ float waterSoftRect(vec2 lc, float fe){
  *   signal = 前景亮度 —— 均匀星场(clear 外)+ 标题稀疏粒子(悬停发散淡出)+ 悬停矩形边框/动画。
  * 两个主增益全 0(默认)→ 返回 (0,0) → 基础天空 x(1-0)+0 = 原样(闸门安全,逐字节不变)。 */
 vec2 waterSkyLayer(vec2 frag){
-  if (uSkyStarGain <= 0.0 && uSkyTitleGain <= 0.0) return vec2(0.0);
+  if (uSkyStarGain <= 0.0 && uSkyTitleGain <= 0.0 && uSkyDim <= 0.0) return vec2(0.0);
   vec2 uv = frag / uRes;
   float progress = clamp(uSkyScreenProgress, 0.0, 1.0);
 
@@ -97,7 +99,10 @@ vec2 waterSkyLayer(vec2 frag){
   //  边缘柔和溶解、不再是生硬矩形。**不画边框**(用户已取消画框)。
   vec2 lc = waterRectLocal(uv);
   float rectSoft = waterSoftRect(lc, 0.22);
-  float clear = mix(gapTitle, rectSoft, open);
+  // uSkyTitleFade:下滑爆开(无视频)时把标题暗底随粒子散去淡掉;click 展示 3D 时 fade=0、open→1 morph 成视频矩形。
+  float clear = mix(gapTitle * (1.0 - clamp(uSkyTitleFade, 0.0, 1.0)), rectSoft, open);
+  // 全局压暗(灯球坠落):抬高 clear 去乘暗基础天空 —— 连天空自身的抖动颗粒一并压掉,剩余天空粒子更稀。
+  clear = clear + (1.0 - clear) * clamp(uSkyDim, 0.0, 1.0);
 
   // ① 均匀星场(屏幕网格 → 上下同密);清出区让位。
   float pts = waterStarPoints(uv, vec2(150.0, 94.0), uSkyStarDensity, 0.18);
