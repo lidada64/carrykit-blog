@@ -1,0 +1,12 @@
+{
+  "name": "sky-screen",
+  "frame": { "w": 256, "h": 256 },
+  "grid": { "cols": 7, "rows": 7 },
+  "count": 48,
+  "content": { "x": 26, "y": 32, "w": 205, "h": 200 },
+  "fps": 24,
+  "loop": "seamless",
+  "sheet": "sky-screen.png",
+  "still": "sky-screen-still.png",
+  "note": "Phase 1 placeholder (bitsprite demo: wireframe cube turntable). 1-bit mask atlas: alpha=shape, RGB=paper. Frame i -> col=i%cols, row=floor(i/cols), rows top-to-bottom. Swap for real Blender content in Phase 2."
+}

@@ -104,15 +104,15 @@ export function PostMeta({
       const container = containerRef.current;
       const darkLayer = darkLayerRef.current;
       const scrollContainer = container?.closest('.blog-scroll-container');
-      if (!container || !darkLayer || !scrollContainer) return;
+      if (!container || !darkLayer || !(scrollContainer instanceof HTMLElement)) return;
 
       const mm = gsap.matchMedia();
       mm.add(
         "(min-width: 1024px) and (prefers-reduced-motion: no-preference)",
         () => {
-          const rightContent = scrollContainer.querySelector('.right-content') as HTMLElement;
-          const relatedArticles = scrollContainer.querySelector('.related-articles-wrapper') as HTMLElement;
-          const backToTop = scrollContainer.querySelector('.back-to-top-wrapper') as HTMLElement;
+          const rightContent = scrollContainer.querySelector<HTMLElement>('.right-content');
+          const relatedArticles = scrollContainer.querySelector<HTMLElement>('.related-articles-wrapper');
+          const backToTop = scrollContainer.querySelector<HTMLElement>('.back-to-top-wrapper');
           if (!rightContent) return;
 
           const maxLeftY = rightContent.offsetHeight - container.offsetHeight;

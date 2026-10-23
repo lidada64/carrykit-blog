@@ -1,0 +1,13 @@
+{
+  "character": "Harrier Du Bois",
+  "characterCount": 1,
+  "frames": 12,
+  "columns": 4,
+  "rows": 3,
+  "width": 1024,
+  "height": 931,
+  "source": "blender/harry-campfire.blend",
+  "characterSource": "blender/Harry_Opening_Outfit.blend",
+  "campfireSource": "blender/Outer_Wilds_Campfire.blend",
+  "originalModel": false
+}

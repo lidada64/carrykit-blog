@@ -6,12 +6,24 @@
  * 禁止出现字面量色值。
  */
 :root {
+  --hero-title-size: clamp(5rem, 22vw, 24rem);
   --background: #fafaf8;
   --foreground: #1a1a1a;
   --muted: #6b6b6b;
   --border: #e5e5e0;
   --accent: #2f4ae0;
   --revealer: #1a1a1a;
+
+  /*
+   * 水面 1-bit 两色板(lab/water,W4 量化呈现层)。
+   * 取样自《奥伯拉丁的回归》截图:暗色占 81.1% 的像素、亮色占 3.8%。
+   * 组件把这两个值解成 vec3 喂给 `uDitherInk` / `uDitherPaper`,
+   * 着色器里 `mix(ink, paper, step(threshold, lum))` —— 暗 = 墨、亮 = 纸。
+   * **极性不许翻**:标尺按 baseline 指定的墨点侧统计覆盖率
+   * (docs/water-reference-metrics.md §4 坑 4),翻极性会把 featureCoverage 量反。
+   */
+  --water-ink: #32331a;
+  --water-paper: #e6fefd;
 }
 
 /*
@@ -24,6 +36,14 @@
   --border: #333333;
   --accent: #4f6bff;
   --revealer: oklch(0.7689 0.004 247.87);
+
+  /*
+   * 暗色模式**只压亮度、不换角色**:墨更沉、纸从 #E6FEFD 降到中灰青,
+   * 免得一大片高亮纸色在暗色页面上炸眼。极性仍是暗=墨/亮=纸(见 :root 注释)。
+   * 两色的相对明度差从 0.79 降到 0.53,抖动阶数变少但仍远超 1-bit 判定所需。
+   */
+  --water-ink: #14150b;
+  --water-paper: #9fb3b1;
 }
 
 @theme inline {
@@ -86,4 +106,43 @@ body {
   font-size: 1rem;
   line-height: 1.7;
   transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/*
+ * 首页导航(components/home/home-nav.tsx,参考 vintage.agency)汉堡按钮 hover:
+ * 一道黑色条纹从左到右**扫过并离开**(hover 触发一次动画)。菜单大字链接的填入揭示改用
+ * Tailwind utility(-translate-x-full → group-hover:translate-x-0),不在此处。
+ */
+.home-nav-swipe {
+  transform: translateX(-140%);
+}
+.home-nav-burger:hover .home-nav-swipe {
+  /* 放慢:条纹缓慢扫过图标(尺寸已收到图标框内,见 home-nav.tsx 的 overflow-hidden) */
+  animation: home-nav-swipe 1.15s ease-in-out;
+}
+@keyframes home-nav-swipe {
+  0% { transform: translateX(-140%); }
+  100% { transform: translateX(260%); }
+}
+
+/*
+ * CursorMirror 会注入 `*{cursor:none!important}` 隐藏原生光标(自定义环仅在 hero 帧内可见)。
+ * 首页导航(顶栏 + 全屏菜单)必须夺回可见光标,否则悬浮无反馈、打开菜单后鼠标彻底消失。
+ * 用 `!important` + 更高特异性压过注入的通配规则。
+ */
+.home-nav-root,
+.home-nav-root * {
+  cursor: auto !important;
+}
+.home-nav-root a,
+.home-nav-root a *,
+.home-nav-root button,
+.home-nav-root button * {
+  cursor: pointer !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-nav-burger:hover .home-nav-swipe {
+    animation: none;
+  }
 }

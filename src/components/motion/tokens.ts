@@ -21,6 +21,29 @@ const popSettle = (p: number): number => {
 };
 
 export const motionTokens = {
+  heroPrototype: {
+    loading: { readyDelay: 0.1 },
+    smoke: { height: 1.6 },
+    orb: { brightness: 27, density: 86 },
+    transition: {
+      duration: 4.4, ease: "none", shrinkStart: .02, shrinkEnd: .42,
+      lightStart: .18, lightEnd: .48, liftStart: .14, liftEnd: .48,
+      finalDiameter: 190, finalHeight: .28,
+      ropeStart: .06, ropeEnd: .14, titleEnd: .2, releaseDelay: 450,
+      rebound: { start: .43, end: .8, cycles: 2, decay: 2.8, amplitude: .038 },
+      swing: { start: .5, end: 1, cycles: 2.5, decay: 2.2, amplitude: .14 },
+      settleAttack: .12, settleFade: .72, ropeSlack: 1.4,
+    },
+    scrollScreens: 2.5, coverStart: 62, feather: 9, blur: 22, titleLift: 12,
+    camera: {
+      defaultOrbit: -34,
+      defaultElevation: 12,
+      centered: { yaw: .05, pitch: .055, distance: 6.8, target: [.15, -.1, .95] },
+      opening: { yaw: .85, pitch: .18, distance: 6.8, target: [-.65, -.2, .6] },
+      right: { yaw: .05, pitch: .055, distance: 5.4, target: [.15, -.1, .95] },
+      left: { yaw: Math.PI + .06, pitch: .045, distance: 4.8, target: [.15, -.1, .95] },
+    },
+  },
   /** 时长(秒):fast=hover 类、base=常规入场、slow=大区块入场 */
   duration: { fast: 0.2, base: 0.5, slow: 0.8 },
   /** 惯性滚动(ScrollSmoother):内容追赶原生滚动位置的时长(秒),越大惯性越明显 */

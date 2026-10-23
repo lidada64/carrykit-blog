@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 弃置实验归档:本地留档,不参与 lint/构建
+    "archive/**",
   ]),
 ]);
 

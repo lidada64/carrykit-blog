@@ -1,0 +1,13 @@
+{
+  "frame": 360,
+  "cols": 8,
+  "rows": 6,
+  "count": 48,
+  "ball": {
+    "cx": 180,
+    "cy": 181,
+    "r": 164
+  },
+  "loopDeg": 90,
+  "degPerFrame": 1.875
+}

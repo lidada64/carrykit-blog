@@ -1,0 +1,16 @@
+{
+  "asset": "ball-waterlight",
+  "preset": "night",
+  "frame": 256,
+  "cols": 12,
+  "rows": 10,
+  "count": 120,
+  "rect": [
+    -45.2,
+    4.9,
+    90,
+    90
+  ],
+  "globalMax8": 102,
+  "note": "grayscale illuminance atlas; frame index = floor(spinPhase*count); rows top-to-bottom"
+}

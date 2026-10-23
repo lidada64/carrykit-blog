@@ -1,0 +1,64 @@
+{
+  "shots": {
+    "near": {
+      "file": "/home/claude/repo/golden/w8/scene-near.png",
+      "md5": "50e79b022c67a8bd0d3e31ea8129ecd1",
+      "hud": "near · 0.35 m · orb spots 22 · energy 1.00 · 14 fps"
+    },
+    "mid": {
+      "file": "/home/claude/repo/golden/w8/scene-mid.png",
+      "md5": "1c4d6656d95c3a00600ad51903e3cdc3",
+      "hud": "mid · 1.60 m · orb spots 22 · energy 1.00 · 14 fps"
+    },
+    "night": {
+      "file": "/home/claude/repo/golden/w8/scene-night.png",
+      "md5": "fd2da1f963eeb9922599294180898fff",
+      "hud": "night · 4.00 m · orb spots 22 · energy 1.00 · 19 fps"
+    }
+  },
+  "scrollSpots": {
+    "0": {
+      "activeSpots": 22,
+      "hud": "night · 4.00 m · orb spots 22 · energy 1.00 · 11 fps"
+    },
+    "1": {
+      "activeSpots": 22,
+      "hud": "night · 1.60 m · orb spots 22 · energy 1.00 · 11 fps"
+    },
+    "0.5": {
+      "activeSpots": 22,
+      "hud": "night · 2.80 m · orb spots 22 · energy 1.00 · 10 fps"
+    }
+  },
+  "layout": {
+    "frame": {},
+    "outside": {
+      "getComputedStyle": 2
+    },
+    "inFrame": false,
+    "frames": 527
+  },
+  "reducedMotion": {
+    "rafBefore": 533,
+    "rafAfter": 533,
+    "rafDelta": 0,
+    "md5A": "2fe5846fc1d95c6beb110a88d0b59fb7",
+    "md5B": "2fe5846fc1d95c6beb110a88d0b59fb7",
+    "identical": true
+  },
+  "errors": [],
+  "scrollSpotsFlagOff": {
+    "0": {
+      "activeSpots": 22,
+      "hud": "night · 4.00 m · orb spots 22 · energy 1.00 · 11 fps"
+    },
+    "1": {
+      "activeSpots": 0,
+      "hud": "night · 1.60 m · orb spots 0 · energy 1.00 · 11 fps"
+    },
+    "0.5": {
+      "activeSpots": 22,
+      "hud": "night · 2.80 m · orb spots 22 · energy 1.00 · 11 fps"
+    }
+  }
+}
