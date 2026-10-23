@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useLocale, useT } from "@/i18n";
 import { createCampfireRenderer, type CampfireRenderer } from "./harry-campfire-orbit-renderer";
 import { motionTokens } from "./tokens";
-import { stageProgress } from "./campfire-transition";
+import { hangingMotion, stageProgress } from "./campfire-transition";
 
 const motion = motionTokens.heroPrototype;
 gsap.registerPlugin(Observer);
@@ -31,9 +31,10 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
   const renderer = useRef<CampfireRenderer | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const title = useRef<HTMLDivElement>(null);
-  const rope = useRef<SVGLineElement>(null);
+  const rope = useRef<SVGPathElement>(null);
   const progressInput = useRef<HTMLInputElement>(null);
   const progressOutput = useRef<HTMLOutputElement>(null);
+  const propLinks = useRef<Partial<Record<"blog" | "work" | "radar", HTMLAnchorElement | null>>>({});
   const performanceState = useRef({ progress: 0 });
   const knobDrag = useRef({ y: 0, value: 0 });
   const play = useRef<(reverse?: boolean) => void>(() => {});
@@ -55,7 +56,7 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
       tween?.kill();
       tween=gsap.to(state,{progress:reverse?0:1,
         duration:motion.transition.duration*Math.abs((reverse?0:1)-state.progress),
-        ease:motionTokens.ease.transition,onComplete:()=>{finishedAt=performance.now();}});
+        ease:motion.transition.ease,onComplete:()=>{finishedAt=performance.now();}});
     };
     play.current=animate;
     seek.current=(value)=>{tween?.kill();state.progress=value;finishedAt=performance.now();};
@@ -111,11 +112,25 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
         const progress=options.current.reduced?0:performanceState.current.progress;
         renderer.current.setPresentation(options.current.brightness,options.current.density,progress);
         renderer.current.draw(options.current.reduced ? 0 : elapsed, options.current.original);
+        for(const target of renderer.current.propTargets()) {
+          const link=propLinks.current[target.id];
+          if(!link) continue;
+          link.hidden=!target.visible;
+          link.style.left=`${target.x*100}%`;
+          link.style.top=`${target.y*100}%`;
+          link.style.width=`${Math.max(44,target.width*node.clientWidth)}px`;
+          link.style.height=`${Math.max(44,target.height*node.clientHeight)}px`;
+          const label=link.firstElementChild;
+          if(label instanceof HTMLElement) {
+            const bottom=target.y*node.clientHeight+Math.max(44,target.height*node.clientHeight)/2;
+            link.dataset.labelAbove=String(bottom+label.offsetHeight>node.clientHeight);
+          }
+        }
         const anchor=renderer.current.suspensionPoint();
         if(rope.current) {
-          rope.current.setAttribute("x1",String(anchor.x*100));
-          rope.current.setAttribute("x2",String(anchor.x*100));
-          rope.current.setAttribute("y2",String(anchor.y*100));
+          const slack=hangingMotion(progress).slack*100;
+          // Fixed ceiling, projected attachment, slight bow while upward inertia unloads the rope.
+          rope.current.setAttribute("d",`M 50 0 Q ${(50+anchor.x*100)/2+slack} ${anchor.y*50+slack} ${anchor.x*100} ${anchor.y*100}`);
           rope.current.style.opacity=String(stageProgress(progress,motion.transition.ropeStart,motion.transition.ropeEnd));
         }
         if(title.current) title.current.style.opacity=String(1-stageProgress(progress,0,motion.transition.titleEnd));
@@ -146,16 +161,28 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
         <h1 className="absolute left-1/2 top-[26%] -translate-x-1/2 scale-90 whitespace-nowrap font-title italic text-[length:var(--hero-title-size)] leading-none tracking-tight md:top-[20%]">{t("heroPrototype.title")}</h1>
       </div>
       <svg aria-hidden="true" viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
-        <line ref={rope} x1="50" y1="0" x2="50" y2="0" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" opacity="0" />
+        <path ref={rope} d="M 50 0 L 50 0" fill="none" stroke="currentColor" strokeWidth="1" vectorEffect="non-scaling-stroke" opacity="0" />
       </svg>
       <canvas ref={canvas} role="img" aria-label={t("heroPrototype.sceneAlt")} className="absolute inset-0 h-full w-full touch-pan-y" />
+      {(["blog","work","radar"] as const).map(id=><Link key={id} href={`/${id}`} hidden
+        ref={element=>{propLinks.current[id]=element;}}
+        aria-label={t(`heroPrototype.${id}Object`)}
+        onPointerEnter={()=>renderer.current?.setActiveProp(id)}
+        onPointerLeave={()=>renderer.current?.setActiveProp(null)}
+        onFocus={()=>renderer.current?.setActiveProp(id)}
+        onBlur={()=>renderer.current?.setActiveProp(null)}
+        className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--water-paper)]">
+        <span className="absolute left-1/2 top-full group-data-[label-above=true]:top-auto group-data-[label-above=true]:bottom-full -translate-x-1/2 whitespace-nowrap bg-[var(--water-ink)]/80 px-2 py-1 font-mono text-caption text-[var(--water-paper)] group-hover:underline group-focus-visible:underline">{t(`nav.${id}`)}</span>
+      </Link>)}
       {preview && <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 md:px-12">
         <Link href="/" className="font-mono text-caption">{t("harryCampfire.home")}</Link>
         <button onClick={() => setLocale(locale === "en" ? "zh" : "en")} className="text-caption">{t("harryCampfire.language")}</button>
       </header>}
       {status !== "ready" && <p role="status" className="absolute left-6 top-1/2 text-body">{t(status === "error" ? "harryCampfire.error" : "harryCampfire.loading")}</p>}
       {preview && <button type="button" aria-pressed={!original} className="absolute right-6 top-24 z-10 text-caption md:right-12" onClick={() => setOriginal(!original)}>{t(original ? "heroPrototype.enterBit" : "heroPrototype.exitBit")}</button>}
-      {preview && <fieldset className="absolute inset-x-6 bottom-8 z-10 mx-auto flex max-w-md flex-col gap-3 border border-[var(--water-paper)]/30 bg-[var(--water-ink)]/90 p-4 text-caption backdrop-blur-md">
+      {preview && <details className="absolute inset-x-6 bottom-4 z-20 mx-auto max-w-md border border-[var(--water-paper)]/30 bg-[var(--water-ink)]/90 text-caption backdrop-blur-md">
+        <summary className="cursor-pointer px-4 py-2">{t("heroPrototype.controls")}</summary>
+      <fieldset className="flex flex-col gap-3 p-4">
         <legend className="sr-only">{t("heroPrototype.camera")}</legend>
         <div className="flex justify-evenly gap-6">
           {([{key:"brightness",value:brightness,set:setBrightness,min:20,max:180,label:t("heroPrototype.brightness")},
@@ -197,7 +224,8 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
           <button disabled={reduced||status!=="ready"} type="button" onClick={()=>play.current(true)}>{t("heroPrototype.returnScene")}</button>
         </div>
         <div className="flex justify-between gap-4"><button type="button" onClick={() => { setYaw(motion.camera.defaultOrbit); setPitch(motion.camera.defaultElevation); }}>{t("harryCampfire.reset")}</button><Link href="/lab/hero-archive">{t("heroPrototype.archive")}</Link></div>
-      </fieldset>}
+      </fieldset>
+      </details>}
     </div>
     {preview && <aside aria-label={t("heroPrototype.label")} className="fixed left-3 top-20 z-20 mx-auto max-w-3xl border border-[var(--water-paper)]/30 bg-[var(--water-ink)]/95 px-4 py-3 text-[var(--water-paper)] backdrop-blur-md">
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-caption">

@@ -22,12 +22,16 @@ const popSettle = (p: number): number => {
 
 export const motionTokens = {
   heroPrototype: {
-    orb: { brightness: 100, density: 55 },
+    smoke: { height: 1.6 },
+    orb: { brightness: 27, density: 86 },
     transition: {
-      duration: 2.4, shrinkStart: .1, shrinkEnd: .6,
-      lightStart: .35, lightEnd: .75, liftStart: .55, liftEnd: .95,
+      duration: 4.4, ease: "none", shrinkStart: .02, shrinkEnd: .42,
+      lightStart: .18, lightEnd: .48, liftStart: .14, liftEnd: .48,
       finalDiameter: 190, finalHeight: .28,
-      ropeStart: .5, ropeEnd: .7, titleEnd: .25, releaseDelay: 450,
+      ropeStart: .06, ropeEnd: .14, titleEnd: .2, releaseDelay: 450,
+      rebound: { start: .43, end: .8, cycles: 2, decay: 2.8, amplitude: .038 },
+      swing: { start: .5, end: 1, cycles: 2.5, decay: 2.2, amplitude: .14 },
+      settleAttack: .12, settleFade: .72, ropeSlack: 1.4,
     },
     scrollScreens: 2.5, coverStart: 62, feather: 9, blur: 22, titleLift: 12,
     camera: {

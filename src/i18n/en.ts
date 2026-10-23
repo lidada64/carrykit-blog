@@ -17,7 +17,11 @@ export const en = {
     exitBit: "Return to color",
     archive: "Original Hero archive",
 
-    sceneAlt: "Harry and the campfire sit centered on a mirrored disco ball, in front of the large title.",
+      blogObject: "Ledger — open Blog",
+      controls: "Scene controls",
+      workObject: "Notebook — open Work",
+      radarObject: "Transceiver — open Radar",
+      sceneAlt: "Harry, the campfire, a ledger, a notebook and a transceiver sit on a mirrored disco ball.",
     motionOn: "Restore motion",
     motionOff: "Preview reduced motion",
   "label": "Hero preview",

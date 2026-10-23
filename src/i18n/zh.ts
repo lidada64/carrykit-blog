@@ -17,7 +17,11 @@ export const zh: Dictionary = {
     exitBit: "返回原色模式",
     archive: "原 Hero 归档",
 
-    sceneAlt: "哈利与篝火居中坐落在镜面灯球上，大标题位于场景后方。",
+    blogObject: "遗忘账簿 — 打开博客",
+    controls: "场景调节",
+    workObject: "金的笔记本 — 打开作品",
+    radarObject: "收发器 — 打开 Radar",
+    sceneAlt: "哈利、篝火、账簿、笔记本和收发器坐落在镜面灯球上。",
     motionOn: "恢复动态效果",
     motionOff: "预览减少动态效果",
   "label": "Hero 方案预览",

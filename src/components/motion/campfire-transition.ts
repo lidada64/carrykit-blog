@@ -1,7 +1,33 @@
+import { motionTokens } from "./tokens";
+
 /** Scene-space transform: lighting/shadows stay in their original coordinates. */
 export function stageProgress(value: number, start: number, end: number) {
   const t = Math.max(0, Math.min(1, (value - start) / (end - start)));
   return t * t * (3 - 2 * t);
+}
+
+/** A seekable envelope: no accumulated simulation state, exact rest at both ends. */
+export function hangingMotion(progress: number) {
+  const motion = motionTokens.heroPrototype.transition;
+  const oscillate = (track: typeof motion.rebound | typeof motion.swing) => {
+    const t = Math.max(0, Math.min(1, (progress - track.start) / (track.end - track.start)));
+    const envelope = stageProgress(t, 0, motion.settleAttack)
+      * (1 - stageProgress(t, motion.settleFade, 1)) * Math.exp(-track.decay * t);
+    return track.amplitude * Math.sin(t * Math.PI * 2 * track.cycles) * envelope;
+  };
+  const rebound = oscillate(motion.rebound);
+  return { rebound, swing: oscillate(motion.swing), slack: Math.max(0, rebound) * motion.ropeSlack };
+}
+
+/** Rotate the projected scene about the fixed ceiling point, preserving pixel aspect. */
+export function suspensionMatrix(angle: number, aspect: number) {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  return new Float32Array([
+    c, s * aspect, 0, 0,
+    -s / aspect, c, 0, 0,
+    0, 0, 1, 0,
+    s / aspect, 1 - c, 0, 1,
+  ]);
 }
 
 export function multiplyMatrices(a: ArrayLike<number>, b: ArrayLike<number>) {

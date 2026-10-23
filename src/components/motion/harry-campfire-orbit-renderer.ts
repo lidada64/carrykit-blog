@@ -1,5 +1,5 @@
 import { motionTokens } from "./tokens";
-import { multiplyMatrices, projectPoint, stageProgress } from "./campfire-transition";
+import { hangingMotion, multiplyMatrices, projectPoint, stageProgress, suspensionMatrix } from "./campfire-transition";
 
 /** Blender vertices: position, normal, UV, color, three shape key deltas. */
 interface Material {
@@ -13,6 +13,7 @@ interface Mesh {
   matrices?: number[][]; weights?: number[][];
 }
 interface Scene {
+  props?: { id: "blog" | "work" | "radar"; bounds: number[][] }[];
   orb: { center: number[]; radius: number };
   frames: number; fps: number; duration: number; materials: Material[]; meshes: Mesh[];
   lightEnergy: number[];
@@ -22,6 +23,8 @@ interface Scene {
   camera: { target: number[]; yaw: number; pitch: number; distance: number };
 }
 export interface CampfireRenderer {
+  propTargets: () => { id: "blog" | "work" | "radar"; x: number; y: number; width: number; height: number; visible: boolean }[];
+  setActiveProp: (id: string | null) => void;
   setPresentation: (brightness: number, density: number, progress: number) => void;
   suspensionPoint: () => { x: number; y: number };
   setView: (view: { yaw: number; pitch: number; distance: number; target: readonly number[] }) => void;
@@ -38,7 +41,8 @@ attribute vec3 position,normal,wave1,wave2,wave3;
 attribute vec2 uv;
 attribute vec4 color;
 uniform mat4 model,viewProjection;
-uniform vec3 weights;
+uniform vec3 weights,firePosition;
+uniform float kind,smokeHeight;
 uniform float outlineWidth;
 varying vec2 vUv;
 varying vec4 vColor;
@@ -46,6 +50,8 @@ varying vec3 vPosition,vNormal,vLocal;
 void main() {
   vec3 p=position+wave1*weights.x+wave2*weights.y+wave3*weights.z;
   vec4 world=model*vec4(p,1.);
+  // Extend only the smoke above its source; fire and figure keep their scale.
+  if(kind==2.) world.z+=max(0.,world.z-firePosition.z)*(smokeHeight-1.);
   world.xyz+=normalize(mat3(model)*normal)*outlineWidth;
   vPosition=world.xyz; vLocal=p; vNormal=normalize(mat3(model)*normal);
   vUv=uv; vColor=color; gl_Position=viewProjection*world;
@@ -63,6 +69,8 @@ uniform float reflectionPass;
 uniform float pixelRatio;
 uniform float orbBrightness,orbGrain,orbLight;
 uniform float faceMaterial;
+uniform float activeProp;
+uniform float propMaterial;
 uniform float outlineDraw;
 uniform mat4 reflectionViewProjection;
 varying vec2 vUv;
@@ -142,7 +150,7 @@ vec3 toneMap(vec3 c) {
   return pow(clamp((c*(2.51*c+.03))/(c*(2.43*c+.59)+.14),0.,1.),vec3(1./2.2));
 }
 void main() {
-  if(outlineDraw>.5) {gl_FragColor=vec4(ink,1.);return;}
+  if(outlineDraw>.5) {gl_FragColor=vec4(mix(ink,paper,activeProp),1.);return;}
   vec4 tex=texture2D(diffuse,vUv);
   vec3 c=tex.rgb*baseColor.rgb*vColor.rgb;
   // Solid Unity textures use alpha for smoothness, rather than transparency.
@@ -212,6 +220,8 @@ void main() {
     }
     c+=reflectedEnvironment;
     c+=albedo*(1.-metal)*(.018+.022*max(n.z,0.));
+    // Broad neutral bounce preserves the small props' painted surface details.
+    c+=albedo*propMaterial*(.24+.22*max(dot(n,normalize(vec3(-3.,-4.,6.))),0.));
     // Dark mirrors retain a narrow fire reflection against the subdued environment.
     if(kind==4.) {
       float glint=pow(max(dot(reflection,normalize(fire)),0.),mix(180.,28.,smoothstep(.045,.28,surfaceRoughness)));
@@ -237,6 +247,11 @@ void main() {
     float tone=kind==1.?flameTone:1.;
     if(kind==0.) {
       tone=figureLight(normalize(vNormal),normalize(eye-vPosition),tex.rgb*baseColor.rgb*vColor.rgb);
+      if(propMaterial>.5) {
+        float detail=smoothstep(.025,.65,dot(tex.rgb,vec3(.2126,.7152,.0722)));
+        float fill=.68+.32*max(dot(normalize(vNormal),normalize(vec3(-3.,-4.,6.))),0.);
+        tone=clamp((.08+.82*detail)*fill,0.,1.);
+      }
       if(emissionStrength>.1) tone=1.;
     }
     // Subtle aerial perspective happens BEFORE the two-color quantizer.
@@ -291,10 +306,10 @@ export async function createCampfireRenderer(canvas: HTMLCanvasElement, signal: 
     return response;
   }
   const [scene,geometry]=await Promise.all([
-    fetchAsset("scene.json").then(r=>r.json() as Promise<Scene>),
+    fetchAsset("scene-with-props.json").then(r=>r.json() as Promise<Scene>),
     (async()=>{
-      if(typeof DecompressionStream === "undefined") return (await fetchAsset("geometry.bin")).arrayBuffer();
-      const response=await fetchAsset("geometry.bin.gz");
+      if(typeof DecompressionStream === "undefined") return (await fetchAsset("geometry-with-props.bin")).arrayBuffer();
+      const response=await fetchAsset("geometry-with-props.bin.gz");
       if(!response.body) throw new Error("Missing scene geometry");
       return new Response(response.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
     })(),
@@ -440,6 +455,7 @@ export async function createCampfireRenderer(canvas: HTMLCanvasElement, signal: 
     gl.bindFramebuffer(gl.FRAMEBUFFER,null);gl.uniform1i(u("sceneReflection"),5);
     gl.uniform1i(u("blueNoise"),6);gl.activeTexture(gl.TEXTURE6);gl.bindTexture(gl.TEXTURE_2D,textures.get("/water/blue-noise-128.png")!);
     gl.uniform3fv(u("firePosition"),scene.firePosition);
+    gl.uniform1f(u("smokeHeight"),motionTokens.heroPrototype.smoke.height);
     gl.uniform3fv(u("orbCenter"),scene.orb.center);
     gl.enable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA);
     let yaw=scene.camera.yaw,pitch=scene.camera.pitch,distance=scene.camera.distance;
@@ -447,6 +463,8 @@ export async function createCampfireRenderer(canvas: HTMLCanvasElement, signal: 
     let dirty=true, lastSeconds=-1, lastOriginal=false, lastReflectionFrame=-1;
     let orbBrightness=1, orbDensity=55, progress=0;
     let suspension={x:.5,y:0};
+    let propTargets: ReturnType<CampfireRenderer["propTargets"]> = [];
+    let activeProp: string | null = null;
     // Development-only diagnostics; no timers or UI are added to production.
     const frameIntervals: number[]=[];
     let previousDraw=0;
@@ -454,6 +472,8 @@ export async function createCampfireRenderer(canvas: HTMLCanvasElement, signal: 
     const theme=new MutationObserver(()=>{dirty=true;}); theme.observe(document.documentElement,{attributes:true,attributeFilter:["data-theme","style","class"]});
     const bind=(file: string|null,unit: number)=>{gl.activeTexture(gl.TEXTURE0+unit);gl.bindTexture(gl.TEXTURE_2D,textures.get(file??"")??white);};
     return {
+      propTargets:()=>propTargets,
+      setActiveProp(id) { if(activeProp!==id) {activeProp=id;dirty=true;} },
       setPresentation(brightness,density,value) {
         const b=Math.max(.2,Math.min(1.8,brightness/100));
         const d=Math.max(0,Math.min(100,density));
@@ -492,6 +512,7 @@ export async function createCampfireRenderer(canvas: HTMLCanvasElement, signal: 
         const transition=motionTokens.heroPrototype.transition;
         const shrink=stageProgress(progress,transition.shrinkStart,transition.shrinkEnd);
         const lift=stageProgress(progress,transition.liftStart,transition.liftEnd);
+        const hanging=hangingMotion(progress);
         const visibleHeight=2*distance*Math.tan(Math.PI/8);
         const diameter=Math.min(transition.finalDiameter,rect.width*.32);
         const finalScale=diameter/rect.height*visibleHeight/(2*scene.orb.radius);
@@ -502,9 +523,26 @@ export async function createCampfireRenderer(canvas: HTMLCanvasElement, signal: 
         for(let i=0;i<3;i++) translation[i]+=shrink*(target[i]-(scene.orb.center[i]*sceneScale+translation[i]));
         const desiredCenter=target.map((a,i)=>a+up[i]*(.5-transition.finalHeight)*visibleHeight);
         for(let i=0;i<3;i++) translation[i]+=lift*(desiredCenter[i]-(scene.orb.center[i]*sceneScale+translation[i]));
+        for(let i=0;i<3;i++) translation[i]+=up[i]*hanging.rebound*visibleHeight;
         const root=new Float32Array([sceneScale,0,0,0,0,sceneScale,0,0,0,0,sceneScale,0,...translation,1]);
-        const projection=multiplyMatrices(viewProjection(eye,target,width/height),root);
+        const projection=multiplyMatrices(suspensionMatrix(hanging.swing,width/height),
+          multiplyMatrices(viewProjection(eye,target,width/height),root));
         suspension=projectPoint(projection,top);
+        propTargets=(scene.props??[]).map(prop=>{
+          const [lo,hi]=prop.bounds;
+          const corners=[];
+          for(const x of [lo[0],hi[0]]) for(const y of [lo[1],hi[1]]) for(const z of [lo[2],hi[2]]) corners.push(projectPoint(projection,[x,y,z]));
+          const left=Math.min(...corners.map(p=>p.x)),right=Math.max(...corners.map(p=>p.x));
+          const upper=Math.min(...corners.map(p=>p.y)),bottom=Math.max(...corners.map(p=>p.y));
+          const center=lo.map((v,i)=>(v+hi[i])/2);
+          const facing=center.reduce((sum,v,i)=>sum+(v-scene.orb.center[i])*(eye[i]-v),0)>0;
+          // A partially clipped prop still has a usable visible hit area.
+          const clippedLeft=Math.max(0,left),clippedRight=Math.min(1,right);
+          const clippedTop=Math.max(0,upper),clippedBottom=Math.min(1,bottom);
+          return {id:prop.id,x:(clippedLeft+clippedRight)/2,y:(clippedTop+clippedBottom)/2,
+            width:Math.max(0,clippedRight-clippedLeft),height:Math.max(0,clippedBottom-clippedTop),
+            visible:progress<.08&&facing&&clippedLeft<clippedRight&&clippedTop<clippedBottom};
+        });
         gl.uniformMatrix4fv(u("viewProjection"),false,projection);
         gl.uniform3fv(u("eye"),eye.map((v,i)=>(v-translation[i])/sceneScale));bind(scene.environment,3);
         gl.uniform1f(u("orbBrightness"),orbBrightness);
@@ -532,6 +570,8 @@ export async function createCampfireRenderer(canvas: HTMLCanvasElement, signal: 
           for(const {location,size,offset} of locations) if(location>=0) {gl.enableVertexAttribArray(location);gl.vertexAttribPointer(location,size,gl.FLOAT,false,84,offset*4);}
           gl.uniformMatrix4fv(u("model"),false,mesh.matrices?.[frame]??identity);gl.uniform3fv(u("weights"),mesh.weights?.[frame]??[0,0,0]);
           gl.uniform4fv(u("baseColor"),mat.color); gl.uniform1f(u("kind"),mat.kind);
+          gl.uniform1f(u("activeProp"),mesh.name===`hero-prop-${activeProp}`?1:0);
+          gl.uniform1f(u("propMaterial"),mesh.name.startsWith("hero-prop-")?1:0);
           gl.uniform3fv(u("emissionColor"),mat.emissionColor??[0,0,0]);
           gl.uniform1f(u("emissionStrength"),mat.emissionStrength??0);gl.uniform1f(u("hasEmission"),mat.emission?1:0);
           gl.uniform1f(u("metallic"),mat.metallic??0);gl.uniform1f(u("roughness"),mat.roughness??.7);
@@ -558,12 +598,12 @@ export async function createCampfireRenderer(canvas: HTMLCanvasElement, signal: 
           gl.generateMipmap(gl.TEXTURE_2D);
           lastReflectionFrame=frame;
         }
-        if(!original) {
+        if(!original||activeProp) {
           gl.enable(gl.CULL_FACE);gl.cullFace(gl.FRONT);
           gl.uniform1f(u("outlineDraw"),1);gl.uniform1f(u("outlineWidth"),.012);
           for(const mesh of ordered) {
             const mat=scene.materials[mesh.material];
-            if(mat.kind===0&&(mat.emissionStrength??0)<.1) renderMesh(mesh);
+            if(mat.kind===0&&(mat.emissionStrength??0)<.1&&(!original||mesh.name===`hero-prop-${activeProp}`)) renderMesh(mesh);
           }
           gl.disable(gl.CULL_FACE);gl.uniform1f(u("outlineDraw"),0);gl.uniform1f(u("outlineWidth"),0);
         }
