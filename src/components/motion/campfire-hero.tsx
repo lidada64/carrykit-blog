@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useLocale, useT } from "@/i18n";
 import { createCampfireRenderer, type CampfireRenderer } from "./harry-campfire-orbit-renderer";
 import { motionTokens } from "./tokens";
+import { Preloader } from "./preloader";
 import { hangingMotion, stageProgress } from "./campfire-transition";
 
 const motion = motionTokens.heroPrototype;
@@ -95,6 +96,9 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
     const abort = new AbortController();
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     let active = true, elapsed = 0;
+    let presented = false;
+    let paintFrame = 0;
+    let readyDelay: gsap.core.Tween | undefined;
     const sync = () => setReduced(media.matches);
     sync(); media.addEventListener("change", sync);
     const tick = (_: number, delta: number) => {
@@ -123,7 +127,8 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
           const label=link.firstElementChild;
           if(label instanceof HTMLElement) {
             const bottom=target.y*node.clientHeight+Math.max(44,target.height*node.clientHeight)/2;
-            link.dataset.labelAbove=String(bottom+label.offsetHeight>node.clientHeight);
+            link.dataset.labelPlacement=bottom+label.offsetHeight>node.clientHeight
+              ? target.id==="radar"?"left":"above" : "below";
           }
         }
         const anchor=renderer.current.suspensionPoint();
@@ -136,26 +141,40 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
         if(title.current) title.current.style.opacity=String(1-stageProgress(progress,0,motion.transition.titleEnd));
         if(progressInput.current) progressInput.current.value=String(Math.round(progress*100));
         if(progressOutput.current) progressOutput.current.value=`${Math.round(progress*100)}%`;
+        if (!presented) {
+          presented = true;
+          // Let the fully configured frame reach the browser before revealing it.
+          paintFrame = requestAnimationFrame(() => {
+            paintFrame = requestAnimationFrame(() => {
+              if (!active) return;
+              readyDelay = gsap.delayedCall(motion.loading.readyDelay, () => {
+                if (active) setStatus("ready");
+              });
+            });
+          });
+        }
       } catch {
         gsap.ticker.remove(tick);
+        cancelAnimationFrame(paintFrame); readyDelay?.kill();
         setStatus("error");
       }
     };
     void createCampfireRenderer(node, abort.signal).then(result => {
       if (!active) { result.dispose(); return; }
       renderer.current = result;
-      result.draw(0, options.current.original);
-      setStatus("ready"); gsap.ticker.add(tick);
+      gsap.ticker.add(tick);
     }).catch(() => { if (active) setStatus("error"); });
-    const lost = (event: Event) => { event.preventDefault(); gsap.ticker.remove(tick); setStatus("error"); };
+    const lost = (event: Event) => { event.preventDefault(); gsap.ticker.remove(tick); cancelAnimationFrame(paintFrame); readyDelay?.kill(); setStatus("error"); };
     node.addEventListener("webglcontextlost", lost);
     return () => {
-      active = false; abort.abort(); gsap.ticker.remove(tick); renderer.current?.dispose(); renderer.current = null;
+      active = false; abort.abort(); cancelAnimationFrame(paintFrame); readyDelay?.kill(); gsap.ticker.remove(tick); renderer.current?.dispose(); renderer.current = null;
       media.removeEventListener("change", sync); node.removeEventListener("webglcontextlost", lost);
     };
   }, []);
 
-  return <div ref={root} className={`relative isolate bg-[var(--water-ink)] text-[var(--water-paper)] ${preview ? "" : "mx-[calc(50%-50vw)] w-screen"}`} >
+  return <>
+    {!preview && <Preloader ready={status!=="loading"} />}
+    <div ref={root} aria-busy={status==="loading"} className={`relative isolate bg-[var(--water-ink)] text-[var(--water-paper)] ${preview ? "" : "mx-[calc(50%-50vw)] w-screen"}`} >
     <div className="relative h-svh overflow-hidden">
       <div ref={title} className="pointer-events-none absolute inset-0">
         <h1 className="absolute left-1/2 top-[26%] -translate-x-1/2 scale-90 whitespace-nowrap font-title italic text-[length:var(--hero-title-size)] leading-none tracking-tight md:top-[20%]">{t("heroPrototype.title")}</h1>
@@ -172,7 +191,7 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
         onFocus={()=>renderer.current?.setActiveProp(id)}
         onBlur={()=>renderer.current?.setActiveProp(null)}
         className="group absolute z-10 -translate-x-1/2 -translate-y-1/2 cursor-pointer rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--water-paper)]">
-        <span className="absolute left-1/2 top-full group-data-[label-above=true]:top-auto group-data-[label-above=true]:bottom-full -translate-x-1/2 whitespace-nowrap bg-[var(--water-ink)]/80 px-2 py-1 font-mono text-caption text-[var(--water-paper)] group-hover:underline group-focus-visible:underline">{t(`nav.${id}`)}</span>
+        <span className="absolute left-1/2 top-full -translate-x-1/2 group-data-[label-placement=above]:top-auto group-data-[label-placement=above]:bottom-full group-data-[label-placement=left]:left-auto group-data-[label-placement=left]:right-full group-data-[label-placement=left]:top-1/2 group-data-[label-placement=left]:-translate-y-1/2 group-data-[label-placement=left]:translate-x-0 group-data-[label-placement=left]:mr-1 whitespace-nowrap bg-[var(--water-ink)]/80 px-2 py-1 font-mono text-caption text-[var(--water-paper)] group-hover:underline group-focus-visible:underline">{t(`nav.${id}`)}</span>
       </Link>)}
       {preview && <header className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-6 md:px-12">
         <Link href="/" className="font-mono text-caption">{t("harryCampfire.home")}</Link>
@@ -232,5 +251,6 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
         <button aria-pressed={forceReduced} onClick={() => setForceReduced(!forceReduced)}>{t(forceReduced ? "heroPrototype.motionOn" : "heroPrototype.motionOff")}</button>
       </div>
     </aside>}
-  </div>;
+  </div>
+  </>;
 }

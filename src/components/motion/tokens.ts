@@ -22,6 +22,7 @@ const popSettle = (p: number): number => {
 
 export const motionTokens = {
   heroPrototype: {
+    loading: { readyDelay: 0.1 },
     smoke: { height: 1.6 },
     orb: { brightness: 27, density: 86 },
     transition: {
