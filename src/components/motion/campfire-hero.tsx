@@ -43,7 +43,7 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
 
   useGSAP(() => {
     const node=root.current;
-    if(!node||status!=="ready"||reduced) {
+    if(!preview||!node||status!=="ready"||reduced) {
       performanceState.current.progress=0;
       play.current=()=>{};seek.current=()=>{};
       return;
@@ -86,7 +86,7 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
     scroll();window.addEventListener("scroll",scroll,{passive:true});window.addEventListener("keydown",keyboard);
     return ()=>{tween?.kill();observer.kill();play.current=()=>{};seek.current=()=>{};
       window.removeEventListener("scroll",scroll);window.removeEventListener("keydown",keyboard);};
-  },{dependencies:[status,reduced],revertOnUpdate:true});
+  },{dependencies:[preview,status,reduced],revertOnUpdate:true});
 
   useGSAP(() => {
     const node = canvas.current;
