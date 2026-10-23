@@ -154,8 +154,8 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
         <button onClick={() => setLocale(locale === "en" ? "zh" : "en")} className="text-caption">{t("harryCampfire.language")}</button>
       </header>}
       {status !== "ready" && <p role="status" className="absolute left-6 top-1/2 text-body">{t(status === "error" ? "harryCampfire.error" : "harryCampfire.loading")}</p>}
-      <button type="button" aria-pressed={!original} className="absolute right-6 top-24 z-10 text-caption md:right-12" onClick={() => setOriginal(!original)}>{t(original ? "heroPrototype.enterBit" : "heroPrototype.exitBit")}</button>
-      <fieldset className="absolute inset-x-6 bottom-8 z-10 mx-auto flex max-w-md flex-col gap-3 border border-[var(--water-paper)]/30 bg-[var(--water-ink)]/90 p-4 text-caption backdrop-blur-md">
+      {preview && <button type="button" aria-pressed={!original} className="absolute right-6 top-24 z-10 text-caption md:right-12" onClick={() => setOriginal(!original)}>{t(original ? "heroPrototype.enterBit" : "heroPrototype.exitBit")}</button>}
+      {preview && <fieldset className="absolute inset-x-6 bottom-8 z-10 mx-auto flex max-w-md flex-col gap-3 border border-[var(--water-paper)]/30 bg-[var(--water-ink)]/90 p-4 text-caption backdrop-blur-md">
         <legend className="sr-only">{t("heroPrototype.camera")}</legend>
         <div className="flex justify-evenly gap-6">
           {([{key:"brightness",value:brightness,set:setBrightness,min:20,max:180,label:t("heroPrototype.brightness")},
@@ -197,7 +197,7 @@ export function CampfireHero({ preview = false }: { preview?: boolean }) {
           <button disabled={reduced||status!=="ready"} type="button" onClick={()=>play.current(true)}>{t("heroPrototype.returnScene")}</button>
         </div>
         <div className="flex justify-between gap-4"><button type="button" onClick={() => { setYaw(motion.camera.defaultOrbit); setPitch(motion.camera.defaultElevation); }}>{t("harryCampfire.reset")}</button><Link href="/lab/hero-archive">{t("heroPrototype.archive")}</Link></div>
-      </fieldset>
+      </fieldset>}
     </div>
     {preview && <aside aria-label={t("heroPrototype.label")} className="fixed left-3 top-20 z-20 mx-auto max-w-3xl border border-[var(--water-paper)]/30 bg-[var(--water-ink)]/95 px-4 py-3 text-[var(--water-paper)] backdrop-blur-md">
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-caption">
