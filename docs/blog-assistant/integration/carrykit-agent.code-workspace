@@ -1,0 +1,7 @@
+{
+  "folders": [
+    { "name": "Integration", "path": "." },
+    { "name": "Carrykit Blog", "path": "../../.." },
+    { "name": "Blog-Agent", "path": "../../../../Agent" }
+  ]
+}

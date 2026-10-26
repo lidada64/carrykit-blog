@@ -25,7 +25,7 @@ export function SmoothScroll({ children }: { children: ReactNode }) {
 
   useGSAP(
     () => {
-      if (pathname === "/" || prefersReducedMotion()) return;
+      if (pathname === "/" || pathname === "/assistant" || prefersReducedMotion()) return;
       if (!wrapperRef.current || !contentRef.current) return;
       const smoother = ScrollSmoother.create({
         wrapper: wrapperRef.current,

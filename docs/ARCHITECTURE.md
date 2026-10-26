@@ -12,7 +12,7 @@
 | UI | **React 19 + Tailwind CSS 4** | 原子化样式,设计 token 落地为 CSS 变量,便于遵守设计规范 |
 | 动效 | **GSAP + ScrollTrigger + @gsap/react (useGSAP)** | 参考站自述即用 GSAP;复刻滚动驱动画廊、revealer 过渡、数字翻转等效果的标准工具 |
 | ORM | **Prisma** | 类型安全;SQLite → PostgreSQL 迁移路径平滑 |
-| 数据库 | **SQLite** | 单文件零运维,个人博客流量足够;备份即拷贝文件 |
+| 数据库 | **SQLite** | 本地持久卷、有限写并发；运行中使用 SQLite Online Backup API，不直接复制数据库单文件（WAL/一致性要求见集成部署规范） |
 | Markdown | **react-markdown + remark-gfm + rehype-highlight**(M1-2 已锁定,不用 MDX) | 博客/作品正文渲染,代码高亮 |
 | 鉴权 | **iron-session 加密 session cookie**(M2-1 已锁定) | 单用户后台,NextAuth 过重 |
 | 部署 | **Docker(standalone 输出)+ Caddy 反代 → VPS** | Caddy 自动 HTTPS;单容器 + 反代,运维面最小 |
@@ -82,6 +82,8 @@ Carrykit blog2/
 ```
 
 ## 3. 数据模型(Prisma schema 草案)
+
+2026-10-26 文档纠偏：当前 schema 已实现 Post 的 titleEn/excerptEn/contentEn 与 Project 的 titleEn/summaryEn/contentEn（均为空串默认值）；下方为早期基础字段摘要，不再代表完整 schema。集成接口须保留双语字段并显式报告缺译回退，正式字段以 prisma/schema.prisma 为准。本轮未修改数据库。
 
 ```prisma
 model Post {
@@ -215,7 +217,7 @@ src/i18n/index.ts  # LocaleProvider(client)+ useT() hook;locale 存 localStorage
 ```
 
 - 纯 UI 层切换(字典体积小,随包下发,client 即时切换),**不影响 SSG/ISR 渲染策略**,无路由前缀
-- 博客/作品正文为单语内容,不参与切换;内容双语为 V2(届时再评估 DB 字段方案)
+- 博客/作品已维护中英文字段；UI locale 与内容语言分别处理，缺译时显式回退。此条于2026-10-26按既有 schema 纠正早期“单语/V2”描述。
 - **新增语言 = 新增字典文件并在 index.ts 注册**;组件只用 `t("nav.work")` 形式取文案
 
 ## 8. 仓库与分支
@@ -233,3 +235,10 @@ src/i18n/index.ts  # LocaleProvider(client)+ useT() hook;locale 存 localStorage
 2026-10-19 字体构建可靠性：既有英文字体随仓库分发并经src/config/fonts.ts的next/font/local加载，保留字体家族、变量与字重；许可证随资源保存。开发及构建不依赖Google字体网络请求。
 
 2026-10-19 `/lab/hero-archive`归档原HomeHero星空灯球页面（noindex）；当前首页镜头由两个滑块显式控制，原色/1-bit复用同一渲染器与主题token。配色历史快照见hero-color-archive.md。
+
+
+## 9. Blog-Agent 集成架构（2026-10-26，待实施）
+
+独立 multi-root workspace 与跨仓库架构见 [集成入口](blog-assistant/integration/README.md)。Next 管页面、身份、正式内容与审批；Python 私网服务管执行、预算、事件与派生索引，两者独立数据库。浏览器写命令沿用 Server Actions，GET 状态/SSE 使用 Route Handler；内部内容校验 POST 为只读批量查询。新增目录、来源 adapter、持久状态与部署以架构基线指导实施，尚未交付运行连接。
+
+2026-10-26准备进展：`/assistant`已实现开发fixture（生产默认404），原生滚动避免输入遮挡；Agent增加配置预检/显式SQLite checkpoint迁移基础，尚无HTTP服务。Docker proddeps复用deps的锁定安装与native环境，不再二次安装最新版迁移工具；镜像因此保留现有开发工具，实际构建/体积/恢复待Docker环境验证。

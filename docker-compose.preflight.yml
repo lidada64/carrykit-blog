@@ -1,0 +1,18 @@
+# Merge with docker-compose.yml using the EXISTING production project name.
+# External volumes must already exist: Compose must never silently create replacements.
+# This overlay deploys only the existing Blog; no Agent HTTP service exists yet.
+services:
+  app:
+    environment:
+      ASSISTANT_PREVIEW_ENABLED: "false"
+
+volumes:
+  db-data:
+    external: true
+    name: ${BLOG_DATA_VOLUME:?Set the existing Blog data volume name}
+  caddy-data:
+    external: true
+    name: ${CADDY_DATA_VOLUME:?Set the existing Caddy certificate volume name}
+  caddy-config:
+    external: true
+    name: ${CADDY_CONFIG_VOLUME:?Set the existing Caddy config volume name}

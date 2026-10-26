@@ -1,6 +1,6 @@
 # 多阶段构建(ARCHITECTURE §5 / TASKS M4-1)
 # base → deps(全量依赖+prisma generate) → builder(standalone 构建)
-#      → proddeps(运行时依赖+迁移/seed 工具链) → runner
+#      → proddeps(复用锁定依赖+迁移/seed 工具链) → runner
 #
 # 说明:
 # - 构建期 SSG 需要数据库:builder 内用空库(migrate deploy)预渲染,
@@ -34,14 +34,11 @@ COPY . .
 ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN npx prisma generate && npx prisma migrate deploy && npm run build
 
-# ---- proddeps:仅运行时依赖 + 迁移/seed 工具链 ----
-FROM base AS proddeps
-COPY package.json package-lock.json ./
-COPY prisma.config.ts ./
-COPY prisma ./prisma
-RUN npm ci --omit=dev --ignore-scripts \
-    && npm install --no-save --no-package-lock prisma dotenv tsx \
-    && npx prisma generate
+# ---- proddeps:复用 npm ci 的锁定依赖与原生模块 ----
+# 保留既有 dev 工具，确保 prisma/dotenv/tsx 及其传递依赖均来自 lockfile。
+# deps 与 runner 同属 base，原生模块的 Node/glibc 环境一致；不二次安装最新版。
+# 镜像体积待实际构建测量后再精简，不能 prune 掉启动迁移/seed 所需工具。
+FROM deps AS proddeps
 
 # ---- runner ----
 FROM base AS runner
