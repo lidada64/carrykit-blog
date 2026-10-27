@@ -22,7 +22,7 @@ async function loadSnapshot(id: string): Promise<Snapshot> {
   return data;
 }
 
-export function LiveAssistantSession() {
+export function LiveAssistantSession({ compact = false, onBusyChange }: { compact?: boolean; onBusyChange?: (busy: boolean) => void }) {
   const t = useT();
   const { locale } = useLocale();
   const [snapshot, setSnapshot] = useState<Snapshot>(() => emptySnapshot("initial"));
@@ -85,6 +85,7 @@ export function LiveAssistantSession() {
   const currentSnapshot = useRef(snapshot);
   useEffect(() => { currentSnapshot.current = snapshot; }, [snapshot]);
   const busy = active.has(snapshot.state);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => {
     if (!snapshot.runId || !busy || snapshot.conversation !== "active") return;
     const source = new EventSource(`/api/assistant/runs/${encodeURIComponent(snapshot.runId)}/events?after=${currentSnapshot.current.cursor}`);
@@ -172,10 +173,10 @@ export function LiveAssistantSession() {
   const status = error === "EXPIRED" ? "expired" : obsolete ? "liveMissing" : !connected ? "liveConnecting" : !fresh ? "liveRecovering" : snapshot.conversation !== "active" ? snapshot.conversation : reconnecting ? "reconnecting" : snapshot.budget === "blocked" ? "blocked" : snapshot.state === "idle" ? "liveReady" : snapshot.state === "running" ? "liveRunning" : snapshot.state;
   const errorKey = error === "EXPIRED" ? "expired" : error === "NOT_FOUND" ? "liveMissing" : error === "BUDGET_EXHAUSTED" ? "blocked" : error === "RATE_LIMITED" ? "liveRateLimited" : error === "FORBIDDEN" || error === "UNAUTHENTICATED" ? "liveForbidden" : error === "RUN_ACTIVE" || error === "IDEMPOTENCY_CONFLICT" ? "liveConflict" : "unavailable";
 
-  return <section className="grid min-w-0 gap-6 py-8 text-body md:grid-cols-3 md:gap-10 md:py-24">
-    <aside className="min-w-0 space-y-5">
+  return <section className={compact ? "grid min-w-0 gap-4 text-body" : "grid min-w-0 gap-6 py-8 text-body md:grid-cols-3 md:gap-10 md:py-24"}>
+    <aside className={compact ? "order-2 min-w-0 space-y-5" : "min-w-0 space-y-5"}>
       <p className="font-mono text-caption text-accent">{t(connected ? "assistant.liveConnected" : "assistant.liveConnecting")}</p>
-      <h1 className="font-display text-heading">{t("assistant.title")}</h1>
+      <h2 className="font-display text-subheading">{t("assistant.title")}</h2>
       <p className="text-caption text-muted">{t("assistant.liveNotice")}</p>
       <div className="flex flex-wrap gap-2">
         <button ref={newButton} type="button" className={button} disabled={pending || (busy && !missing)} onClick={() => command(() => snapshot.conversationId === "initial" || missing ? createConversation(locale) : restartConversation(snapshot.conversationId, locale))}>{t("assistant.newConversation")}</button>
@@ -191,10 +192,10 @@ export function LiveAssistantSession() {
         </div>
       </details>
     </aside>
-    <div className="min-w-0 border border-border md:col-span-2">
+    <div className={compact ? "order-1 min-w-0 border border-border" : "min-w-0 border border-border md:col-span-2"}>
       <p role="status" aria-live="polite" className="border-b border-border px-4 py-3">{t(`assistant.${status}` as TKey)}</p>
       {error && <p role="alert" id="assistant-live-error" className="border-b border-border p-4 text-caption">{t(`assistant.${errorKey}` as TKey)}</p>}
-      <div ref={messages} role="region" aria-label={t("assistant.messages")} tabIndex={0} className="h-[36dvh] min-h-48 min-w-0 space-y-8 overflow-y-auto overscroll-contain p-4 md:h-[52dvh]" onScroll={event => { const element = event.currentTarget; atBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48; if (atBottom.current) setUnread(false); }}>
+      <div ref={messages} role="region" aria-label={t("assistant.messages")} tabIndex={0} className={compact ? "h-64 min-w-0 space-y-8 overflow-y-auto overscroll-contain p-4" : "h-[36dvh] min-h-48 min-w-0 space-y-8 overflow-y-auto overscroll-contain p-4 md:h-[52dvh]"} onScroll={event => { const element = event.currentTarget; atBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48; if (atBottom.current) setUnread(false); }}>
         {!fresh && <p className="text-muted">{t(missing ? `assistant.${errorKey}` as TKey : "assistant.liveRecovering")}</p>}
         {fresh && snapshot.messages.length === 0 && <p className="text-muted">{t("assistant.liveWelcome")}</p>}
         {(fresh ? snapshot.messages : []).map(message => <article key={message.id} className="min-w-0 space-y-3 break-words">

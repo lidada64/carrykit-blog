@@ -160,6 +160,9 @@ export const en = {
     themeLight: "Light",
   },
   blog: {
+    assistantClick: "CLICK",
+    assistantOpen: "Open blog assistant",
+    assistantCollapse: "Close blog assistant",
     assistantLink: "Ask the blog assistant →",
     title: "Blog",
     aboutLabel: "About",

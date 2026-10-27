@@ -13,6 +13,15 @@
   --border: #e5e5e0;
   --accent: #2f4ae0;
   --revealer: #1a1a1a;
+  --assistant-entry-background: #1a1a1a;
+  --assistant-entry-label: #ededeb;
+  --assistant-entry-ink: #1a1a1a;
+  --orb-light: #cccccc;
+  --orb-dark: #050505;
+  --orb-rim: #888888;
+  --orb-ring: #cfa863;
+  --orb-tether: #444444;
+  --orb-line: #e6e6e6;
 
   /*
    * 水面 1-bit 两色板(lab/water,W4 量化呈现层)。
@@ -54,6 +63,9 @@
   --color-border: var(--border);
   --color-accent: var(--accent);
   --color-revealer: var(--revealer);
+  --color-assistant-entry-background: var(--assistant-entry-background);
+  --color-assistant-entry-label: var(--assistant-entry-label);
+  --color-assistant-entry-ink: var(--assistant-entry-ink);
 
   /* 字体映射:变量由 src/config/fonts.ts 定义并挂在 <html> 上 */
   --font-display: var(--font-display), var(--font-zh), "PingFang SC", "Microsoft YaHei", sans-serif;

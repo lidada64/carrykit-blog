@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
+import { BlogAssistant } from "@/components/motion/blog-assistant";
 import Link from "next/link";
 import { FadeUp } from "@/components/motion/fade-up";
 import { TextRoll } from "@/components/motion/text-roll";
-import { site } from "@/config/site";
+
 import { useT } from "@/i18n";
 import { Bilingual } from "@/components/ui/bilingual";
 
@@ -38,26 +38,7 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
           <h1 className="text-display font-display">
             {t("blog.title")}
           </h1>
-          <div className="flex flex-col gap-2">
-            <span className="text-caption font-mono uppercase text-muted">
-              {t("blog.aboutLabel")}
-            </span>
-            <p className="max-w-[40ch] text-body text-muted">
-              {t("blog.description")}
-            </p>
-          </div>
-          <Link href="/assistant" className="w-fit text-caption font-mono text-accent underline underline-offset-4 focus-visible:outline focus-visible:outline-2">
-            {t("blog.assistantLink")}
-          </Link>
-          <Image
-            src={site.blogThumbnail}
-            alt=""
-            width={640}
-            height={800}
-            priority
-            sizes="(min-width: 1024px) 320px, 60vw"
-            className="w-full max-w-[320px] object-cover"
-          />
+          <BlogAssistant />
         </FadeUp>
 
         <div className="mt-12 lg:mt-0">

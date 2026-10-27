@@ -158,6 +158,9 @@ export const zh: Dictionary = {
     themeLight: "明",
   },
   blog: {
+    assistantClick: "点击",
+    assistantOpen: "打开博客助手",
+    assistantCollapse: "收起博客助手",
     assistantLink: "向博客助手提问 →",
     title: "博客",
     aboutLabel: "关于",
