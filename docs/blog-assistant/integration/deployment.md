@@ -1,10 +1,12 @@
 # 部署与运维方案
 
-状态：实施指南；本轮未创建生产资源、安装框架或运行真实模型。优先在现有 VPS 增加服务，资源规格需先测量，不预先承诺吞吐。
+当前状态（2026-10-27）：原06发布已升级为rag09完整Agent与配套博客镜像；博客页面可进入助手，访客0.5元/UTC日、访客共享1元/日，admin免两项金额限额并独立记账；北京时间08:00重置。609统一离线/45 Linux/59部署/22 Node测试和lint/build通过，原始中文问题hybrid召回、实际跨发布跟进与刷新零额外调用已验。原Caddy/数据卷/srv保留，768MiB限制实际执行；真实runtime备份和目标镜像恢复、11文件异机加密/解密核验通过，两timer active。未停止Fitlinkin。当前版本及限制见[能力审计](../../../../Agent/docs/public-agent-parity.md)。下方旧版本数据为历史，不覆盖当前状态。
 
-2026-10-26 准备材料已落地：[发布操作手册](release-runbook.md)、`scripts/deployment-preflight.mjs` 与 `docker-compose.preflight.yml`。预检只验证现有 Blog 配置/卷映射，overlay 强制复用显式现有卷并关闭 fixture；当前没有 Agent HTTP 镜像或可上线服务。Docker 实构、真实代理、双库恢复与公开矩阵仍待 I2–I4。部署开关 `ASSISTANT_PREVIEW_ENABLED` 仅用于前端开发预览，不代表真实 Agent 运行许可。
+历史准备状态（2026-10-26，当时口径）：[发布操作手册](release-runbook.md)、`scripts/deployment-preflight.mjs` 与 `docker-compose.preflight.yml` 已落地。当时预检只验证现有 Blog 配置/卷映射，overlay 强制复用显式现有卷并关闭 fixture；当时尚无 Agent HTTP 镜像或可上线服务，Docker 实构、真实代理、双库恢复与公开矩阵仍待 I2–I4。部署开关 `ASSISTANT_PREVIEW_ENABLED` 仅用于前端开发预览，不代表真实 Agent 运行许可。
 
 Dockerfile 的 proddeps 已改为继承 `npm ci` 完成的 deps 阶段，迁移工具与传递依赖复用同一 lockfile，避免二次无锁安装。保留既有 dev 工具会增加镜像体积；阶段/原生模块环境及 generated client 路径仅完成静态核对，镜像实构与体积测量待 Docker 环境可用后执行。
+
+2026-10-26 HTTP实施轮的容器准备：Agent已新增独立Dockerfile与生产依赖完整版本锁，Python 3.12、nonroot、单Uvicorn worker；生产附加配置为`docker-compose.agent.yml`，本地隔离验证为`docker-compose.integration-test.yml`。两端运行开关默认关闭，Agent不发布宿主端口、不挂载Blog库或本机文章。三项Compose/容器配置专项通过。**实际Blog与Agent的docker build均已尝试，但Docker Desktop引擎启动失败，尚未生成本轮镜像或运行容器**；具体诊断与恢复后的完整复跑步骤见[操作手册§6](release-runbook.md#6-http实施轮docker实构与隔离验证2026-10-26)。不得将配置解析通过写成镜像实构通过。
 
 ## 1. 部署单元
 
@@ -64,3 +66,20 @@ SQLite WAL 仍只有一个同时写者，控制事务时长并观测 busy/锁等
 故障门槛：预算服务/身份验证不可用 → 拒绝新 run；内容 API 失联 → 博客证据路径关闭；embedding 不可用 → 明确关键词降级；provider 超时 → partial/failed，不无限重试；磁盘不足/持久化失败 → 不返回已接受/已完成假象；Agent 全停 → 网站保留浏览并显示暂不可用。
 
 扩容触发由观测决定：持续锁等待/队列超时、恢复目标不达标或必须多实例时，再设计 PostgreSQL/外部队列；在此之前不增加这些依赖。
+
+### 实构最终结果：初始阻塞已解除（2026-10-26）
+
+以上失败记录仅代表首次尝试。随后AI从Docker Desktop正常GUI启动，界面显示Engine running，docker info确认Linux 29.9.2；GUI显示Desktop4.96.3，前述4.45.0来自旧信息，不能作为当前版本。旧dockerInference/socket问题的确切根因未证明；无清卷、重置或ACL修改。
+
+使用基线Git归档加显式HTTP覆盖生成受控上下文，Agent锁定依赖，完成两个镜像：
+
+| 镜像 | ID | 本机inspect Size |
+| --- | --- | --- |
+| carrykit-blog:http-20261026 | sha256:3d731ef781163338c1168ff65a0353765debf59ad688f32d05e18fd62499b4eb | 1,786,525,522 bytes |
+| carrykit-agent:http-20261026 | sha256:1a6b0a315c1c641e5e136a67baa77dc094c0a7c52d16abef86a522684b5503e5 | 266,354,111 bytes |
+
+Blog第一次成功实构为3,354,394,242 bytes；发现standalone与完整node_modules重复COPY，后续chown还复制大层。调整为只复制standalone/server.js、.next和package.json，保留完整锁定生产依赖，COPY --chown并仅chown必要目录；第二次实构和容器启动验证通过。以上为本机镜像字节对照，不是线上下载量/内存/延迟结论。
+
+独立项目carrykit-integration-test-20261026已实际完成迁移、nonroot运行及Caddy TLS联通；完整证据在忽略目录`.recall/docker-build-20261026/`。真实合成问题经HTTPS→Next→Agent→provider完成，幂等不重复付费、撤回后快照及历史SSE不再返回旧正文/来源；首批阶段0.032s、终态0.844s到达，证明该次代理分段发送，不代表真实域名/CDN性能。Windows curl/Schannel专用CA请求因撤销检查未知失败，改用Python ssl.create_default_context加载同一CA且验证hostname成功，未使用-k或禁用证书校验。
+
+3次授权模型请求总计521输入/90输出token，保守价格估算¥0.001762（非账单），额度已用满。容器测试后已还原默认关闭配置，临时带真实模型key的env文件移除，原生产项目/卷未动；测试服务收尾停止并保留新卷/证据。正式日预算、保留策略、备份恢复和VPS容量未冻结，不据本次结果开放carrykit.top。当前HTTP变更未提交，镜像不是正式发布冻结版本。

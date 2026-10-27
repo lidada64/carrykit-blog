@@ -46,6 +46,9 @@ export function BlogList({ posts }: { posts: BlogListItem[] }) {
               {t("blog.description")}
             </p>
           </div>
+          <Link href="/assistant" className="w-fit text-caption font-mono text-accent underline underline-offset-4 focus-visible:outline focus-visible:outline-2">
+            {t("blog.assistantLink")}
+          </Link>
           <Image
             src={site.blogThumbnail}
             alt=""

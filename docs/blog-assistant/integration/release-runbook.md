@@ -1,8 +1,10 @@
 # 集成预发布操作手册
 
-2026-10-26。当前交付是准备材料：Blog 可构建，Agent 仅配置/存储基础，尚无可上线 HTTP 服务；不执行下述生产操作。I2/I3 与上线矩阵未通过前，公开问答保持关闭，开发 fixture 也不对公众开放。
+当前状态（2026-10-27）：原06发布已升级为rag09完整Agent与配套博客镜像；博客页面可进入助手，访客0.5元/UTC日、访客共享1元/日，admin免两项金额限额并独立记账；北京时间08:00重置。609统一离线/45 Linux/59部署/22 Node测试和lint/build通过，原始中文问题hybrid召回、实际跨发布跟进与刷新零额外调用已验。原Caddy/数据卷/srv保留，768MiB限制实际执行；真实runtime备份和目标镜像恢复、11文件异机加密/解密核验通过，两timer active。未停止Fitlinkin。当前版本及限制见[能力审计](../../../../Agent/docs/public-agent-parity.md)。下方旧版本数据为历史，不覆盖当前状态。
 
-用户提供的目标环境：Linux VPS，2 vCPU / 2GB RAM / 100GB 磁盘 / 10Mbps 带宽，域名 `carrykit.top`。规格是用户提供的配置输入；项目与卷名已获下方Termius盘点，实际挂载、可用资源、DNS、证书及现网负载仍待核实。建议在本机或 CI 完成镜像构建后推送/传输至 VPS，避免 2GB 内存主机同时承担 Next 构建与线上服务。首轮试运行建议全局并发从 1 开始，测量峰值内存、队列等待和模型时延后再决定；这不替代部署方案中的通用建议值 2，也不保证此机器的实际容量。
+实际发布版本：06 Blog `38814f41ddefb2ae12ccc6144d54e253ef416264`，Agent `a852cd3857385cca64aabb5f393bb82f6a3ccb05`。客户端恢复控制器另冻结为本地 `codex/deploy-ops-resume-20261027` / `ed74251eeb8b5bc3ff1c633aa3a6bdd397326019`，业务镜像未因控制器修正而改变。具体OPS文件hash与等价证据保存在06忽略目录的来源清单，不包含密钥。本机工作分支与index保留，未push。
+
+历史准备输入（2026-10-26，当时口径）：Linux VPS，2 vCPU / 2GB RAM / 100GB 磁盘 / 10Mbps 带宽，域名 `carrykit.top`。规格是用户提供的配置输入；项目与卷名已获下方Termius盘点，当时实际挂载、可用资源、DNS、证书及现网负载仍待核实。建议在本机或 CI 完成镜像构建后推送/传输至 VPS，避免 2GB 内存主机同时承担 Next 构建与线上服务。首轮试运行建议全局并发从 1 开始，测量峰值内存、队列等待和模型时延后再决定；这不替代部署方案中的通用建议值 2，也不保证此机器的实际容量。
 
 ## 1. 现网取证与配置
 
@@ -108,3 +110,61 @@ docker compose --env-file .env.production -f docker-compose.yml -f docker-compos
 - `node --check scripts/deployment-preflight.mjs`：通过。
 - `.env.example` 生产预检：按预期失败，空密钥/空卷与 localhost 不放行，没有回显敏感值。
 - Docker daemon 不可用；未实跑 Docker 构建、卷恢复、代理流或生产发布。Blog lint/build 结果由本轮总验收记录统一补充。
+
+## 6. HTTP实施轮Docker实构与隔离验证（2026-10-26）
+
+本节是前期准备之后的实际构建尝试记录，保留上文历史验收范围。框架依赖由用户批准，Agent镜像依赖按`requirements-web.lock`完整版本锁安装。新增文件：Agent `Dockerfile`/`.dockerignore`；Blog `docker-compose.agent.yml`、`docker-compose.integration-test.yml`、`scripts/caddy-integration-test.conf`。私网Agent容器使用UID10001、只读rootfs、可写runtime/index独立卷、单worker、无宿主端口；`/health/live`健康探针不调用模型，readiness单独检查。
+
+### 首次尝试与当时阻塞（最终已解除，见文末）
+
+1. 从Blog提交`94beebf8ea1fbed93de58aa8325c24aa6fe3fca0`导出干净Git归档至本地忽略目录，避免已有Hero/未提交素材进入第一次镜像构建。
+2. 本机已有Docker CLI28.3.3与Docker Desktop4.45.0。通过官方`docker desktop start --detach`启动后，backend报告`initializing Inference manager`的旧运行socket无法访问，并停止Linux引擎。该socket元数据为ReparsePoint，最后修改日期2026-07-09；它位于Docker/run，未涉及VHD、卷或数据库。
+3. `docker desktop stop --timeout 30`报告未运行；只读`os.lstat`、`fsutil reparsepoint query`及可逆备份尝试（Move/Rename/原生os.rename）都被Windows以1920拒绝。**没有移动、删除文件，没有修改ACL、daemon设置、WSL数据或重置Docker。** 现有Ubuntu只有Desktop映射的client，没有另一套dockerd/socket可用。
+4. 实际执行Blog `docker build --progress plain --tag carrykit-blog:integration-94beebf .`和Agent `docker build --progress plain --tag carrykit-agent:integration-local .`，均在连接builder前失败：`dockerDesktopLinuxEngine` pipe不存在。没有本轮镜像digest、体积或容器/卷实测结果；当时需从正常Docker Desktop启动/恢复流程使`docker info`成功，不运行factory reset/清卷来绕过故障。
+5. 不依赖daemon的验证：`node --test scripts/docker-integration.test.mjs`三项通过，覆盖生产原卷显式复用、Agent存储隔离、所有开关默认关闭、Agent无宿主端口、测试Caddy仅loopback TLS和nonroot单worker镜像声明。该脚本目标ESLint通过。它们只证明声明与Compose解析，不证明镜像能够构建。
+
+### 引擎恢复后的本地复跑
+
+先冻结本轮两仓源码版本，更新已审核的构建上下文；不能把dirty工作树结果称为可重建发布镜像。独立测试配置**不得与生产Compose文件混用**。在Blog目录准备Git忽略的`.recall/integration.env`，仅合成会话/内部密钥，最初保持`ASSISTANT_ENABLED=false`和`AGENT_WEB_ENABLED=false`，不要复制生产管理员密码或整份`.env`。
+
+```sh
+docker info --format '{{.OSType}} {{.ServerVersion}}'
+docker compose --project-name carrykit-integration-test-20261026 --env-file .recall/integration.env -f docker-compose.integration-test.yml config --quiet
+docker compose --project-name carrykit-integration-test-20261026 --env-file .recall/integration.env -f docker-compose.integration-test.yml build
+# 显式单部署者迁移Agent独立测试卷；不在worker启动时争抢迁移：
+docker compose --project-name carrykit-integration-test-20261026 --env-file .recall/integration.env -f docker-compose.integration-test.yml run --rm --no-deps agent python -m blog_assistant.web.migrate --data-dir /data/runtime
+docker compose --project-name carrykit-integration-test-20261026 --env-file .recall/integration.env -f docker-compose.integration-test.yml up -d
+docker compose --project-name carrykit-integration-test-20261026 --env-file .recall/integration.env -f docker-compose.integration-test.yml ps
+docker compose --project-name carrykit-integration-test-20261026 --env-file .recall/integration.env -f docker-compose.integration-test.yml exec -T agent id
+```
+
+此配置创建`carrykit-integration-test-20261026_`前缀的全新测试卷，绝不复用`carrykit-blog_*`或`srv_*`。Caddy仅绑定`127.0.0.1:3443`并使用本地内部CA；**不降级生产cookie、不用curl -k、不修改系统证书信任、不在浏览器绕过证书警告**。
+
+```sh
+docker compose --project-name carrykit-integration-test-20261026 --env-file .recall/integration.env -f docker-compose.integration-test.yml cp caddy:/data/caddy/pki/authorities/local/root.crt .recall/integration-root.crt
+curl --cacert .recall/integration-root.crt --resolve localhost:3443:127.0.0.1 https://localhost:3443/blog
+# 默认关闭时/assistant应返回404；打开前必须满足身份、来源、预算及价格配置：
+curl --cacert .recall/integration-root.crt --resolve localhost:3443:127.0.0.1 -o /dev/null -w '%{http_code}\n' https://localhost:3443/assistant
+docker image inspect --format '{{.Id}} {{.Size}} {{.Config.User}}' carrykit-agent:integration-local carrykit-blog:integration-local
+```
+
+已授权真实模型实验仍由主代理统一计数（合成内容、最多3次、总费用≤1元），容器健康/启动检查不占用模型调用。真实运行启用需单独配置互异服务密钥、访客密钥、显式价格/日硬上限与保留期，完成取消/幂等/来源撤回/SSE等联合验收；不能因镜像构建成功就对公网放行。停止测试可用相同project/files的`stop`，保留测试卷及证据，不运行`down -v`或删除SQLite。
+
+生产未来仅把`docker-compose.agent.yml`附加在原Blog与preflight配置之后，继续显式使用`--project-name carrykit-blog`和原三个external卷；本轮不执行生产up、迁移或发布，也不操作同机`srv`。
+
+### 实构最终结果：初始阻塞已解除（2026-10-26）
+
+以上失败记录仅代表首次尝试。随后AI从Docker Desktop正常GUI启动，界面显示Engine running，docker info确认Linux 29.9.2；GUI显示Desktop4.96.3，前述4.45.0来自旧信息，不能作为当前版本。旧dockerInference/socket问题的确切根因未证明；无清卷、重置或ACL修改。
+
+使用基线Git归档加显式HTTP覆盖生成受控上下文，Agent锁定依赖，完成两个镜像：
+
+| 镜像 | ID | 本机inspect Size |
+| --- | --- | --- |
+| carrykit-blog:http-20261026 | sha256:3d731ef781163338c1168ff65a0353765debf59ad688f32d05e18fd62499b4eb | 1,786,525,522 bytes |
+| carrykit-agent:http-20261026 | sha256:1a6b0a315c1c641e5e136a67baa77dc094c0a7c52d16abef86a522684b5503e5 | 266,354,111 bytes |
+
+Blog第一次成功实构为3,354,394,242 bytes；发现standalone与完整node_modules重复COPY，后续chown还复制大层。调整为只复制standalone/server.js、.next和package.json，保留完整锁定生产依赖，COPY --chown并仅chown必要目录；第二次实构和容器启动验证通过。以上为本机镜像字节对照，不是线上下载量/内存/延迟结论。
+
+独立项目carrykit-integration-test-20261026已实际完成迁移、nonroot运行及Caddy TLS联通；完整证据在忽略目录`.recall/docker-build-20261026/`。真实合成问题经HTTPS→Next→Agent→provider完成，幂等不重复付费、撤回后快照及历史SSE不再返回旧正文/来源；首批阶段0.032s、终态0.844s到达，证明该次代理分段发送，不代表真实域名/CDN性能。Windows curl/Schannel专用CA请求因撤销检查未知失败，改用Python ssl.create_default_context加载同一CA且验证hostname成功，未使用-k或禁用证书校验。
+
+3次授权模型请求总计521输入/90输出token，保守价格估算¥0.001762（非账单），额度已用满。容器测试后已还原默认关闭配置，临时带真实模型key的env文件移除，原生产项目/卷未动；测试服务收尾停止并保留新卷/证据。正式日预算、保留策略、备份恢复和VPS容量未冻结，不据本次结果开放carrykit.top。当前HTTP变更未提交，镜像不是正式发布冻结版本。

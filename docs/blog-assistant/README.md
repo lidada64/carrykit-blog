@@ -1,6 +1,6 @@
 # Blog Assistant：跨项目共享上下文
 
-更新：2026-10-10。当前阶段：本机 Blog Agent 首批迁移和样例问答已通过；真实博客业务接口尚未实现。
+更新：2026-10-27。当前阶段：D30完整本地Agent工厂、9工具/混合检索/全文/摘要/compact及恢复已在rag09上线，609统一离线与45 Linux回归通过，真实带来源跨轮问答和刷新无重复费用已验。博客提供助手入口；访客0.5元/UTC日、admin免金额限额并独立记账。能力边界与证据见[审计](../../../Agent/docs/public-agent-parity.md)，部署见[操作手册](integration/release-runbook.md)。下方带旧日期的未联通/未部署文字为历史。
 
 2026-10-13当前实现更新：按最新[Agent PRD §3.2](../../../Agent/docs/PRD.md#32-本地-rag)，正式CLI/search_posts已接本地多语言MiniLM384维、隔离FastEmbed/ONNX CPU、SQLite增量向量缓存与BM25混合/回退；用户授权的本地模型已下载。新提示2026-10-13.11取消固定八条及逐句行号，对外文章/真实章节来源，支持正常Markdown、能力帮助和预算内一次有区别的补查；旧会话显式升级。真实本地embedding新合成集可答11题全部召回、1个无答案空，257项工程回归通过；付费真实生成/人工来源语义支持仍待验，未连接网站。配置/模型失败报告见[实施说明](../../../Agent/docs/local-semantic-rag.md)，问题与成果见[台账008](../../../Agent/docs/project-highlights/records-008.md)。下面早期“向量后续升级”等文字为历史快照，以本段及Agent当前文档为准。
 
@@ -31,7 +31,7 @@
 1. 文件访问：本聊天已使用获准的命令读取两个目录，并写入共享文档和两边入口。
 2. Codex 项目关联：用户已完成“Carrykit blog2 → 编辑项目 → 添加 D:/CST/code/Agent”，保留博客为主目录。项目列表工具只返回主路径，附加目录无法独立核验；普通命令仍报 helper_unknown_error: setup refresh had errors。跨目录的普通沙箱访问待后续刷新验证。
 3. 共享上下文：两个 AGENTS.md 均有本功能的按需阅读入口；新聊天仍需加载该文档，不等于自动拥有本聊天全文。
-4. 运行时连接：尚未实现。文件夹关联不会让 Python Agent 自动连接线上 admin，也不会配置任何凭据。
+4. 运行时连接：本机私网HTTP已实现；线上admin管理发布仍未实现。文件夹关联不配置线上连接或凭据。
 
 官方项目说明：https://learn.chatgpt.com/docs/projects 。主目录决定 Git 操作和自动发现项目配置；附加目录提供文件读写访问，权限仍受沙箱控制。
 

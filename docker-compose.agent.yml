@@ -1,0 +1,60 @@
+# Merge after docker-compose.yml and docker-compose.preflight.yml in production.
+# Starts no public Agent listener; both browser and execution flags default off.
+services:
+  app:
+    environment:
+      ASSISTANT_ENABLED: ${ASSISTANT_ENABLED:-false}
+      ASSISTANT_PREVIEW_ENABLED: "false"
+      AGENT_BASE_URL: http://agent:8000
+      AGENT_REQUEST_SECRET: ${AGENT_REQUEST_SECRET:-}
+      AGENT_CONTENT_SECRET: ${AGENT_CONTENT_SECRET:-}
+      VISITOR_SESSION_SECRET: ${VISITOR_SESSION_SECRET:-}
+
+  agent:
+    image: carrykit-agent:${AGENT_IMAGE_TAG:-local}
+    build:
+      context: ${AGENT_BUILD_CONTEXT:-../Agent}
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    environment:
+      AGENT_WEB_ENABLED: ${AGENT_WEB_ENABLED:-false}
+      AGENT_DATA_DIR: /data/runtime
+      AGENT_INDEX_DIR: /data/index
+      AGENT_CONTENT_BASE_URL: http://app:3000
+      AGENT_REQUEST_SECRET: ${AGENT_REQUEST_SECRET:-}
+      AGENT_CONTENT_SECRET: ${AGENT_CONTENT_SECRET:-}
+      AGENT_MODEL_BASE_URL: ${AGENT_MODEL_BASE_URL:-}
+      AGENT_MODEL: ${AGENT_MODEL:-}
+      AGENT_MODEL_API_KEY: ${AGENT_MODEL_API_KEY:-}
+      AGENT_DAILY_COST_LIMIT: ${AGENT_DAILY_COST_LIMIT:-}
+      AGENT_SUBJECT_DAILY_COST_LIMIT: ${AGENT_SUBJECT_DAILY_COST_LIMIT:-}
+      AGENT_PRICING_VERSION: ${AGENT_PRICING_VERSION:-}
+      AGENT_INPUT_PRICE_PER_MILLION: ${AGENT_INPUT_PRICE_PER_MILLION:-}
+      AGENT_OUTPUT_PRICE_PER_MILLION: ${AGENT_OUTPUT_PRICE_PER_MILLION:-}
+      AGENT_MAX_INPUT_BYTES: ${AGENT_MAX_INPUT_BYTES:-32000}
+      AGENT_MAX_OUTPUT_TOKENS: ${AGENT_MAX_OUTPUT_TOKENS:-512}
+      AGENT_SESSION_TTL_SECONDS: ${AGENT_SESSION_TTL_SECONDS:-}
+      AGENT_AUDIT_RETENTION_SECONDS: ${AGENT_AUDIT_RETENTION_SECONDS:-}
+      AGENT_BACKUP_RETENTION_SECONDS: ${AGENT_BACKUP_RETENTION_SECONDS:-}
+      AGENT_MAX_CONCURRENT_RUNS: ${AGENT_MAX_CONCURRENT_RUNS:-1}
+      AGENT_MAX_QUEUE: ${AGENT_MAX_QUEUE:-8}
+      AGENT_QUEUE_TIMEOUT_SECONDS: ${AGENT_QUEUE_TIMEOUT_SECONDS:-30}
+      AGENT_RUN_TIMEOUT_SECONDS: ${AGENT_RUN_TIMEOUT_SECONDS:-120}
+      AGENT_SSE_HEARTBEAT_SECONDS: ${AGENT_SSE_HEARTBEAT_SECONDS:-15}
+    volumes:
+      - agent-runtime:/data/runtime
+      - agent-index:/data/index
+    expose:
+      - "8000"
+
+volumes:
+  agent-runtime:
+  agent-index:

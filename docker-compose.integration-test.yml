@@ -1,0 +1,89 @@
+# Standalone local verification only. NEVER combine with production Compose files.
+# CLI must also pass --project-name carrykit-integration-test-20261026.
+name: carrykit-integration-test-20261026
+
+services:
+  app:
+    image: carrykit-blog:${BLOG_IMAGE_TAG:-integration-local}
+    build:
+      context: ${BLOG_BUILD_CONTEXT:-.}
+      args:
+        SITE_URL: ${INTEGRATION_SITE_URL:-https://localhost:3443}
+    init: true
+    environment:
+      DATABASE_URL: file:/data/blog.db
+      UPLOAD_DIR: /data/uploads
+      SESSION_SECRET: ${SESSION_SECRET:?Provide an isolated synthetic session secret}
+      SITE_URL: ${INTEGRATION_SITE_URL:-https://localhost:3443}
+      ASSISTANT_ENABLED: ${ASSISTANT_ENABLED:-false}
+      ASSISTANT_PREVIEW_ENABLED: "false"
+      AGENT_BASE_URL: http://agent:8000
+      AGENT_REQUEST_SECRET: ${AGENT_REQUEST_SECRET:-}
+      AGENT_CONTENT_SECRET: ${AGENT_CONTENT_SECRET:-}
+      VISITOR_SESSION_SECRET: ${VISITOR_SESSION_SECRET:-}
+    volumes:
+      - test-blog-data:/data
+    expose:
+      - "3000"
+
+  agent:
+    image: carrykit-agent:${AGENT_IMAGE_TAG:-integration-local}
+    build:
+      context: ${AGENT_BUILD_CONTEXT:-../Agent}
+      dockerfile: Dockerfile
+    init: true
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    environment:
+      AGENT_WEB_ENABLED: ${AGENT_WEB_ENABLED:-false}
+      AGENT_DATA_DIR: /data/runtime
+      AGENT_INDEX_DIR: /data/index
+      AGENT_CONTENT_BASE_URL: http://app:3000
+      AGENT_REQUEST_SECRET: ${AGENT_REQUEST_SECRET:-}
+      AGENT_CONTENT_SECRET: ${AGENT_CONTENT_SECRET:-}
+      AGENT_MODEL_BASE_URL: ${AGENT_MODEL_BASE_URL:-}
+      AGENT_MODEL: ${AGENT_MODEL:-}
+      AGENT_MODEL_API_KEY: ${AGENT_MODEL_API_KEY:-}
+      AGENT_DAILY_COST_LIMIT: ${AGENT_DAILY_COST_LIMIT:-}
+      AGENT_SUBJECT_DAILY_COST_LIMIT: ${AGENT_SUBJECT_DAILY_COST_LIMIT:-}
+      AGENT_PRICING_VERSION: ${AGENT_PRICING_VERSION:-}
+      AGENT_INPUT_PRICE_PER_MILLION: ${AGENT_INPUT_PRICE_PER_MILLION:-}
+      AGENT_OUTPUT_PRICE_PER_MILLION: ${AGENT_OUTPUT_PRICE_PER_MILLION:-}
+      AGENT_MAX_INPUT_BYTES: ${AGENT_MAX_INPUT_BYTES:-32000}
+      AGENT_MAX_OUTPUT_TOKENS: ${AGENT_MAX_OUTPUT_TOKENS:-512}
+      AGENT_SESSION_TTL_SECONDS: ${AGENT_SESSION_TTL_SECONDS:-}
+      AGENT_AUDIT_RETENTION_SECONDS: ${AGENT_AUDIT_RETENTION_SECONDS:-}
+      AGENT_BACKUP_RETENTION_SECONDS: ${AGENT_BACKUP_RETENTION_SECONDS:-}
+      AGENT_MAX_CONCURRENT_RUNS: ${AGENT_MAX_CONCURRENT_RUNS:-1}
+      AGENT_MAX_QUEUE: ${AGENT_MAX_QUEUE:-8}
+      AGENT_QUEUE_TIMEOUT_SECONDS: ${AGENT_QUEUE_TIMEOUT_SECONDS:-30}
+      AGENT_RUN_TIMEOUT_SECONDS: ${AGENT_RUN_TIMEOUT_SECONDS:-120}
+      AGENT_SSE_HEARTBEAT_SECONDS: ${AGENT_SSE_HEARTBEAT_SECONDS:-15}
+    volumes:
+      - test-agent-runtime:/data/runtime
+      - test-agent-index:/data/index
+    expose:
+      - "8000"
+
+  caddy:
+    image: caddy:2
+    ports:
+      - "127.0.0.1:3443:443"
+    volumes:
+      - ./scripts/caddy-integration-test.conf:/etc/caddy/Caddyfile:ro
+      - test-caddy-data:/data
+      - test-caddy-config:/config
+    depends_on:
+      - app
+
+volumes:
+  test-blog-data:
+  test-agent-runtime:
+  test-agent-index:
+  test-caddy-data:
+  test-caddy-config:

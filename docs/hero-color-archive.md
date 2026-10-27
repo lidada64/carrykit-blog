@@ -1,5 +1,7 @@
 # Hero 配色与旧版页面归档 — 2026-10-19
 
+> 2026-10-26 阅读边界：配色历史，只有明确比较旧配色时读取；不恢复其中的默认值。 当前Hero见[下潜规格](hero-descent-spec.md)。
+
 归档入口：`/lab/hero-archive`。保留旧版 HomeHero 的星空粒子标题、吊起灯球、水面转场与点击交互，首页使用 CampfireHero。旧版源码继续保存在 src/components/home/home-hero.tsx；归档路由不进入站点索引。
 
 当前主题色保持不变，运行时唯一来源仍是 src/styles/globals.css；本表仅作历史快照，不是第二份运行配置。

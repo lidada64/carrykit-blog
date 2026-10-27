@@ -48,18 +48,22 @@ ENV PORT=3000
 
 RUN groupadd -r nodejs && useradd -r -g nodejs nextjs
 
-# standalone 产物(server.js + 精简依赖),node_modules 用 proddeps 覆盖
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
-COPY --from=proddeps /app/node_modules ./node_modules
+# Runtime tools use the locked full dependency tree. Avoid first copying the
+# traced node_modules and then replacing them in another immutable image layer.
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/server.js ./server.js
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=proddeps --chown=nextjs:nodejs /app/node_modules ./node_modules
 # 迁移与 seed 所需
-COPY prisma.config.ts ./
-COPY prisma ./prisma
-COPY --from=proddeps /app/src/generated ./src/generated
-COPY docker-entrypoint.sh ./
+COPY --chown=nextjs:nodejs prisma.config.ts ./
+COPY --chown=nextjs:nodejs prisma ./prisma
+COPY --from=proddeps --chown=nextjs:nodejs /app/src/generated ./src/generated
+COPY --chown=nextjs:nodejs docker-entrypoint.sh ./
 RUN chmod +x docker-entrypoint.sh \
-    && mkdir -p /data/uploads && chown -R nextjs:nodejs /data /app
+    && mkdir -p /data/uploads && chown -R nextjs:nodejs /data \
+    && chown nextjs:nodejs /app
 
 USER nextjs
 EXPOSE 3000

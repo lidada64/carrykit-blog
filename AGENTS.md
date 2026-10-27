@@ -17,6 +17,7 @@ Default branch `main`; `First-version` is a read-only archive — never push to,
 | [docs/PRD.md](docs/PRD.md) | 实现或修改任何功能时,确认需求边界 / Before implementing or changing any feature |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 涉及路由、数据模型、鉴权、部署时 / When touching routes, data model, auth, or deployment |
 | [docs/DESIGN_SPEC.md](docs/DESIGN_SPEC.md) | 写任何 UI/样式/动效时 / Before writing any UI, style, or animation |
+| [docs/hero-descent-spec.md](docs/hero-descent-spec.md) | 修改/规划 Hero 时：唯一现行分镜与技术验收；归档仅按需追溯，不执行旧待办 |
 | [Target.md](Target.md) | 需求有歧义时回溯原始意图 / When requirements are ambiguous |
 
 文档与代码冲突时,以文档为准并指出冲突;文档本身有误则先修文档。
@@ -94,3 +95,21 @@ Three customizations each have exactly ONE entry point; the same literal anywher
   No out-of-scope "while I'm here" features or refactors; log ideas in the TASKS.md V2 pool instead.
 - ❌ 删除或清空 SQLite 数据文件、migrations 目录。
   Never delete or wipe the SQLite data file or migrations.
+
+## Blog Assistant 跨项目协作
+
+涉及博客批量导入、AI 内容整理、发布/问答模式或 Agent 接口时，先读 [共享上下文](docs/blog-assistant/README.md)。Agent 项目位于 `D:/CST/code/Agent`，修改其文件前读取该目录的 AGENTS.md。关联目录不等于业务接口已连接。
+
+## 实习导向与亮点维护
+
+Agent 是核心项目，本站定位为作品集。开发中发现问题、形成解决方式、完成相关功能/修复/实验时，同步 [唯一亮点台账](../Agent/docs/project-highlights/README.md)，记录问题、方案、实施状态、作用、证据、限制及简历表述。
+
+AI 判断遇到开发难点/bug，或用户明确指出“大难题”时，使用 [challenge-log skill](../Agent/docs/skills/challenge-log/SKILL.md)；按修改规模、用户追问频率、推测难度、用户明确判定分级，将台账索引从小到大排序。形成方案、修复和验证后更新同一记录，未知依据不补造。
+
+台账详情按skill容量规则分卷存放；每次尝试记录执行者、假设、操作、观察、结果和取舍，失败也保留。总入口提供排序和完整定位，超限同ID续篇互链，避免新会话只读取最新文件。
+
+开始新开发会话时，先读取台账的“下次会话优先”部分；仍待处理时提醒用户先解决 Agent 预算额度与跨轮次状态问题。遵循用户当前任务，不阻断其他明确请求；修复后更新提醒状态。
+
+## 大改后的 Git 提交提醒
+
+每次新增业务能力、调整权限/持久化机制、迁移模块或目录、批量整理文件后，在最终回复报告 Git 状态，并提醒用户提交尚未提交的改动。已获授权且完成 commit/push 时报告结果；本条提醒不单独授权自动提交或推送。

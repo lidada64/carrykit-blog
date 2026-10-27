@@ -1,6 +1,6 @@
 # 集成实施与验收
 
-2026-10-26：INTEGRATION-0 文档/workspace 交付；以下业务任务均未实现。本表是跨仓库协调计划，不重复勾选已有 USER/META/MGMT 功能。
+2026-10-26：INTEGRATION-0及本机HTTP切片已交付，最新完成范围见文末HTTP验收；历史记录保留。本表是跨仓库协调计划，不重复勾选已有 USER/META/MGMT 功能。
 
 ## 开发顺序
 
@@ -18,14 +18,16 @@ I1 前后端可各自工作，I2/I3 必须联合验收。初始最小联网链�
 
 ## 可直接认领的任务
 
+2026-10-26后续认领：用户要求HTTP接入、真实模型和Docker实构，先补前置；已明确批准Starlette+Uvicorn，使用独立Python环境与版本锁。真实测试获准现有DeepSeek、仅合成内容、最多3次、总费用不超过1元；由主代理统一执行与持久记账，其他工作流只用mock。公开入口继续关闭，HTTP鉴权/Run预算/内容回源/身份迁移随本切片交付；现有CLI不改。具体结果后补，不预先勾选I2–I4。
+
 2026-10-26 部署前准备认领：按用户要求由三个 subagent 分别负责 I1-F、I1-B 的无新增框架基础切片、I4 部署材料与预检。前端先确保开发预览可操作，不改首页与 Blog 设计；真实 HTTP/身份/预算执行/内容 API/MCP 及生产放行仍按后续矩阵验收。HTTP 框架未批准前不安装依赖；不以临时 HTTP server 替代生产适配器。
 
 - [x] I1-F：按 frontend.md 建页面与 fixture transport，覆盖正常/排队/取消/失败/退出/过期/预算/撤回；无实际服务时明确标开发预览。2026-10-26：15项reducer/transport检查通过，双语、桌面与360/390px页面实际验收见下；这是开发夹具，不代表真实问答上线。
-- [ ] I1-B：先审批 HTTP 依赖；抽出文章来源接口与 Web RuntimeStore，验证 CLI 兼容、artifact 路径和 checkpoint 原子性。
+- [x] I1-B：先审批 HTTP 依赖；抽出文章来源接口与 Web RuntimeStore，验证 CLI 兼容、artifact 路径和 checkpoint 原子性。
   - [x] 2026-10-26 无新增框架基础：配置默认关闭、显式SQLite v1迁移、owner/到期隔离、checkpoint CAS与受控artifact seam；18专项及统一547项通过。文章来源接口与HTTP仍待实现，见 [Web基础说明](../../../../Agent/code/blog_assistant/web/README.md)。
-- [ ] I2-F：visitor session、命令 Actions、只读 routes；每个入口校验 owner，SSE 不缓存。
-- [ ] I2-B：Run/预算/事件事务、相同幂等键、取消 fence、受限队列与不确定调用恢复。
-- [ ] I3-F：文章 API 与 manifest、内容版本/撤回检测、双语字段、来源卡片。
+- [x] I2-F：visitor session、命令 Actions、只读 routes；每个入口校验 owner，SSE 不缓存。
+- [x] I2-B：Run/预算/事件事务、相同幂等键、取消 fence、受限队列与不确定调用恢复。
+- [x] I3-F：文章 API 与 manifest、内容版本/撤回检测、双语字段、来源卡片。
 - [ ] I3-B：网站只读 adapter、上下文/答案/历史回放核验、真实网页 MCP；关键词路径通过后再索引同步。
 - [ ] I4：两仓联调、真实模型成本/质量实验、故障注入、生产代理与备份恢复。
 - [ ] I5：完整额度体验与静态语料，按既有 USER 各条验收；基础退出/刷新能力已在 I2 完成。
@@ -78,3 +80,14 @@ Git：两仓开始时已有未提交修改，本轮只增改文档/workspace，�
 按用户授权，两仓各自建立`codex/agent-integration-prep`，Blog基于main、Agent基于master；只提交本轮文件/文档片段，旧Hero、全文阅读与RAG修改留在工作树，不推送或自动合并。两仓使用`Integration-Id: carrykit-agent-prep-20261026`关联，Blog提交说明记录Agent提交SHA，最终SHA清单仅保存在本地忽略目录。
 
 Blog暂存快照用全新隔离空库，Prisma应用3项已有migration后lint/build和19专项通过；Agent暂存快照修复测试连接释放后541项全过。差于工作树547项的6项属于本轮排除的旧功能测试；失败/修正过程见共享台账030。密钥、SQLite、运行日志、私人文章与SSH记录未暂存。
+
+### 2026-10-26 HTTP、真实模型与本机Docker最终验收
+
+本节更新前文历史状态：HTTP运行连接已在本机实现并通过合成数据验证，尚未部署VPS或开放公网。Starlette/Uvicorn已获用户批准并独立环境锁定；Next访客cookie、服务双向HMAC/持久nonce、Actions与snapshot/SSE、已发布文章回源、Run幂等/取消/队列/预算/恢复已实现。来源在上下文、提交、快照与事件重放时重验；继承历史的来源计入当前答案依赖。SSE发送真实阶段和核验后的完整答案，尚非逐token输出。CLI工具、私人文章、网页MCP未接入该路径。
+
+- Blog lint通过（0错误、7既有警告），production build含TypeScript通过；23项内容/签名/状态检查及7项部署配置检查通过。实际dev页面可发送真实合成问题并显示来源，刷新恢复未新增模型调用；先前fixture的桌面、360/390px验收保留，不冒充本轮真实移动设备测试。
+- Agent统一573项0失败/错误/跳过（含44项Web测试），报告 `Agent/code/eval_results/20261026T121400799092Z/report.md`。Mock与真实host HTTP各14检查通过；容器HTTPS六检查通过，涵盖ready不付费、Next到私网Agent、同键同run、SSE终态、仅一次provider调用、撤回后snapshot和历史SSE清除旧答案。
+- 授权真实请求共3次，均为合成Orion材料，DeepSeek/deepseek-flash，input共521、output共90 token；按已核实高峰未命中输入/输出价格保守估算合计¥0.001762，不是服务商账单。不再调用模型。计数与脱敏结果保存在Blog忽略目录 `.recall/http-integration-20261026/` 和 `.recall/docker-build-20261026/`。
+- Docker引擎已正常启动，Linux server 29.9.2。Blog与Agent镜像实构成功，独立测试项目只绑定loopback HTTPS3443、使用新测试卷；原本机/VPS博客卷和srv未动。测试后恢复两个flag=false，去除临时真实provider配置；/blog=200、/assistant=404，TLS使用专用CA正常校验，无全局信任修改或安全绕过。
+- 未完成：IP层滥用限制、物理TTL清理与隐私文案、协调备份/隔离恢复、完整故障矩阵、真实文章质量与2GB VPS容量/实际卷映射核验。I3网页MCP及索引仍待实施，I4整体不勾选；此前D7/D9真实多轮质量提醒保留，这3个单题不能代替其验收。
+- Git：当前HTTP切片尚未commit/push；原有Hero/RAG等修改保留。镜像来自已提交基线Git归档加显式HTTP文件覆盖，不是已冻结的干净发布revision；正式部署前仍需分别提交、验证同一配对快照并记录digest。

@@ -1,5 +1,7 @@
 # ARCHITECTURE — 技术架构文档
 
+2026-10-27 助手额度身份：Next检查加密admin session及User存在性，产生`admin:<userId>`主体和`qa:published:admin`签名scope；普通visitor仍为`qa:published`。Agent强制主体前缀与scope对应。admin账本使用`*:admin`聚合及独立主体，不占访客`*`账本，免两项金额拒绝；不放宽公开文章权限、调用次数与超时。visitor个人上限部署为0.5元/UTC日。
+
 > 版本:v2.0 | 日期:2026-07-07
 > 需求来源:[PRD.md](PRD.md)
 > v2 变更:动效库改 GSAP(对齐参考站);新增 §7 扩展性接口、§8 仓库与分支
@@ -230,14 +232,15 @@ src/i18n/index.ts  # LocaleProvider(client)+ useT() hook;locale 存 localStorage
 | 提交规范 | Conventional Commits(`feat:` / `fix:` / `docs:` / `chore:`) |
 
 
-2026-10-19 首页使用 motion/campfire-hero.tsx，最新修订为单屏固定居中镜头；SmoothScroll在首页不创建ScrollSmoother，单屏场景不需要惯性滚动，其他页面保留惯性滚动并在路由变化时清理重建。Lab通过preview参数显示控制面板，渲染器共用。
+### Hero渲染边界（2026-10-26）
 
-2026-10-19 字体构建可靠性：既有英文字体随仓库分发并经src/config/fonts.ts的next/font/local加载，保留字体家族、变量与字重；许可证随资源保存。开发及构建不依赖Google字体网络请求。
+当前首页使用motion/campfire-hero.tsx与原生WebGL渲染器；正式页固定近景，Lab preview显示控制与旧转场。首页不叠加ScrollSmoother。字体由src/config/fonts.ts加载本地资源。
 
-2026-10-19 `/lab/hero-archive`归档原HomeHero星空灯球页面（noindex）；当前首页镜头由两个滑块显式控制，原色/1-bit复用同一渲染器与主题token。配色历史快照见hero-color-archive.md。
-
+下潜演出尚未实现，架构与输入契约见[唯一Hero规格](hero-descent-spec.md)§6–8：原生WebGL＋GSAP优先，一个主渲染循环，曲面/局部畸变与DOM语义层分工；新大型依赖须获授权。现有物件资产与投影入口保留，资产处理仍使用scripts/hero-props-pack.py，不因文档规划迁移资产。
 
 ## 9. Blog-Agent 集成架构（2026-10-26，待实施）
+
+2026-10-27 D30：06已上线HTTP问答；原简化contains搜索未连接CLI混合检索。本次Python仅经签名manifest分页/正文API读取已发布数据，以内存适配器复用SemanticRetriever与独立向量缓存；模型和隔离CPU运行环境纳入发布清单，正文不写本地Markdown。目录查询与长文相关段落由adapter处理，Next仍是发布状态和版本权威，回答与历史重放继续重验。CLI私有文件工具、管理员写入不随本次接入公开。
 
 独立 multi-root workspace 与跨仓库架构见 [集成入口](blog-assistant/integration/README.md)。Next 管页面、身份、正式内容与审批；Python 私网服务管执行、预算、事件与派生索引，两者独立数据库。浏览器写命令沿用 Server Actions，GET 状态/SSE 使用 Route Handler；内部内容校验 POST 为只读批量查询。新增目录、来源 adapter、持久状态与部署以架构基线指导实施，尚未交付运行连接。
 

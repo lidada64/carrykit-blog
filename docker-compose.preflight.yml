@@ -1,6 +1,6 @@
 # Merge with docker-compose.yml using the EXISTING production project name.
 # External volumes must already exist: Compose must never silently create replacements.
-# This overlay deploys only the existing Blog; no Agent HTTP service exists yet.
+# This overlay protects existing Blog volumes; add docker-compose.agent.yml for Agent.
 services:
   app:
     environment:

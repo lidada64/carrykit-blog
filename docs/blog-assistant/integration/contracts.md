@@ -29,6 +29,8 @@
 
 ## 2. Next.js 与 Python 私网
 
+2026-10-26实现冻结：每次请求使用`x-agent-subject/scope/audience/request-id/issued-at/expires-at/nonce/signature`，两个方向使用不同密钥。签名为HMAC-SHA256十六进制；UTF8规范串按以下各项用`\n`连接且无末尾换行：`carrykit-agent-v1`、大写method、原始path+query、原始body字节的SHA256、subject、scope、audience、requestId、issuedAt、expiresAt、nonce。有效期60秒，issuedAt未来最多允许5秒时钟偏差，expiresAt到时拒绝。Next→Agent访客使用`qa:published/agent-api`；2026-10-27新增经Next验证的admin使用`qa:published:admin/agent-api`与`admin:<userId>`主体，Agent强制scope与前缀对应；仅免金额限制，已发布读取权限不变；Agent→内容接口固定`content:published/blog-content`与服务subject=`agent-service`。校验后须在各自SQLite事务claim nonce（唯一约束），GET/恢复/SSE也不能省略。验签模块是纯校验，不自行替调用者保存nonce。
+
 建议内部 `/v1/conversations` POST、`/v1/conversations/{id}/runs` POST、`/v1/runs/{id}/cancel` POST、`/v1/conversations/{id}/close` POST、conversation snapshot GET、run events GET。所有调用包含 architecture.md 中签名身份上下文，Python 校验 ownership 和 scope。请求/响应携带 `contractVersion: 1`；不兼容版本在准入时拒绝。
 
 submit 内部正文固定为 `{conversationId, clientRequestId, text, locale, contextPostId?}`；subject 与 scope 来自验证后的签名 envelope，不来自用户正文。run ID 由服务端生成。`clientRequestId` 在同一会话内唯一，并保存规范化 payload hash：相同 ID/相同内容返回原 run；相同 ID/不同内容拒绝。网络超时后先查同 ID，**禁止自动换 ID 重跑**；用户显式重试失败回答才创建新 ID，并展示额外费用可能发生。
