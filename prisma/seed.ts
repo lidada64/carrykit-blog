@@ -6,7 +6,7 @@ import { PrismaClient } from "../src/generated/prisma/client";
 /**
  * 种子数据(TASKS M0-4):3 篇文章、4 个作品、1 个 admin 用户。
  * admin 凭据来自 ADMIN_EMAIL / ADMIN_PASSWORD 环境变量;
- * 未设置时使用仅供本地开发的默认值(生产部署必须设置环境变量,见 docs/ARCHITECTURE.md §6)。
+ * ADMIN_PASSWORD 必须显式设置，缺失时在所有数据库写入前失败。
  * 幂等:按 slug/email upsert,可重复执行。
  */
 
@@ -170,6 +170,12 @@ Seed placeholder. Edit or delete me in /admin.
 ];
 
 async function main() {
+  const password = process.env.ADMIN_PASSWORD;
+  if (!password?.trim()) {
+    throw new Error("ADMIN_PASSWORD must be explicitly set before seeding");
+  }
+  const email = process.env.ADMIN_EMAIL || "admin@example.com";
+
   for (const post of posts) {
     await db.post.upsert({
       where: { slug: post.slug },
@@ -186,9 +192,6 @@ async function main() {
     });
   }
 
-  // 用 || 而非 ??:容器环境可能把未配置的变量注入为空字符串
-  const email = process.env.ADMIN_EMAIL || "admin@example.com";
-  const password = process.env.ADMIN_PASSWORD || "carrykit-dev-only";
   await db.user.upsert({
     where: { email },
     create: { email, passwordHash: hashSync(password, 10) },

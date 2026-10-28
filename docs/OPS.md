@@ -5,6 +5,8 @@
 
 ## 1. 首次部署(VPS)
 
+seed 必须显式设置非空白 `ADMIN_PASSWORD`，缺失时在任何数据写入前失败；没有内置默认密码。重复 seed 不覆盖现有管理员的密码。
+
 前置:VPS 已安装 Docker(含 compose 插件);域名 A 记录指向 VPS IP;80/443 端口开放。
 
 ```bash
