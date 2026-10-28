@@ -208,8 +208,11 @@ export default function DiscoOrb({ active }: { active: boolean }) {
     composite.uniforms.sceneTexture.value = sceneTarget.texture;
     composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(filmPass); composer.addPass(composite);
     let frame = 0; let visible = true; let last = 0; let ringScale = 1;
+    let lastWidth = 0; let lastHeight = 0;
     const resize = () => {
       const width = el.clientWidth || 128; const height = el.clientHeight || 80;
+      if (width === lastWidth && height === lastHeight) return;
+      lastWidth = width; lastHeight = height;
       camera.aspect = width / height; camera.updateProjectionMatrix();
       renderer.setSize(width, height); composer.setSize(width, height);
       sceneTarget.setSize(Math.floor(width * renderer.getPixelRatio()), Math.floor(height * renderer.getPixelRatio()));

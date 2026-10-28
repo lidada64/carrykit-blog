@@ -31,6 +31,7 @@ export const zh: Dictionary = {
     previewNotice: "本页仅使用本地测试夹具，不会向模型、博客接口或网页服务发送问题。回答和过程状态均为模拟。",
     welcome: "输入问题，试用对话操作。选择预览场景，可以检查失败、取消和额度状态。",
     newConversation: "新对话",
+    curtainLoading: "稍等…",
     close: "退出对话",
     scenario: "预览场景",
     previewControls: "预览设置与对话操作",

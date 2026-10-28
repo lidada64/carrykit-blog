@@ -31,6 +31,7 @@ export const en = {
     previewNotice: "This page uses local fixtures only. No question is sent to a model, the blog API or the web. Sample answers and process states are simulated.",
     welcome: "Try a question to explore the conversation controls. Select a scenario to inspect failure, cancellation and budget states.",
     newConversation: "New conversation",
+    curtainLoading: "Loading…",
     close: "Exit conversation",
     scenario: "Preview scenario",
     previewControls: "Preview settings and conversation controls",

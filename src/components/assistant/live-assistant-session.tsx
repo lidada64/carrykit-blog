@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { AssistantNewConversation } from "@/components/motion/assistant-new-conversation";
 import ReactMarkdown from "react-markdown";
 import { useLocale, useT, type TKey } from "@/i18n";
 import { remarkPlugins, rehypePlugins } from "@/lib/markdown";
@@ -23,7 +24,7 @@ async function loadSnapshot(id: string): Promise<Snapshot> {
   return data;
 }
 
-export function LiveAssistantSession({ compact = false, onBusyChange, outputTarget = null }: { compact?: boolean; onBusyChange?: (busy: boolean) => void; outputTarget?: HTMLElement | null }) {
+export function LiveAssistantSession({ compact = false, onBusyChange, outputTarget = null, actionsTarget = null, curtainTarget = null, open = false }: { compact?: boolean; onBusyChange?: (busy: boolean) => void; outputTarget?: HTMLElement | null; actionsTarget?: HTMLElement | null; curtainTarget?: HTMLElement | null; open?: boolean }) {
   const t = useT();
   const { locale } = useLocale();
   const [snapshot, setSnapshot] = useState<Snapshot>(() => emptySnapshot("initial"));
@@ -175,11 +176,13 @@ export function LiveAssistantSession({ compact = false, onBusyChange, outputTarg
   const errorKey = error === "EXPIRED" ? "expired" : error === "NOT_FOUND" ? "liveMissing" : error === "BUDGET_EXHAUSTED" ? "blocked" : error === "RATE_LIMITED" ? "liveRateLimited" : error === "FORBIDDEN" || error === "UNAUTHENTICATED" ? "liveForbidden" : error === "RUN_ACTIVE" || error === "IDEMPOTENCY_CONFLICT" ? "liveConflict" : "unavailable";
 
   if (compact) return <section className="min-w-0">
+    {actionsTarget && createPortal(<AssistantNewConversation target={curtainTarget} open={open} disabled={pending || (busy && !missing)} action={() => command(() => snapshot.conversationId === "initial" || missing ? createConversation(locale) : restartConversation(snapshot.conversationId, locale))} />, actionsTarget)}
     {outputTarget && createPortal(<div ref={messages} role="region" aria-label={t("assistant.messages")} tabIndex={0} className="h-full min-w-0 space-y-6 overflow-y-auto overscroll-contain px-2 py-4 text-caption text-assistant-entry-label [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" onScroll={event => { const element = event.currentTarget; atBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48; if (atBottom.current) setUnread(false); }}>
+      <p className="font-mono text-caption opacity-70">{t("assistant.liveAssistant")}</p>
       {fresh && snapshot.messages.length === 0 && <p>{t("assistant.liveWelcome")}</p>}
-      {(fresh ? snapshot.messages.filter(message => message.role === "assistant") : []).map(message => <article key={message.id} className="min-w-0 space-y-3 break-words">
+      {(fresh ? snapshot.messages : []).map(message => <article key={message.id} className="min-w-0 space-y-3 break-words">
         <p className="font-mono text-caption opacity-70">{t(message.role === "user" ? "assistant.you" : "assistant.liveAssistant")}</p>
-        {message.invalidated ? <p>{t("assistant.invalidated")}</p> : <div className="min-w-0 space-y-3 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-border [&_pre]:p-3 [&_p]:my-3 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_a]:underline"><ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} skipHtml components={{ img: () => null, a: ({ href, children }) => href && /^(https?:\/\/|\/)/.test(href) && !href.startsWith("//") ? <a href={href} target={href.startsWith("/") ? undefined : "_blank"} rel="noopener noreferrer">{children}</a> : <span>{children}</span> }}>{message.text}</ReactMarkdown></div>}
+        {message.role === "user" ? <p className="whitespace-pre-wrap">{message.text}</p> : message.invalidated ? <p>{t("assistant.invalidated")}</p> : <div className="min-w-0 space-y-3 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-border [&_pre]:p-3 [&_p]:my-3 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_a]:underline"><ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} skipHtml components={{ img: () => null, a: ({ href, children }) => href && /^(https?:\/\/|\/)/.test(href) && !href.startsWith("//") ? <a href={href} target={href.startsWith("/") ? undefined : "_blank"} rel="noopener noreferrer">{children}</a> : <span>{children}</span> }}>{message.text}</ReactMarkdown></div>}
         {message.sources.length > 0 && <div className="space-y-2 text-caption"><p className="opacity-70">{t("assistant.liveSources")}</p>{message.sources.map(source => /^https?:\/\//.test(source.url) || source.url.startsWith("/blog/") ? <a className="block underline" key={`${source.postId}:${source.locale}`} href={source.url} rel="noopener noreferrer">{source.title}</a> : null)}</div>}
       </article>)}
     </div>, outputTarget)}
@@ -188,8 +191,7 @@ export function LiveAssistantSession({ compact = false, onBusyChange, outputTarg
       <textarea id="assistant-live-input" ref={input} rows={2} value={draft} maxLength={INPUT_LIMIT} disabled={!connected || !fresh || locked} aria-describedby="assistant-live-hint" aria-errormessage={error ? "assistant-live-error" : undefined} className="block w-full resize-none border border-border bg-background p-3 text-body text-foreground focus:outline-2 focus:outline-assistant-entry-ink focus:outline-offset-0 disabled:opacity-40" onChange={event => updateDraft(event.target.value)} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !composing.current && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); submit(); } }} />
       <p id="assistant-live-hint" className="text-caption text-muted">{t("assistant.inputHint")} · {INPUT_LIMIT - draft.length}</p>
       <div className="flex flex-wrap gap-2">{busy ? <button type="button" className={button} disabled={pending || !fresh || snapshot.state === "cancelling"} onClick={() => snapshot.runId && command(() => cancelRun(snapshot.conversationId, snapshot.runId!))}>{t("assistant.stop")}</button> : <button type="submit" className={button} disabled={pending || !connected || !fresh || locked || !draft.trim()}>{t("assistant.send")}</button>}
-      <button ref={newButton} type="button" className={button} disabled={pending || (busy && !missing)} onClick={() => command(() => snapshot.conversationId === "initial" || missing ? createConversation(locale) : restartConversation(snapshot.conversationId, locale))}>{t("assistant.newConversation")}</button>
-      <button type="button" className={button} disabled={!connected || pending || snapshot.conversation !== "active"} onClick={() => command(async () => { const result = await closeConversation(snapshot.conversationId); requestAnimationFrame(() => newButton.current?.focus()); return result; })}>{t("assistant.close")}</button></div>
+      </div>
       {["failed", "partial", "timed_out", "interrupted"].includes(snapshot.state) && <p className="text-caption">{t("assistant.retryNotice")}</p>}
     </form>
     <div className="space-y-3 text-caption text-muted">
@@ -197,7 +199,6 @@ export function LiveAssistantSession({ compact = false, onBusyChange, outputTarg
       {error && <p role="alert" id="assistant-live-error">{t(`assistant.${errorKey}` as TKey)}</p>}
       {!fresh && <p>{t(missing ? `assistant.${errorKey}` as TKey : "assistant.liveRecovering")}</p>}
       {unread && <button type="button" className="underline" onClick={() => { if (messages.current) messages.current.scrollTop = messages.current.scrollHeight; atBottom.current = true; setUnread(false); }}>{t("assistant.newMessages")}</button>}
-      {(fresh ? snapshot.messages.filter(message => message.role === "user") : []).map(message => <p key={message.id} className="break-words">{t("assistant.you")} · {message.text}</p>)}
       <details><summary>{t("assistant.livePrivacyTitle")}</summary><p>{t("assistant.liveNotice")}</p><p>{t("assistant.livePrivacyProvider")}</p><p>{t("assistant.livePrivacyRetention")}</p><p>{t("assistant.livePrivacyLimits")}</p><p>{t("assistant.liveRetention")}</p></details>
       <details><summary>{t("assistant.process")}</summary><p>{t("assistant.liveProcess")}</p>{snapshot.phase && <p>{snapshot.phase === "generating" ? t("assistant.liveGenerating") : t(`assistant.${snapshot.phase}` as TKey)}</p>}</details>
     </div>

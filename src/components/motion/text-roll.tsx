@@ -20,25 +20,35 @@ gsap.registerPlugin(useGSAP);
 export function TextRoll({
   text,
   className,
+  expanded = false,
+  blogRoll = false,
 }: {
   text: React.ReactNode;
   className?: string;
+  expanded?: boolean;
+  blogRoll?: boolean;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
 
   useGSAP(
     (_context, contextSafe) => {
-      if (prefersReducedMotion() || !contextSafe) return;
       const el = ref.current;
       if (!el) return;
       const inner = el.firstElementChild as HTMLElement | null;
       if (!inner) return;
+      if (expanded) {
+        gsap.killTweensOf(inner);
+        gsap.set(inner, { yPercent: 0 });
+        return;
+      }
+      if (prefersReducedMotion() || !contextSafe) return;
       const trigger = el.closest("a") ?? el;
 
       // yPercent 以内层自身(3 行)为基准:滚一行 = 100/3
       const STEP = 100 / 3;
       const currentY = () => Number(gsap.getProperty(inner, "yPercent"));
       const rollIn = contextSafe(() => {
+        if (el.closest("[data-blog-roll-locked]")) return;
         const y = currentY();
         gsap.killTweensOf(inner);
         if (y < -STEP) {
@@ -68,6 +78,7 @@ export function TextRoll({
         });
       });
       const rollOut = contextSafe(() => {
+        if (el.closest("[data-blog-roll-locked]")) return;
         // 已在复位态(如 mouseleave 复位后又收到 focusout)则不滚:
         // 否则会无故滚一整圈,中途闪过反色副本
         if (currentY() === 0) return;
@@ -91,23 +102,24 @@ export function TextRoll({
         trigger.removeEventListener("focusout", rollOut);
       };
     },
-    { scope: ref },
+    { scope: ref, dependencies: [expanded], revertOnUpdate: true },
   );
 
   return (
     <span
       ref={ref}
-      className={`inline-block overflow-hidden align-bottom ${className ?? ""}`}
+      data-blog-roll={blogRoll ? "" : undefined}
+      className={`inline-block max-w-full overflow-hidden align-bottom ${className ?? ""}`}
       // 1lh = 恰好一行高,溢出的两份副本被裁掉
-      style={{ height: "1lh" }}
+      style={{ height: expanded ? "auto" : "1lh" }}
     >
       <span className="flex flex-col">
         <span>{text}</span>
         {/* 滚入副本用底色文字,与触发容器的 hover:bg-foreground 反色配合(A3) */}
-        <span aria-hidden className="text-background">
+        <span aria-hidden className={expanded ? "hidden" : "text-background"}>
           {text}
         </span>
-        <span aria-hidden>{text}</span>
+        <span aria-hidden className={expanded ? "hidden" : undefined}>{text}</span>
       </span>
     </span>
   );
