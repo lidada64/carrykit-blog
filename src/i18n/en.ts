@@ -160,6 +160,12 @@ export const en = {
     themeLight: "Light",
   },
   blog: {
+    previewLabel: "Preview conversation · simulated replies",
+    previewQuestion: "What can I read here?",
+    previewAnswer: "You can explore notes about books, design, and building a blog assistant.",
+    previewReply: "This is a visual preview. Connect the assistant service for a real answer.",
+
+    uncategorized: "Uncategorized",
     assistantClick: "CLICK",
     assistantOpen: "Open blog assistant",
     assistantCollapse: "Close blog assistant",

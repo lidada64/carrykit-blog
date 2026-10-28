@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import ReactMarkdown from "react-markdown";
 import { useLocale, useT, type TKey } from "@/i18n";
 import { remarkPlugins, rehypePlugins } from "@/lib/markdown";
@@ -8,7 +9,7 @@ import { emptySnapshot, INPUT_LIMIT, type PublicEvent, type Snapshot } from "@/l
 import { sessionReducer } from "@/lib/assistant/reducer";
 import { cancelRun, closeConversation, createConversation, restartConversation, submitMessage } from "@/app/(site)/assistant/actions";
 
-const button = "border border-border px-4 py-2 font-mono text-caption focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-40";
+const button = "border border-border px-4 py-2 font-mono text-caption focus:outline-2 focus:outline-assistant-entry-ink focus:outline-offset-0 disabled:opacity-40";
 const active = new Set(["queued", "running", "reconnecting", "cancelling"]);
 const events = ["run.accepted", "phase.changed", "answer.committed", "answer.invalidated", "budget.changed", "run.terminal"];
 const storedConversation = "carrykit.assistant.conversation";
@@ -22,7 +23,7 @@ async function loadSnapshot(id: string): Promise<Snapshot> {
   return data;
 }
 
-export function LiveAssistantSession({ compact = false, onBusyChange }: { compact?: boolean; onBusyChange?: (busy: boolean) => void }) {
+export function LiveAssistantSession({ compact = false, onBusyChange, outputTarget = null }: { compact?: boolean; onBusyChange?: (busy: boolean) => void; outputTarget?: HTMLElement | null }) {
   const t = useT();
   const { locale } = useLocale();
   const [snapshot, setSnapshot] = useState<Snapshot>(() => emptySnapshot("initial"));
@@ -173,6 +174,35 @@ export function LiveAssistantSession({ compact = false, onBusyChange }: { compac
   const status = error === "EXPIRED" ? "expired" : obsolete ? "liveMissing" : !connected ? "liveConnecting" : !fresh ? "liveRecovering" : snapshot.conversation !== "active" ? snapshot.conversation : reconnecting ? "reconnecting" : snapshot.budget === "blocked" ? "blocked" : snapshot.state === "idle" ? "liveReady" : snapshot.state === "running" ? "liveRunning" : snapshot.state;
   const errorKey = error === "EXPIRED" ? "expired" : error === "NOT_FOUND" ? "liveMissing" : error === "BUDGET_EXHAUSTED" ? "blocked" : error === "RATE_LIMITED" ? "liveRateLimited" : error === "FORBIDDEN" || error === "UNAUTHENTICATED" ? "liveForbidden" : error === "RUN_ACTIVE" || error === "IDEMPOTENCY_CONFLICT" ? "liveConflict" : "unavailable";
 
+  if (compact) return <section className="min-w-0">
+    {outputTarget && createPortal(<div ref={messages} role="region" aria-label={t("assistant.messages")} tabIndex={0} className="h-full min-w-0 space-y-6 overflow-y-auto overscroll-contain px-2 py-4 text-caption text-assistant-entry-label [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" onScroll={event => { const element = event.currentTarget; atBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48; if (atBottom.current) setUnread(false); }}>
+      {fresh && snapshot.messages.length === 0 && <p>{t("assistant.liveWelcome")}</p>}
+      {(fresh ? snapshot.messages.filter(message => message.role === "assistant") : []).map(message => <article key={message.id} className="min-w-0 space-y-3 break-words">
+        <p className="font-mono text-caption opacity-70">{t(message.role === "user" ? "assistant.you" : "assistant.liveAssistant")}</p>
+        {message.invalidated ? <p>{t("assistant.invalidated")}</p> : <div className="min-w-0 space-y-3 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:border [&_pre]:border-border [&_pre]:p-3 [&_p]:my-3 [&_table]:block [&_table]:max-w-full [&_table]:overflow-x-auto [&_a]:underline"><ReactMarkdown remarkPlugins={remarkPlugins} rehypePlugins={rehypePlugins} skipHtml components={{ img: () => null, a: ({ href, children }) => href && /^(https?:\/\/|\/)/.test(href) && !href.startsWith("//") ? <a href={href} target={href.startsWith("/") ? undefined : "_blank"} rel="noopener noreferrer">{children}</a> : <span>{children}</span> }}>{message.text}</ReactMarkdown></div>}
+        {message.sources.length > 0 && <div className="space-y-2 text-caption"><p className="opacity-70">{t("assistant.liveSources")}</p>{message.sources.map(source => /^https?:\/\//.test(source.url) || source.url.startsWith("/blog/") ? <a className="block underline" key={`${source.postId}:${source.locale}`} href={source.url} rel="noopener noreferrer">{source.title}</a> : null)}</div>}
+      </article>)}
+    </div>, outputTarget)}
+    <form className="space-y-2 py-4" onSubmit={event => { event.preventDefault(); submit(); }}>
+      <label className="block text-caption" htmlFor="assistant-live-input">{t("assistant.input")}</label>
+      <textarea id="assistant-live-input" ref={input} rows={2} value={draft} maxLength={INPUT_LIMIT} disabled={!connected || !fresh || locked} aria-describedby="assistant-live-hint" aria-errormessage={error ? "assistant-live-error" : undefined} className="block w-full resize-none border border-border bg-background p-3 text-body text-foreground focus:outline-2 focus:outline-assistant-entry-ink focus:outline-offset-0 disabled:opacity-40" onChange={event => updateDraft(event.target.value)} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !composing.current && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); submit(); } }} />
+      <p id="assistant-live-hint" className="text-caption text-muted">{t("assistant.inputHint")} · {INPUT_LIMIT - draft.length}</p>
+      <div className="flex flex-wrap gap-2">{busy ? <button type="button" className={button} disabled={pending || !fresh || snapshot.state === "cancelling"} onClick={() => snapshot.runId && command(() => cancelRun(snapshot.conversationId, snapshot.runId!))}>{t("assistant.stop")}</button> : <button type="submit" className={button} disabled={pending || !connected || !fresh || locked || !draft.trim()}>{t("assistant.send")}</button>}
+      <button ref={newButton} type="button" className={button} disabled={pending || (busy && !missing)} onClick={() => command(() => snapshot.conversationId === "initial" || missing ? createConversation(locale) : restartConversation(snapshot.conversationId, locale))}>{t("assistant.newConversation")}</button>
+      <button type="button" className={button} disabled={!connected || pending || snapshot.conversation !== "active"} onClick={() => command(async () => { const result = await closeConversation(snapshot.conversationId); requestAnimationFrame(() => newButton.current?.focus()); return result; })}>{t("assistant.close")}</button></div>
+      {["failed", "partial", "timed_out", "interrupted"].includes(snapshot.state) && <p className="text-caption">{t("assistant.retryNotice")}</p>}
+    </form>
+    <div className="space-y-3 text-caption text-muted">
+      <p role="status" aria-live="polite">{t(`assistant.${status}` as TKey)}</p>
+      {error && <p role="alert" id="assistant-live-error">{t(`assistant.${errorKey}` as TKey)}</p>}
+      {!fresh && <p>{t(missing ? `assistant.${errorKey}` as TKey : "assistant.liveRecovering")}</p>}
+      {unread && <button type="button" className="underline" onClick={() => { if (messages.current) messages.current.scrollTop = messages.current.scrollHeight; atBottom.current = true; setUnread(false); }}>{t("assistant.newMessages")}</button>}
+      {(fresh ? snapshot.messages.filter(message => message.role === "user") : []).map(message => <p key={message.id} className="break-words">{t("assistant.you")} · {message.text}</p>)}
+      <details><summary>{t("assistant.livePrivacyTitle")}</summary><p>{t("assistant.liveNotice")}</p><p>{t("assistant.livePrivacyProvider")}</p><p>{t("assistant.livePrivacyRetention")}</p><p>{t("assistant.livePrivacyLimits")}</p><p>{t("assistant.liveRetention")}</p></details>
+      <details><summary>{t("assistant.process")}</summary><p>{t("assistant.liveProcess")}</p>{snapshot.phase && <p>{snapshot.phase === "generating" ? t("assistant.liveGenerating") : t(`assistant.${snapshot.phase}` as TKey)}</p>}</details>
+    </div>
+  </section>;
+
   return <section className={compact ? "grid min-w-0 gap-4 text-body" : "grid min-w-0 gap-6 py-8 text-body md:grid-cols-3 md:gap-10 md:py-24"}>
     <aside className={compact ? "order-2 min-w-0 space-y-5" : "min-w-0 space-y-5"}>
       <p className="font-mono text-caption text-accent">{t(connected ? "assistant.liveConnected" : "assistant.liveConnecting")}</p>
@@ -192,10 +222,10 @@ export function LiveAssistantSession({ compact = false, onBusyChange }: { compac
         </div>
       </details>
     </aside>
-    <div className={compact ? "order-1 min-w-0 border border-border" : "min-w-0 border border-border md:col-span-2"}>
-      <p role="status" aria-live="polite" className="border-b border-border px-4 py-3">{t(`assistant.${status}` as TKey)}</p>
+    <div className={compact ? "order-1 min-w-0" : "min-w-0 border border-border md:col-span-2"}>
+      <p role="status" aria-live="polite" className={compact ? "py-3 text-caption text-muted" : "border-b border-border px-4 py-3"}>{t(`assistant.${status}` as TKey)}</p>
       {error && <p role="alert" id="assistant-live-error" className="border-b border-border p-4 text-caption">{t(`assistant.${errorKey}` as TKey)}</p>}
-      <div ref={messages} role="region" aria-label={t("assistant.messages")} tabIndex={0} className={compact ? "h-64 min-w-0 space-y-8 overflow-y-auto overscroll-contain p-4" : "h-[36dvh] min-h-48 min-w-0 space-y-8 overflow-y-auto overscroll-contain p-4 md:h-[52dvh]"} onScroll={event => { const element = event.currentTarget; atBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48; if (atBottom.current) setUnread(false); }}>
+      <div ref={messages} role="region" aria-label={t("assistant.messages")} tabIndex={0} className={compact ? "h-[min(36dvh,24rem)] min-h-32 min-w-0 space-y-8 overflow-y-auto overscroll-contain py-4" : "h-[36dvh] min-h-48 min-w-0 space-y-8 overflow-y-auto overscroll-contain p-4 md:h-[52dvh]"} onScroll={event => { const element = event.currentTarget; atBottom.current = element.scrollHeight - element.scrollTop - element.clientHeight < 48; if (atBottom.current) setUnread(false); }}>
         {!fresh && <p className="text-muted">{t(missing ? `assistant.${errorKey}` as TKey : "assistant.liveRecovering")}</p>}
         {fresh && snapshot.messages.length === 0 && <p className="text-muted">{t("assistant.liveWelcome")}</p>}
         {(fresh ? snapshot.messages : []).map(message => <article key={message.id} className="min-w-0 space-y-3 break-words">
@@ -207,10 +237,10 @@ export function LiveAssistantSession({ compact = false, onBusyChange }: { compac
         </article>)}
       </div>
       {unread && <button type="button" className={button} onClick={() => { if (messages.current) messages.current.scrollTop = messages.current.scrollHeight; atBottom.current = true; setUnread(false); }}>{t("assistant.newMessages")}</button>}
-      <details className="border-t border-border px-4 py-3 text-caption"><summary>{t("assistant.process")}</summary><p className="pt-2 text-muted">{t("assistant.liveProcess")}</p>{snapshot.phase && <p>{snapshot.phase === "generating" ? t("assistant.liveGenerating") : t(`assistant.${snapshot.phase}` as TKey)}</p>}</details>
-      <form className="space-y-3 border-t border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]" onSubmit={event => { event.preventDefault(); submit(); }}>
+      <details className={compact ? "py-3 text-caption" : "border-t border-border px-4 py-3 text-caption"}><summary>{t("assistant.process")}</summary><p className="pt-2 text-muted">{t("assistant.liveProcess")}</p>{snapshot.phase && <p>{snapshot.phase === "generating" ? t("assistant.liveGenerating") : t(`assistant.${snapshot.phase}` as TKey)}</p>}</details>
+      <form className={compact ? "space-y-3 py-4" : "space-y-3 border-t border-border p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"} onSubmit={event => { event.preventDefault(); submit(); }}>
         <label className="block text-caption" htmlFor="assistant-live-input">{t("assistant.input")}</label>
-        <textarea id="assistant-live-input" ref={input} rows={3} value={draft} maxLength={INPUT_LIMIT} disabled={!connected || !fresh || locked} aria-describedby="assistant-live-hint" aria-errormessage={error ? "assistant-live-error" : undefined} className="block w-full resize-y border border-border bg-background p-3 text-body focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-40" onChange={event => updateDraft(event.target.value)} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !composing.current && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); submit(); } }} />
+        <textarea id="assistant-live-input" ref={input} rows={3} value={draft} maxLength={INPUT_LIMIT} disabled={!connected || !fresh || locked} aria-describedby="assistant-live-hint" aria-errormessage={error ? "assistant-live-error" : undefined} className="block w-full resize-y border border-border bg-background p-3 text-body focus:outline-2 focus:outline-assistant-entry-ink focus:outline-offset-0 disabled:opacity-40" onChange={event => updateDraft(event.target.value)} onCompositionStart={() => { composing.current = true; }} onCompositionEnd={() => { composing.current = false; }} onKeyDown={event => { if (event.key === "Enter" && !event.shiftKey && !composing.current && !event.nativeEvent.isComposing && event.nativeEvent.keyCode !== 229) { event.preventDefault(); submit(); } }} />
         <p id="assistant-live-hint" className="text-caption text-muted">{t("assistant.inputHint")} · {INPUT_LIMIT - draft.length}</p>
         {busy ? <button type="button" className={button} disabled={pending || !fresh || snapshot.state === "cancelling"} onClick={() => snapshot.runId && command(() => cancelRun(snapshot.conversationId, snapshot.runId!))}>{t("assistant.stop")}</button> : <button type="submit" className={button} disabled={pending || !connected || !fresh || locked || !draft.trim()}>{t("assistant.send")}</button>}
         {["failed", "partial", "timed_out", "interrupted"].includes(snapshot.state) && <p className="text-caption text-muted">{t("assistant.retryNotice")}</p>}

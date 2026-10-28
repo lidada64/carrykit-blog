@@ -158,6 +158,12 @@ export const zh: Dictionary = {
     themeLight: "明",
   },
   blog: {
+    previewLabel: "预览对话 · 回复为演示",
+    previewQuestion: "这里可以读到什么？",
+    previewAnswer: "你可以浏览关于书籍、设计过程和博客助手的文章。",
+    previewReply: "这是视觉预览，连接助手服务后可获得真实回答。",
+
+    uncategorized: "未分类",
     assistantClick: "点击",
     assistantOpen: "打开博客助手",
     assistantCollapse: "收起博客助手",
