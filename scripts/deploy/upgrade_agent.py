@@ -28,6 +28,20 @@ async def main():
 asyncio.run(main())'''
 
 
+def migrate_runtime(image, *, restored_root=None):
+    """Explicit migration as the runtime UID, first on an isolated restore."""
+    if not deploy.IMAGE.fullmatch(image):
+        raise deploy.DeployError('Immutable migration image required')
+    mount=('type=bind,src='+str(restored_root)+',dst=/backups' if restored_root is not None
+           else 'type=volume,src='+deploy.PROJECT+'_agent-runtime,dst=/data/runtime')
+    target='/backups/restore-proof' if restored_root is not None else '/data/runtime'
+    result=deploy.docker('run','--rm','--network','none','--read-only','--user','10001:10001',
+        '--cap-drop','ALL','--security-opt','no-new-privileges:true','--tmpfs','/tmp:size=64m,mode=1777',
+        '--mount',mount,'--entrypoint','python',image,'-m','blog_assistant.web.migrate','--data-dir',target,timeout=120)
+    if not result.startswith('MIGRATED:'):
+        raise deploy.DeployError('Target runtime migration unconfirmed')
+
+
 def upgraded_config(current,image,blog_image=None):
     if not deploy.IMAGE.fullmatch(image):
         raise deploy.DeployError('Immutable target Agent image required')
@@ -97,6 +111,8 @@ def upgrade(identity,proof_path):
         restored=ops.maintenance_command(dict(agent,Image=image),['restore','--backup-dir','/backups/data','--restore-dir','/backups/restore-proof'],backup_root=batch,readonly=True)
         if report.get('status')!='BACKED_UP' or restored.get('status')!='RESTORED':
             raise deploy.DeployError('Target-image isolated runtime restore failed')
+        migrate_runtime(image,restored_root=batch)
+        migrate_runtime(image)
         ops.replace_json(folder/'release.compose.json',candidate);replaced=True
         deploy.compose(folder,'release.compose.json','up','-d','--no-deps','--no-build','--pull','never','agent')
         fresh=deploy.container('agent')
@@ -135,7 +151,8 @@ def upgrade(identity,proof_path):
     result=dict(status='UPGRADED',upgradeId=proof['upgradeId'],agentImage=image,agentRevision=proof['agentRevision'],
                 blogAndCaddyPreserved=blog_image is None,caddyPreserved=True,blogImage=blog_image,
                 subjectDailyLimit='0.5',adminMoneyUnlimited=True,volumesPreserved=True,modelCalls=0,offlineProbe=probe,
-                runtimeBackupDirectory=str(batch/'data'),runtimeBackupSha256=report['databaseSha256'])
+                runtimeBackupDirectory=str(batch/'data'),runtimeBackupSha256=report['databaseSha256'],
+                isolatedMigrationVerified=True,runtimeMigrated=True)
     deploy.secure_json(location/'result.json',result)
     return result
 

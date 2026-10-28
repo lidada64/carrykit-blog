@@ -6,6 +6,26 @@ from test_production_ops import config
 
 
 class UpgradeBoundaryTests(unittest.TestCase):
+    def test_migration_uses_target_image_private_mount_and_runtime_uid(self):
+        from pathlib import PurePosixPath
+        image='sha256:'+'a'*64
+        with patch.object(upgrade.deploy,'docker',return_value='MIGRATED: schema v1') as docker:
+            upgrade.migrate_runtime(image,restored_root=PurePosixPath('/private/backup'))
+            args=docker.call_args.args
+            self.assertIn(image,args)
+            self.assertIn('10001:10001',args)
+            self.assertIn('type=bind,src=/private/backup,dst=/backups',args)
+            self.assertEqual(args[-1],'/backups/restore-proof')
+            upgrade.migrate_runtime(image)
+            args=docker.call_args.args
+            self.assertIn('type=volume,src=carrykit-blog_agent-runtime,dst=/data/runtime',args)
+            self.assertEqual(args[-1],'/data/runtime')
+
+    def test_unconfirmed_migration_blocks_upgrade(self):
+        with patch.object(upgrade.deploy,'docker',return_value='not migrated'):
+            with self.assertRaises(upgrade.deploy.DeployError):
+                upgrade.migrate_runtime('sha256:'+'a'*64)
+
     def test_only_agent_image_resource_and_capacity_change(self):
         before=config()
         before['services']['agent']['environment'].update(AGENT_DAILY_COST_LIMIT='1',AGENT_SUBJECT_DAILY_COST_LIMIT='0.10')
