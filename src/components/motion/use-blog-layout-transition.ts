@@ -28,8 +28,7 @@ export function useBlogLayoutTransition() {
         return;
       }
       const startTransition = () => {
-        if (opening) root.removeAttribute("data-blog-roll-locked");
-        else root.setAttribute("data-blog-roll-locked", "");
+        root.setAttribute("data-blog-roll-locked", "");
         waiting.current = false;
         const phone = window.matchMedia("(max-width: 767px) and (orientation: portrait)").matches;
         const articleTargets = '[data-blog-flip="article"]';
@@ -38,7 +37,7 @@ export function useBlogLayoutTransition() {
         const assistantBefore = phone ? null : Flip.getState(root.querySelectorAll<HTMLElement>(assistantTargets));
         flushSync(() => { setClosing(!opening); change(); });
         const timeline = gsap.timeline({ onComplete: () => {
-          root.removeAttribute("data-blog-roll-locked");
+          if (!opening) root.removeAttribute("data-blog-roll-locked");
           setClosing(false);
         } });
         animation.current = timeline;

@@ -194,16 +194,16 @@ export default function DiscoOrb({ active }: { active: boolean }) {
     `
     });
     // Bloom's additive pass fills the alpha channel. Recover scene coverage and
-    // retain only the luminous halo outside it, so the page remains transparent.
+    // retain the luminous halo outside it, then composite onto the entry token.
     const sceneTarget = new THREE.WebGLRenderTarget(1, 1);
     const composite = new ShaderPass({
-      uniforms: { tDiffuse: { value: null }, sceneTexture: { value: null } },
+      uniforms: { tDiffuse: { value: null }, sceneTexture: { value: null }, background: { value: new THREE.Color().setStyle(styles.getPropertyValue("--assistant-entry-background").trim(), THREE.LinearSRGBColorSpace) } },
       vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: `uniform sampler2D tDiffuse; uniform sampler2D sceneTexture; varying vec2 vUv;
+      fragmentShader: `uniform sampler2D tDiffuse; uniform sampler2D sceneTexture; uniform vec3 background; varying vec2 vUv;
         void main() { vec4 lit = texture2D(tDiffuse, vUv); vec4 base = texture2D(sceneTexture, vUv);
           float glow = max(max(lit.r - base.r, lit.g - base.g), lit.b - base.b);
           float alpha = clamp(max(base.a, glow), 0.0, 1.0);
-          gl_FragColor = vec4(lit.rgb, alpha); }`,
+          gl_FragColor = vec4(mix(background, lit.rgb, alpha), 1.0); }`,
     });
     composite.uniforms.sceneTexture.value = sceneTarget.texture;
     composer.addPass(renderPass); composer.addPass(bloom); composer.addPass(filmPass); composer.addPass(composite);

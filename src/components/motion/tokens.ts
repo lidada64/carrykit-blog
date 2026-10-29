@@ -44,7 +44,7 @@ export const motionTokens = {
       left: { yaw: Math.PI + .06, pitch: .045, distance: 4.8, target: [.15, -.1, .95] },
     },
   },
-  blogExpansion: { lead: 0.35, orbScale: 0.72 },
+  blogExpansion: { lead: 0.35, orbScale: 0.72, narrowOrbScale: 0.48 },
   /** 时长(秒):fast=hover 类、base=常规入场、slow=大区块入场 */
   duration: { fast: 0.2, base: 0.5, slow: 0.8 },
   /** 惯性滚动(ScrollSmoother):内容追赶原生滚动位置的时长(秒),越大惯性越明显 */

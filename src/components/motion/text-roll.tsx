@@ -113,7 +113,7 @@ export function TextRoll({
       // 1lh = 恰好一行高,溢出的两份副本被裁掉
       style={{ height: expanded ? "auto" : "1lh" }}
     >
-      <span className="flex flex-col">
+      <span key={expanded ? "expanded" : "rolling"} className="flex flex-col">
         <span>{text}</span>
         {/* 滚入副本用底色文字,与触发容器的 hover:bg-foreground 反色配合(A3) */}
         <span aria-hidden className={expanded ? "hidden" : "text-background"}>

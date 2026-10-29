@@ -22,5 +22,5 @@ export function blogMetadata(title: string, titleEn: string | null, content: str
   const key = category.toLowerCase();
   const color: "book" | "agent" | "notes" | "unknown" = key === "book" ? "book" : key === "agent" ? "agent" : key === "notes" ? "notes" : "unknown";
   const length = readingLength(content);
-  return { cleanTitle: parsed.title, cleanTitleEn: titleEn ? parseTitle(titleEn).title : null, tags: parsed.tags, category, color, depth: length < 1500 ? 0 : length < 5000 ? 1 : 2 };
+  return { cleanTitle: parsed.title, cleanTitleEn: titleEn ? parseTitle(titleEn).title : null, tags: parsed.tags, category, color, depth: [500, 1500, 3000, 5000, 8000, 12000].filter(threshold => length >= threshold).length };
 }
