@@ -166,6 +166,8 @@ export const en = {
     previewAnswer: "You can explore notes about books, design, and building a blog assistant.",
     previewReply: "This is a visual preview. Connect the assistant service for a real answer.",
 
+    articleList: "Articles",
+    categoryBook: "Book",
     uncategorized: "Uncategorized",
     assistantClick: "CLICK",
     assistantOpen: "Open blog assistant",
