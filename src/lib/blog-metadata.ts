@@ -20,7 +20,7 @@ export function blogMetadata(title: string, titleEn: string | null, content: str
   const parsed = parseTitle(title);
   const category = parsed.tags[0] || "";
   const key = category.toLowerCase();
-  const color: "book" | "agent" | "notes" | "unknown" = key === "book" ? "book" : key === "agent" ? "agent" : key === "notes" ? "notes" : "unknown";
+  const color: "book" | "agent" | "notes" | "unknown" = (key === "book" || key === "书") ? "book" : key === "agent" ? "agent" : key === "notes" ? "notes" : "unknown";
   const length = readingLength(content);
   return { cleanTitle: parsed.title, cleanTitleEn: titleEn ? parseTitle(titleEn).title : null, tags: parsed.tags, category, color, depth: [500, 1500, 3000, 5000, 8000, 12000].filter(threshold => length >= threshold).length };
 }

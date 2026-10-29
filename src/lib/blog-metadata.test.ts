@@ -21,3 +21,9 @@ test("category comes from original title and length thresholds are stable", () =
 test("link destinations and formatting do not count as reading text", () => {
   assert.equal(readingLength("# [Hello](https://example.com/path) **world**"), 10);
 });
+
+test("Chinese and English book labels use the book color", () => {
+  assert.equal(blogMetadata("[书] 标题", null, "").color, "book");
+  assert.equal(blogMetadata("[Book] Title", null, "").color, "book");
+  assert.equal(blogMetadata("无分类", null, "").color, "unknown");
+});
